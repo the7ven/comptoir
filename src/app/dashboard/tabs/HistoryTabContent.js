@@ -14,8 +14,7 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
   const [showAllDays, setShowAllDays] = useState(false);
   const [monthlyData, setMonthlyData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('mois'); // 'jour', 'semaine', 'mois'
-  
+  const [timeFilter, setTimeFilter] = useState('mois'); 
   const currentMonth = useMemo(() => new Date(selectedDate).getMonth(), [selectedDate]);
   const currentYear = useMemo(() => new Date(selectedDate).getFullYear(), [selectedDate]);
 
@@ -23,7 +22,7 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
     fetchHistory();
   }, [selectedDate, timeFilter]);
 
- const fetchHistory = async () => {
+  const fetchHistory = async () => {
     try {
       setLoading(true);
       
@@ -42,7 +41,6 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
         startDate = new Date(date.setDate(first)).toISOString();
         endDate = new Date(date.setDate(first + 6)).toISOString();
       } else {
-        // Attention : assure-toi que currentYear et currentMonth sont définis dans ton composant
         startDate = new Date(currentYear, currentMonth, 1).toISOString();
         endDate = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
       }
@@ -51,7 +49,7 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .eq('restaurant_id', user.id) // FILTRE CRITIQUE : Seules mes transactions
+        .eq('restaurant_id', user.id) 
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
@@ -70,7 +68,6 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
 
   const processTransactions = (data, filter) => {
     if (filter === 'jour') {
-      // Groupage par heure pour la journée
       return Array.from({ length: 24 }, (_, i) => {
         const hourTrans = data.filter(t => new Date(t.created_at).getHours() === i);
         const total = hourTrans.reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -78,14 +75,12 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
           date: `${i}h00`,
           total: total.toLocaleString() + " F",
           rawTotal: total,
-          // occupancy : calcul basé uniquement sur les transactions du restaurant
           occupancy: Math.min(Math.round((hourTrans.length / 10) * 100), 100),
           label: `${i}h`
         };
       });
     }
     
-    // Par défaut (semaine/mois), groupage par jour
     const uniqueDays = [...new Set(data.map(t => t.created_at.split('T')[0]))];
     return uniqueDays.map(dateStr => {
       const dayTrans = data.filter(t => t.created_at.startsWith(dateStr));
@@ -99,6 +94,11 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
       };
     });
   };
+
+  // --- DEFINITIONS DES DONNEES POUR LE RENDU ---
+  const chartData = useMemo(() => [...monthlyData].reverse(), [monthlyData]);
+  const displayedHistory = showAllDays ? monthlyData : monthlyData.slice(0, 5);
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-40 opacity-30">
       <Loader2 className="animate-spin mb-4 text-[#00D9FF]" size={40} />
@@ -128,9 +128,9 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
       {/* --- GRAPHIQUES --- */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-12">
         <div className={`xl:col-span-2 p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-           <h4 className="text-[10px] font-black flex items-center gap-2 mb-8 uppercase opacity-60"><TrendingUp size={18} className="text-[#00D9FF]" /> Volume financier</h4>
-           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <h4 className="text-[10px] font-black flex items-center gap-2 mb-8 uppercase opacity-60"><TrendingUp size={18} className="text-[#00D9FF]" /> Volume financier</h4>
+            <div className="h-64 w-full">
+             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -140,18 +140,20 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fill: '#666', fontSize: 10}} />
+                <YAxis hide />
                 <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#111' : '#fff', borderRadius: '12px', border: 'none' }} />
                 <Area type="monotone" dataKey="rawTotal" stroke="#00D9FF" strokeWidth={4} fill="url(#colorTotal)" />
               </AreaChart>
             </ResponsiveContainer>
-           </div>
+            </div>
         </div>
         <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-           <h4 className="text-[10px] font-black flex items-center gap-2 mb-8 uppercase opacity-60"><Grid size={18} className="text-purple-500" /> Fréquentation (%)</h4>
-           <div className="h-64 w-full">
+            <h4 className="text-[10px] font-black flex items-center gap-2 mb-8 uppercase opacity-60"><Grid size={18} className="text-purple-500" /> Fréquentation (%)</h4>
+            <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fill: '#666', fontSize: 9}} />
+                <YAxis hide />
                 <Bar dataKey="occupancy" radius={[4, 4, 4, 4]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.occupancy > 70 ? '#A259FF' : '#00D9FF'} fillOpacity={0.5} />
@@ -159,7 +161,7 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-           </div>
+            </div>
         </div>
       </div>
 
@@ -179,15 +181,21 @@ export default function HistoryTabContent({ isDarkMode, selectedDate }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.02]">
-              {displayedHistory.map((day, idx) => (
-                <tr key={idx} className="group hover:bg-white/[0.01] transition-colors">
-                  <td className="px-8 py-6 font-bold text-sm">{day.date}</td>
-                  <td className="px-8 py-6 font-black text-[#00D9FF]">{day.total}</td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-[9px] font-black uppercase">stable</div>
-                  </td>
+              {displayedHistory.length === 0 ? (
+                <tr>
+                  <td colSpan="3" className="px-8 py-10 text-center opacity-20 italic">Aucune donnée trouvée</td>
                 </tr>
-              ))}
+              ) : (
+                displayedHistory.map((day, idx) => (
+                  <tr key={idx} className="group hover:bg-white/[0.01] transition-colors">
+                    <td className="px-8 py-6 font-bold text-sm">{day.date}</td>
+                    <td className="px-8 py-6 font-black text-[#00D9FF]">{day.total}</td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-[9px] font-black uppercase">stable</div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

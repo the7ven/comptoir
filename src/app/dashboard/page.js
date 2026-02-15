@@ -6,7 +6,7 @@ import {
   Wallet, Plus, Grid, Flame, TrendingUp, Clock, CheckCircle2,
   Menu as MenuIcon, X, ChevronDown, Sun, Moon, Package, FileText,
   ShoppingBag, History, ArrowRight, Calendar as CalendarIcon, Settings2,
-  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2
+  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
@@ -49,14 +49,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const initApp = async () => {
       try {
-        // 1. Récupérer l'utilisateur
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
           router.replace('/auth/login');
           return;
         }
 
-        // 2. Récupérer le profil (requête simple)
         const { data: profile } = await supabase
           .from('restaurants')
           .select('*')
@@ -68,7 +66,6 @@ export default function AdminDashboard() {
           setIsActive(profile.is_active);
           setUserProfile(profile);
         } else {
-          // Si pas de profil, on évite le crash et on met des valeurs par défaut
           setRestaurantName("Nouveau Restaurant");
           setIsActive(false);
         }
@@ -100,7 +97,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // PROTECTION : Si pas actif ET pas super admin -> Écran d'attente
   if (!isActive && !userProfile?.is_super_admin) {
     return <AccountInactiveScreen restaurantName={restaurantName} handleLogout={handleLogout} />;
   }
@@ -126,22 +122,36 @@ export default function AdminDashboard() {
   return (
     <div className={`min-h-screen transition-colors duration-500 font-[family-name:var(--font-lexend)] flex overflow-x-hidden ${isDarkMode ? "bg-[#050505] text-white" : "bg-[#F9FAFB] text-[#1F2937]"}`}>
       
+      {/* OVERLAY MOBILE */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       <aside className={`fixed inset-y-0 left-0 z-[200] w-72 border-r transition-all duration-300 lg:translate-x-0 lg:static lg:h-screen flex flex-col p-6 ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-200 shadow-xl"} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF] mb-10">
-          <LayoutDashboard size={28} /> <span>RestoPay Admin</span>
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF]">
+            <LayoutDashboard size={28} /> <span>RestoPay Admin</span>
+          </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 opacity-50">
+            <X size={24} />
+          </button>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar text-left">
-          <NavItem isDarkMode={isDarkMode} icon={<TrendingUp size={20} />} label="Vue d'ensemble" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
-          <NavItem isDarkMode={isDarkMode} icon={<ShoppingBag size={20} />} label="Commandes" active={activeTab === "orders"} onClick={() => setActiveTab("orders")} />
-          <NavItem isDarkMode={isDarkMode} icon={<UtensilsCrossed size={20} />} label="Menu & Plats" active={activeTab === "menu"} onClick={() => setActiveTab("menu")} />
-          <NavItem isDarkMode={isDarkMode} icon={<Grid size={20} />} label="Plan de Salle" active={activeTab === "tables"} onClick={() => setActiveTab("tables")} />
-          <NavItem isDarkMode={isDarkMode} icon={<Wallet size={20} />} label="Caisse" active={activeTab === "cashier"} onClick={() => setActiveTab("cashier")} />
-          <NavItem isDarkMode={isDarkMode} icon={<Package size={20} />} label="Stocks" active={activeTab === "stock"} onClick={() => setActiveTab("stock")} />
-          <NavItem isDarkMode={isDarkMode} icon={<Users size={20} />} label="Staff" active={activeTab === "staff"} onClick={() => setActiveTab("staff")} />
-          <NavItem isDarkMode={isDarkMode} icon={<History size={20} />} label="Historique" active={activeTab === "history"} onClick={() => setActiveTab("history")} />
-          <NavItem isDarkMode={isDarkMode} icon={<FileText size={20} />} label="Dépenses" active={activeTab === "expenses"} onClick={() => setActiveTab("expenses")} />
-          <NavItem isDarkMode={isDarkMode} icon={<Settings size={20} />} label="Paramètres" active={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+          <NavItem isDarkMode={isDarkMode} icon={<TrendingUp size={20} />} label="Vue d'ensemble" active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<ShoppingBag size={20} />} label="Commandes" active={activeTab === "orders"} onClick={() => { setActiveTab("orders"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<UtensilsCrossed size={20} />} label="Menu & Plats" active={activeTab === "menu"} onClick={() => { setActiveTab("menu"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<Grid size={20} />} label="Plan de Salle" active={activeTab === "tables"} onClick={() => { setActiveTab("tables"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<Wallet size={20} />} label="Caisse" active={activeTab === "cashier"} onClick={() => { setActiveTab("cashier"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<Package size={20} />} label="Stocks" active={activeTab === "stock"} onClick={() => { setActiveTab("stock"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<BarChart size={20} />} label="Rapports" active={activeTab === "reports"} onClick={() => { setActiveTab("reports"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<Users size={20} />} label="Staff" active={activeTab === "staff"} onClick={() => { setActiveTab("staff"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<History size={20} />} label="Historique" active={activeTab === "history"} onClick={() => { setActiveTab("history"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<FileText size={20} />} label="Dépenses" active={activeTab === "expenses"} onClick={() => { setActiveTab("expenses"); setIsSidebarOpen(false); }} />
+          <NavItem isDarkMode={isDarkMode} icon={<Settings size={20} />} label="Paramètres" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} />
         </nav>
 
         {userProfile?.is_super_admin && (
@@ -158,9 +168,14 @@ export default function AdminDashboard() {
 
       <main className="flex-1 p-4 lg:p-8 w-full max-h-screen overflow-y-auto">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6 text-left">
-          <div className="text-left">
-            <h2 className={`text-xl lg:text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-gray-900"}`}>Bonjour, {restaurantName}</h2>
-            <p className="text-[#888] text-xs lg:text-base font-medium uppercase italic">Manager @ RestoPay Cloud</p>
+          <div className="flex items-center gap-4 text-left">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 rounded-xl bg-[#00D9FF]/10 text-[#00D9FF]">
+              <MenuIcon size={24} />
+            </button>
+            <div className="text-left">
+              <h2 className={`text-xl lg:text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-gray-900"}`}>Bonjour, {restaurantName}</h2>
+              <p className="text-[#888] text-xs lg:text-base font-medium uppercase italic text-left">Manager @ RestoPay Cloud</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <input type="date" ref={dateInputRef} value={selectedDateISO} onChange={(e) => {
@@ -224,7 +239,7 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
         <Wallet size={120} className="absolute top-0 right-0 p-8 opacity-5 text-[#00D9FF]" />
         <div className="relative z-10 text-left">
           <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.2em] mb-2 text-left">Recettes du jour</p>
-          <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold">FCFA</span></h2>
+          <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold text-left">FCFA</span></h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8 pt-6 border-t border-white/5">
             <PaymentMiniStat label="Espèces" value={realStats.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
             <PaymentMiniStat label="Orange Money" value={realStats.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
@@ -261,7 +276,7 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
           </div>
         </div>
         <div className={`border rounded-[32px] p-8 ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-          <h3 className="text-xl font-bold mb-6 uppercase tracking-tighter italic text-left">Top Plats <Flame size={18} className="text-orange-500" /></h3>
+          <h3 className="text-xl font-bold mb-6 uppercase tracking-tighter italic text-left">Top Plats <Flame size={18} className="text-orange-500 text-left" /></h3>
           <div className="space-y-6">
             {realStats.popularItems.map((item, i) => (
               <PopularItem key={i} name={item.name} count={`${item.count} fois`} trend={i === 0 ? "Bestseller" : ""} />
@@ -293,8 +308,8 @@ function PaymentMiniStat({ label, value, icon, color }) {
     <div className="flex items-center gap-3 text-left">
       <div className={`p-2.5 rounded-xl ${colors[color]}`}>{icon}</div>
       <div className="text-left">
-        <p className="text-[9px] uppercase font-black opacity-40 tracking-widest">{label}</p>
-        <p className="text-sm font-black">{value?.toLocaleString()} F</p>
+        <p className="text-[9px] uppercase font-black opacity-40 tracking-widest text-left">{label}</p>
+        <p className="text-sm font-black text-left">{value?.toLocaleString()} F</p>
       </div>
     </div>
   );
@@ -306,10 +321,10 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
       onClick={onClick} 
       className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm border-none cursor-pointer group
         ${active 
-          ? "bg-[#00D9FF] text-black shadow-[0_0_20px_rgba(0,217,255,0.4)]" // Actif : Fond Cyan, Texte Noir
+          ? "bg-[#00D9FF] text-black shadow-[0_0_20px_rgba(0,217,255,0.4)]" 
           : isDarkMode 
-            ? "bg-transparent text-gray-100 hover:bg-white/10 hover:text-white" // Inactif DARK : Texte BLANC/GRIS CLAIR
-            : "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900" // Inactif LIGHT : Texte GRIS FONCÉ
+            ? "bg-transparent text-gray-100 hover:bg-white/10 hover:text-white" 
+            : "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900" 
         }`}
     >
       <span className={`transition-colors ${
@@ -331,7 +346,7 @@ function OrderRow({ table, dishes, total, status, isDarkMode }) {
     <div className={`flex items-center justify-between p-4 border rounded-2xl ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-gray-50 border-gray-100 shadow-sm"}`}>
       <div className="flex items-center gap-4 text-left">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-[#00D9FF]/10 text-[#00D9FF]">{table}</div>
-        <div className="text-left"><h4 className="font-bold text-sm uppercase">{dishes}</h4><p className="text-[10px] opacity-40">{total}</p></div>
+        <div className="text-left"><h4 className="font-bold text-sm uppercase text-left">{dishes}</h4><p className="text-[10px] opacity-40 text-left">{total}</p></div>
       </div>
       <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-[#00D9FF]/10 text-[#00D9FF]">{status}</span>
     </div>
@@ -341,7 +356,7 @@ function OrderRow({ table, dishes, total, status, isDarkMode }) {
 function PopularItem({ name, count, trend }) {
   return (
     <div className="flex justify-between items-center text-left">
-      <div className="text-left"><h4 className="font-bold text-sm uppercase">{name}</h4><p className="text-xs opacity-50">{count}</p></div>
+      <div className="text-left"><h4 className="font-bold text-sm uppercase text-left">{name}</h4><p className="text-xs opacity-50 text-left">{count}</p></div>
       <span className="text-[10px] font-black text-green-500 uppercase italic">{trend}</span>
     </div>
   );
