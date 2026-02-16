@@ -31,7 +31,6 @@ import SettingsTabContent from './tabs/SettingsTabContent';
 export default function AdminDashboard() {
   const router = useRouter();
   const { isDarkMode, toggleTheme } = useTheme();
-  
   const [mounted, setMounted] = useState(false);
   const [authLoading, setAuthLoading] = useState(true); 
   const [userProfile, setUserProfile] = useState(null); 
@@ -46,41 +45,55 @@ export default function AdminDashboard() {
   const [cart, setCart] = useState([]);
   const [pendingOrder, setPendingOrder] = useState(null);
 
-  useEffect(() => {
-    const initApp = async () => {
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          router.replace('/auth/login');
-          return;
-        }
+ // Dans AdminDashboard.js
+useEffect(() => {
+  const checkAuth = async () => {
+    try {
+      // 1. On récupère la session
+      const { data: { session } } = await supabase.auth.getSession();
 
-        const { data: profile } = await supabase
-          .from('restaurants')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-        
-        if (profile) {
-          setRestaurantName(profile.name);
-          setIsActive(profile.is_active);
-          setUserProfile(profile);
-        } else {
-          setRestaurantName("Nouveau Restaurant");
-          setIsActive(false);
-        }
-
-        const now = new Date();
-        setCurrentDateDisplay(now.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }));
-        setAuthLoading(false);
-        setMounted(true);
-      } catch (err) {
-        console.error("Crash initialisation:", err);
+      if (!session) {
+        router.replace('/auth/login');
+        return;
       }
-    };
 
-    initApp();
-  }, [router]);
+      // 2. On récupère le profil avec une politique de "fail-safe"
+      const { data: profile, error } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error || !profile) {
+        // Si l'utilisateur est authentifié mais n'a pas de ligne dans 'restaurants'
+        console.error("Profil manquant ou erreur");
+        router.replace('/auth/login');
+        return;
+      }
+
+      // 3. Mise à jour des états
+      setUserProfile(profile);
+      setRestaurantName(profile.name);
+      setIsActive(profile.is_active);
+      setAuthLoading(false);
+      setMounted(true);
+
+    } catch (err) {
+      router.replace('/auth/login');
+    }
+  };
+
+  checkAuth();
+
+  // 4. Écouter les changements d'état (ex: déconnexion dans un autre onglet)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      router.replace('/auth/login');
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, [router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
