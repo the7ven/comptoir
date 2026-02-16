@@ -6,7 +6,7 @@ import {
   Wallet, Plus, Grid, Flame, TrendingUp, Clock, CheckCircle2,
   Menu as MenuIcon, X, ChevronDown, Sun, Moon, Package, FileText,
   ShoppingBag, History, ArrowRight, Calendar as CalendarIcon, Settings2,
-  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart
+  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
@@ -40,66 +40,78 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedDateISO, setSelectedDateISO] = useState(new Date().toISOString().split('T')[0]);
   const [currentDateDisplay, setCurrentDateDisplay] = useState("");
-  
   const dateInputRef = useRef(null);
   const [cart, setCart] = useState([]);
   const [pendingOrder, setPendingOrder] = useState(null);
 
  // Dans AdminDashboard.js
 useEffect(() => {
+  let isMounted = true;
+  
   const checkAuth = async () => {
+    // Sécurité : Timeout après 5s pour éviter le chargement infini
+    const timeout = setTimeout(() => {
+      if (isMounted && authLoading) {
+        console.error("⏱️ Timeout : La session met trop de temps à répondre.");
+        setAuthLoading(false);
+      }
+    }, 5000);
+
     try {
-      // 1. On récupère la session
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        router.replace('/auth/login');
+        if (isMounted) router.replace('/auth/login');
         return;
       }
 
-      // 2. On récupère le profil avec une politique de "fail-safe"
+      // On récupère le profil
       const { data: profile, error } = await supabase
         .from('restaurants')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !profile) {
-        // Si l'utilisateur est authentifié mais n'a pas de ligne dans 'restaurants'
-        console.error("Profil manquant ou erreur");
-        router.replace('/auth/login');
-        return;
+      if (error) throw error;
+
+      if (isMounted) {
+        if (!profile) {
+          console.warn("Profil introuvable");
+          router.replace('/auth/login');
+          return;
+        }
+        setUserProfile(profile);
+        setRestaurantName(profile.name);
+        setIsActive(profile.is_active);
+        setAuthLoading(false);
+        setMounted(true);
       }
-
-      // 3. Mise à jour des états
-      setUserProfile(profile);
-      setRestaurantName(profile.name);
-      setIsActive(profile.is_active);
-      setAuthLoading(false);
-      setMounted(true);
-
     } catch (err) {
-      router.replace('/auth/login');
+      console.error("Erreur Auth:", err.message);
+      if (isMounted) router.replace('/auth/login');
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
   checkAuth();
 
-  // 4. Écouter les changements d'état (ex: déconnexion dans un autre onglet)
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT') {
-      router.replace('/auth/login');
-    }
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT' && isMounted) router.replace('/auth/login');
   });
 
-  return () => subscription.unsubscribe();
+  return () => {
+    isMounted = false;
+    subscription.unsubscribe();
+  };
 }, [router]);
+ 
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');
-  };
+  }
 
   if (authLoading || !mounted) {
     return (
@@ -214,20 +226,33 @@ useEffect(() => {
 // --- SOUS-COMPOSANTS ---
 
 function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
-  const [realStats, setRealStats] = useState({ dayTotal: 0, byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0 }, chartData: [], popularItems: [] });
+  const [realStats, setRealStats] = useState({ 
+    dayTotal: 0, 
+    dayExpenses: 0, // Ajouté
+    netProfit: 0,    // Ajouté
+    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0 }, 
+    chartData: [], 
+    popularItems: [] 
+  });
   const [recentOrders, setRecentOrders] = useState([]);
 
   useEffect(() => {
     const fetchRealData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
       const start = `${selectedDate}T00:00:00.000Z`;
       const end = `${selectedDate}T23:59:59.999Z`;
       
-      const { data: transData } = await supabase.from('transactions').select('*').eq('restaurant_id', user.id).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false });
+      // 1. Récupérer Transactions
+      const { data: transData } = await supabase.from('transactions').select('*').eq('restaurant_id', session.user.id).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false });
+
+      // 2. Récupérer Dépenses (Ajouté)
+      const { data: expData } = await supabase.from('expenses').select('amount').eq('restaurant_id', session.user.id).gte('created_at', start).lte('created_at', end);
 
       if (transData) {
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
+        const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0; 
+        
         const methods = transData.reduce((acc, curr) => {
           const m = curr.payment_method || "Espèces";
           acc[m] = (acc[m] || 0) + Number(curr.amount);
@@ -239,7 +264,14 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
         const sortedItems = Object.entries(itemCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 3);
         const hourlySales = [...Array(24)].map((_, h) => ({ day: `${h}h`, sales: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0) }));
 
-        setRealStats({ dayTotal: total, byMethod: methods, chartData: hourlySales, popularItems: sortedItems });
+        setRealStats({ 
+          dayTotal: total, 
+          dayExpenses: totalExp, 
+          netProfit: total - totalExp, 
+          byMethod: methods, 
+          chartData: hourlySales, 
+          popularItems: sortedItems 
+        });
         setRecentOrders(transData.slice(0, 4));
       }
     };
@@ -251,12 +283,25 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
       <div onClick={() => setActiveTab("cashier")} className={`mb-8 p-8 rounded-[32px] border cursor-pointer relative overflow-hidden group ${isDarkMode ? "bg-[#0a0a0a] border-[#00D9FF]/20" : "bg-white border-cyan-100 shadow-xl"}`}>
         <Wallet size={120} className="absolute top-0 right-0 p-8 opacity-5 text-[#00D9FF]" />
         <div className="relative z-10 text-left">
-          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.2em] mb-2 text-left">Recettes du jour</p>
-          <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold text-left">FCFA</span></h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8 pt-6 border-t border-white/5">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.2em] mb-2 text-left">Chiffre d'Affaires</p>
+              <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold text-left">F</span></h2>
+            </div>
+            {/* Nouveau Badge de Bénéfice Net */}
+            <div className="text-right">
+              <p className="text-[9px] font-black uppercase opacity-40 mb-1">Bénéfice Net</p>
+              <p className={`text-xl font-black ${realStats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {realStats.netProfit.toLocaleString()} F
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mt-8 pt-6 border-t border-white/5">
             <PaymentMiniStat label="Espèces" value={realStats.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
             <PaymentMiniStat label="Orange Money" value={realStats.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
             <PaymentMiniStat label="Wave" value={realStats.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
+            <PaymentMiniStat label="Dépenses" value={realStats.dayExpenses} icon={<ArrowDownCircle size={16}/>} color="red" />
           </div>
         </div>
       </div>
@@ -316,7 +361,7 @@ function AccountInactiveScreen({ restaurantName, handleLogout }) {
 }
 
 function PaymentMiniStat({ label, value, icon, color }) {
-  const colors = { green: "bg-green-500/10 text-green-500", orange: "bg-orange-500/10 text-orange-500", blue: "bg-blue-500/10 text-blue-500" };
+  const colors = { green: "bg-green-500/10 text-green-500", orange: "bg-orange-500/10 text-orange-500", blue: "bg-blue-500/10 text-blue-500" ,red: "bg-red-500/10 text-red-500"};
   return (
     <div className="flex items-center gap-3 text-left">
       <div className={`p-2.5 rounded-xl ${colors[color]}`}>{icon}</div>
