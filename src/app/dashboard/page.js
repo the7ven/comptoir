@@ -44,12 +44,10 @@ export default function AdminDashboard() {
   const [cart, setCart] = useState([]);
   const [pendingOrder, setPendingOrder] = useState(null);
 
- // Dans AdminDashboard.js
 useEffect(() => {
   let isMounted = true;
   
   const checkAuth = async () => {
-    // Sécurité : Timeout après 5s pour éviter le chargement infini
     const timeout = setTimeout(() => {
       if (isMounted && authLoading) {
         console.error("⏱️ Timeout : La session met trop de temps à répondre.");
@@ -65,7 +63,6 @@ useEffect(() => {
         return;
       }
 
-      // On récupère le profil
       const { data: profile, error } = await supabase
         .from('restaurants')
         .select('*')
@@ -147,7 +144,6 @@ useEffect(() => {
   return (
     <div className={`min-h-screen transition-colors duration-500 font-[family-name:var(--font-lexend)] flex overflow-x-hidden ${isDarkMode ? "bg-[#050505] text-white" : "bg-[#F9FAFB] text-[#1F2937]"}`}>
       
-      {/* OVERLAY MOBILE */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] lg:hidden"
@@ -226,10 +222,11 @@ useEffect(() => {
 // --- SOUS-COMPOSANTS ---
 
 function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
+  const [timeRange, setTimeRange] = useState("day"); 
   const [realStats, setRealStats] = useState({ 
     dayTotal: 0, 
-    dayExpenses: 0, // Ajouté
-    netProfit: 0,    // Ajouté
+    dayExpenses: 0, 
+    netProfit: 0, 
     byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0 }, 
     chartData: [], 
     popularItems: [] 
@@ -240,13 +237,25 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
     const fetchRealData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const start = `${selectedDate}T00:00:00.000Z`;
-      const end = `${selectedDate}T23:59:59.999Z`;
-      
-      // 1. Récupérer Transactions
-      const { data: transData } = await supabase.from('transactions').select('*').eq('restaurant_id', session.user.id).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false });
 
-      // 2. Récupérer Dépenses (Ajouté)
+      let start, end;
+      const now = new Date(selectedDate);
+
+      if (timeRange === "day") {
+        start = `${selectedDate}T00:00:00.000Z`;
+        end = `${selectedDate}T23:59:59.999Z`;
+      } else if (timeRange === "week") {
+        const first = now.getDate() - now.getDay(); 
+        const firstDay = new Date(new Date(selectedDate).setDate(first)).toISOString().split('T')[0];
+        start = `${firstDay}T00:00:00.000Z`;
+        end = `${selectedDate}T23:59:59.999Z`;
+      } else {
+        const firstDay = `${selectedDate.substring(0, 7)}-01`;
+        start = `${firstDay}T00:00:00.000Z`;
+        end = `${selectedDate}T23:59:59.999Z`;
+      }
+      
+      const { data: transData } = await supabase.from('transactions').select('*').eq('restaurant_id', session.user.id).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false });
       const { data: expData } = await supabase.from('expenses').select('amount').eq('restaurant_id', session.user.id).gte('created_at', start).lte('created_at', end);
 
       if (transData) {
@@ -262,6 +271,7 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
         const itemCounts = {};
         transData.forEach(t => { if (t.items) t.items.forEach(item => { itemCounts[item.name] = (itemCounts[item.name] || 0) + 1; }); });
         const sortedItems = Object.entries(itemCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 3);
+        
         const hourlySales = [...Array(24)].map((_, h) => ({ day: `${h}h`, sales: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0) }));
 
         setRealStats({ 
@@ -276,19 +286,34 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
       }
     };
     fetchRealData();
-  }, [selectedDate]);
+  }, [selectedDate, timeRange]);
 
   return (
     <div className="fade-in text-left">
+      <div className="flex gap-2 mb-6">
+        {["day", "week", "month"].map((range) => (
+          <button
+            key={range}
+            onClick={() => setTimeRange(range)}
+            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              timeRange === range 
+                ? "bg-[#00D9FF] text-black shadow-lg shadow-cyan-500/20" 
+                : isDarkMode ? "bg-white/5 text-white/40 hover:bg-white/10" : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {range === "day" ? "Jour" : range === "week" ? "Semaine" : "Mois"}
+          </button>
+        ))}
+      </div>
+
       <div onClick={() => setActiveTab("cashier")} className={`mb-8 p-8 rounded-[32px] border cursor-pointer relative overflow-hidden group ${isDarkMode ? "bg-[#0a0a0a] border-[#00D9FF]/20" : "bg-white border-cyan-100 shadow-xl"}`}>
         <Wallet size={120} className="absolute top-0 right-0 p-8 opacity-5 text-[#00D9FF]" />
         <div className="relative z-10 text-left">
-          <div className="flex justify-between items-start mb-2">
-            <div>
+          <div className="flex justify-between items-start mb-2 text-left">
+            <div className="text-left">
               <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.2em] mb-2 text-left">Chiffre d'Affaires</p>
-              <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold text-left">F</span></h2>
+              <h2 className="text-4xl lg:text-6xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-xl opacity-50 font-bold">F</span></h2>
             </div>
-            {/* Nouveau Badge de Bénéfice Net */}
             <div className="text-right">
               <p className="text-[9px] font-black uppercase opacity-40 mb-1">Bénéfice Net</p>
               <p className={`text-xl font-black ${realStats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -334,8 +359,8 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
           </div>
         </div>
         <div className={`border rounded-[32px] p-8 ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-          <h3 className="text-xl font-bold mb-6 uppercase tracking-tighter italic text-left">Top Plats <Flame size={18} className="text-orange-500 text-left" /></h3>
-          <div className="space-y-6">
+          <h3 className="text-xl font-bold mb-6 uppercase tracking-tighter italic text-left">Top Plats <Flame size={18} className="text-orange-500" /></h3>
+          <div className="space-y-6 text-left">
             {realStats.popularItems.map((item, i) => (
               <PopularItem key={i} name={item.name} count={`${item.count} fois`} trend={i === 0 ? "Bestseller" : ""} />
             ))}
@@ -352,7 +377,7 @@ function AccountInactiveScreen({ restaurantName, handleLogout }) {
       <div className="max-w-md w-full space-y-8 p-10 rounded-[50px] border border-white/5 bg-[#0a0a0a] shadow-2xl">
         <Clock size={60} className="text-[#00D9FF] mx-auto animate-pulse" />
         <h2 className="text-3xl font-black italic text-white uppercase text-center">Activation en cours</h2>
-        <p className="text-white/40 text-sm text-center">Bienvenue, <span className="text-[#00D9FF]">{restaurantName}</span>. Votre console de gestion sera accessible dès validation de votre compte.</p>
+        <p className="text-white/40 text-sm">Bienvenue, <span className="text-[#00D9FF]">{restaurantName}</span>. Votre console de gestion sera accessible dès validation de votre compte.</p>
         <button onClick={() => window.location.reload()} className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase text-xs">Vérifier le statut</button>
         <button onClick={handleLogout} className="w-full py-4 text-red-500 font-bold uppercase text-xs bg-transparent border-none cursor-pointer">Se déconnecter</button>
       </div>
@@ -361,7 +386,12 @@ function AccountInactiveScreen({ restaurantName, handleLogout }) {
 }
 
 function PaymentMiniStat({ label, value, icon, color }) {
-  const colors = { green: "bg-green-500/10 text-green-500", orange: "bg-orange-500/10 text-orange-500", blue: "bg-blue-500/10 text-blue-500" ,red: "bg-red-500/10 text-red-500"};
+  const colors = { 
+    green: "bg-green-500/10 text-green-500", 
+    orange: "bg-orange-500/10 text-orange-500", 
+    blue: "bg-blue-500/10 text-blue-500",
+    red: "bg-red-500/10 text-red-500"
+  };
   return (
     <div className="flex items-center gap-3 text-left">
       <div className={`p-2.5 rounded-xl ${colors[color]}`}>{icon}</div>
@@ -385,16 +415,10 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
             : "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900" 
         }`}
     >
-      <span className={`transition-colors ${
-        active 
-          ? "text-black" 
-          : "text-[#00D9FF] group-hover:scale-110"
-      }`}>
+      <span className={`transition-colors ${active ? "text-black" : "text-[#00D9FF] group-hover:scale-110"}`}>
         {icon}
       </span>
-      <span className="tracking-tight">
-        {label}
-      </span>
+      <span className="tracking-tight">{label}</span>
     </button>
   );
 }
@@ -404,7 +428,7 @@ function OrderRow({ table, dishes, total, status, isDarkMode }) {
     <div className={`flex items-center justify-between p-4 border rounded-2xl ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-gray-50 border-gray-100 shadow-sm"}`}>
       <div className="flex items-center gap-4 text-left">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-[#00D9FF]/10 text-[#00D9FF]">{table}</div>
-        <div className="text-left"><h4 className="font-bold text-sm uppercase text-left">{dishes}</h4><p className="text-[10px] opacity-40 text-left">{total}</p></div>
+        <div className="text-left"><h4 className="font-bold text-sm uppercase">{dishes}</h4><p className="text-[10px] opacity-40">{total}</p></div>
       </div>
       <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-[#00D9FF]/10 text-[#00D9FF]">{status}</span>
     </div>
@@ -414,7 +438,7 @@ function OrderRow({ table, dishes, total, status, isDarkMode }) {
 function PopularItem({ name, count, trend }) {
   return (
     <div className="flex justify-between items-center text-left">
-      <div className="text-left"><h4 className="font-bold text-sm uppercase text-left">{name}</h4><p className="text-xs opacity-50 text-left">{count}</p></div>
+      <div className="text-left"><h4 className="font-bold text-sm uppercase">{name}</h4><p className="text-xs opacity-50">{count}</p></div>
       <span className="text-[10px] font-black text-green-500 uppercase italic">{trend}</span>
     </div>
   );

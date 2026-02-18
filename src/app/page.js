@@ -264,7 +264,7 @@ export default function LandingPage() {
         </div>
       </header>
       
-      {/* ... Le reste du code (Logo strip, why, services, etc.) reste identique */}
+      
       <div
         className={`py-12 border-y transition-colors ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-white border-slate-100 shadow-sm"}`}
       >
@@ -331,200 +331,107 @@ export default function LandingPage() {
       </section>
 
       {/* --- SECTION SERVICES COMPLÈTE  --- */}
-      <section
-        id="services"
-        className="py-32 px-[8%] max-w-7xl mx-auto space-y-40"
-      >
-        <div className="text-left lg:text-center mb-32 space-y-4">
-          <h2 className="text-4xl md:text-6xl font-black tracking-tighter italic">
-            L'Art de la Gestion.
-          </h2>
-          <p className="opacity-40 max-w-xl mx-auto font-light text-lg">
-            Une suite d'outils sculptée pour offrir une fluidité absolue à vos
-            équipes et une clarté totale à votre direction.
-          </p>
-        </div>
+  <section
+  id="services"
+  className={`py-32 px-[8%] max-w-[1600px] mx-auto space-y-60 transition-colors duration-500 ${isDarkMode ? "bg-[#030303]" : "bg-[#FAFBFF]"}`}
+>
+  {/* TITRE DE SECTION */}
+  <div className="text-left lg:text-center mb-40 space-y-4">
+    <h2 className="text-5xl md:text-8xl font-[900] tracking-tighter italic uppercase leading-none">
+      L'Ingénierie du <span className="text-cyan-500">Succès.</span>
+    </h2>
+    <p className="opacity-40 max-w-2xl mx-auto font-light text-xl text-left lg:text-center">
+      Une suite d'outils sculptée pour offrir une fluidité absolue à vos équipes et une clarté totale à votre direction.
+    </p>
+  </div>
 
-        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
-          <div className="flex-1 space-y-8 text-left">
-            <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 flex items-center justify-center text-cyan-500">
-              <Grid size={32} />
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight">
-              Plan de Salle Interactif
-            </h3>
-            <p className="text-lg opacity-50 font-light leading-relaxed italic">
-              Visualisez votre établissement en temps réel. Gérez les
-              occupations, les additions en attente et optimisez la rotation de
-              vos tables avec une précision chirurgicale.
-            </p>
-            <ul className="space-y-4 font-bold text-sm opacity-80 uppercase tracking-widest">
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-cyan-500" /> Statut des
-                tables en direct
-              </li>
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-cyan-500" /> Gestion
-                intuitive des additions
-              </li>
-            </ul>
-          </div>
-          <div
-            className={`flex-1 w-full aspect-video rounded-[50px] border relative overflow-hidden group ${isDarkMode ? "bg-white/[0.03] border-white/10" : "bg-white border-slate-200 shadow-2xl"}`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <img
-              src="/api/placeholder/800/600"
-              alt="Plan de salle"
-              className="w-full h-full object-cover grayscale-[50%] group-hover:grayscale-0 transition-all duration-700"
-            />
-          </div>
+  <div className="space-y-60">
+    {/* 1. PLAN DE SALLE */}
+    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+      <div className="flex-[0.8] space-y-8 text-left">
+        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 flex items-center justify-center text-cyan-500"><Grid size={32} /></div>
+        <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Plan de Salle <br /> Interactif</h3>
+        <p className="text-xl opacity-50 font-light leading-relaxed text-left">Visualisez votre établissement en temps réel. Gérez les occupations et optimisez la rotation avec une précision chirurgicale.</p>
+        <div className="flex flex-col gap-4 font-black text-xs uppercase tracking-widest opacity-60 text-left">
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-cyan-500" /> Statut des tables en direct</span>
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-cyan-500" /> Gestion intuitive des additions</span>
         </div>
+      </div>
+      <div className="flex-[1.2] w-full group relative">
+        <div className="absolute -inset-10 bg-cyan-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="/api/placeholder/1100/700" alt="Plan de salle" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+      </div>
+    </div>
 
-        <div className="flex flex-col lg:flex-row-reverse items-center gap-16 lg:gap-24">
-          <div className="flex-1 space-y-8 text-left">
-            <div className="w-16 h-16 rounded-3xl bg-orange-500/10 flex items-center justify-center text-orange-500">
-              <Clock size={32} />
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight">
-              Cuisine & Commandes
-            </h3>
-            <p className="text-lg opacity-50 font-light leading-relaxed italic">
-              De la prise de commande à la sortie du plat, suivez chaque
-              seconde. Notre système de notifications réduit les erreurs et
-              accélère le service.
-            </p>
-            <ul className="space-y-4 font-bold text-sm opacity-80 uppercase tracking-widest">
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-orange-500" />{" "}
-                Notifications de prêt immédiates
-              </li>
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-orange-500" /> Code
-                couleur d'urgence intelligent
-              </li>
-            </ul>
-          </div>
-          <div
-            className={`flex-1 w-full aspect-video rounded-[50px] border relative overflow-hidden group ${isDarkMode ? "bg-white/[0.03] border-white/10" : "bg-white border-slate-200 shadow-2xl"}`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <img
-              src="/api/placeholder/800/600"
-              alt="Suivi des commandes"
-              className="w-full h-full object-cover grayscale-[50%] group-hover:grayscale-0 transition-all duration-700"
-            />
-          </div>
+    {/* 2. STOCKS & INVENTAIRE */}
+    <div className="flex flex-col lg:flex-row-reverse items-center gap-12 lg:gap-24">
+      <div className="flex-[0.8] space-y-8 text-left">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"><Package size={32} /></div>
+        <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Stocks & <br /> Inventaire</h3>
+        <p className="text-xl opacity-50 font-light leading-relaxed text-left">Suivi haute précision de vos ressources. Réduisez le gaspillage et soyez alerté avant la rupture de vos produits phares.</p>
+        <div className="flex flex-col gap-4 font-black text-xs uppercase tracking-widest opacity-60 text-left">
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-emerald-500" /> Alertes de stock critique</span>
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-emerald-500" /> Valorisation automatique</span>
         </div>
+      </div>
+      <div className="flex-[1.2] w-full group relative">
+        <div className="absolute -inset-10 bg-emerald-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="/api/placeholder/1100/700" alt="Gestion Stocks" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+      </div>
+    </div>
 
-        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
-          <div className="flex-1 space-y-8 text-left">
-            <div className="w-16 h-16 rounded-3xl bg-purple-500/10 flex items-center justify-center text-purple-500">
-              <Wallet size={32} />
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight">
-              Caisse & Flux Virtuels
-            </h3>
-            <p className="text-lg opacity-50 font-light leading-relaxed italic">
-              Encaissez en espèces ou via Mobile Money (Orange, MTN, Wave). Une
-              réconciliation automatique qui s'adapte aux réalités du marché
-              africain.
-            </p>
-            <ul className="space-y-4 font-bold text-sm opacity-80 uppercase tracking-widest">
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-purple-500" /> Paiements
-                Orange/MTN/Wave
-              </li>
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-purple-500" />{" "}
-                Facturation digitale instantanée
-              </li>
-            </ul>
-          </div>
-          <div
-            className={`flex-1 w-full aspect-video rounded-[50px] border relative overflow-hidden group ${isDarkMode ? "bg-white/[0.03] border-white/10" : "bg-white border-slate-200 shadow-2xl"}`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <img
-              src="/api/placeholder/800/600"
-              alt="Caisse Digitale"
-              className="w-full h-full object-cover grayscale-[50%] group-hover:grayscale-0 transition-all duration-700"
-            />
-          </div>
+    {/* 3. CAISSE & PAIEMENTS */}
+    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+      <div className="flex-[0.8] space-y-8 text-left">
+        <div className="w-16 h-16 rounded-3xl bg-purple-500/10 flex items-center justify-center text-purple-500"><Wallet size={32} /></div>
+        <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Caisse & <br /> Flux Digitaux</h3>
+        <p className="text-xl opacity-50 font-light leading-relaxed text-left">Une réconciliation automatique qui s'adapte à l'Afrique. Encaissez via Mobile Money ou espèces en une seconde.</p>
+        <div className="flex flex-col gap-4 font-black text-xs uppercase tracking-widest opacity-60 text-left">
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-purple-500" /> Orange / MTN / Wave / Visa</span>
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-purple-500" /> Clôture de caisse simplifiée</span>
         </div>
+      </div>
+      <div className="flex-[1.2] w-full group relative">
+        <div className="absolute -inset-10 bg-purple-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="/api/placeholder/1100/700" alt="Caisse Digitale" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+      </div>
+    </div>
 
-        <div className="flex flex-col lg:flex-row-reverse items-center gap-16 lg:gap-24">
-          <div className="flex-1 space-y-8 text-left">
-            <div className="w-16 h-16 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-              <BarChart3 size={32} />
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight">
-              Rapports & Vision
-            </h3>
-            <p className="text-lg opacity-50 font-light leading-relaxed italic">
-              Des bilans journaliers, hebdomadaires et mensuels pour une vision
-              à 360°. Analysez vos marges, vos best-sellers et vos pics
-              d'affluence.
-            </p>
-            <ul className="space-y-4 font-bold text-sm opacity-80 uppercase tracking-widest">
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-blue-500" /> Graphiques
-                de croissance
-              </li>
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-blue-500" />{" "}
-                Exportations PDF en un clic
-              </li>
-            </ul>
-          </div>
-          <div
-            className={`flex-1 w-full aspect-video rounded-[50px] border relative overflow-hidden group ${isDarkMode ? "bg-white/[0.03] border-white/10" : "bg-white border-slate-200 shadow-2xl"}`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <img
-              src="/api/placeholder/800/600"
-              alt="Rapports Analytiques"
-              className="w-full h-full object-cover grayscale-[50%] group-hover:grayscale-0 transition-all duration-700"
-            />
-          </div>
+    {/* 4. ANALYTICS & HISTORIQUE  */}
+    <div className="flex flex-col lg:flex-row-reverse items-center gap-12 lg:gap-24">
+      <div className="flex-[0.8] space-y-8 text-left">
+        <div className="w-16 h-16 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-500"><BarChart3 size={32} /></div>
+        <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Rapports & <br /> Historique</h3>
+        <p className="text-xl opacity-50 font-light leading-relaxed text-left">Analysez vos marges et vos archives à 360°. Un journal de bord complet pour piloter votre croissance stratégique.</p>
+        <div className="flex flex-col gap-4 font-black text-xs uppercase tracking-widest opacity-60 text-left">
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-blue-500" /> Export PDF & Historique illimité</span>
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-blue-500" /> Top plats & Pics d'affluence</span>
         </div>
+      </div>
+      <div className="flex-[1.2] w-full group relative">
+        <div className="absolute -inset-10 bg-blue-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/dashboard.webp" alt="Dashboard" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[10%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+      </div>
+    </div>
 
-        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
-          <div className="flex-1 space-y-8 text-left">
-            <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center text-red-500">
-              <Users size={32} />
-            </div>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight">
-              RH & Charges Fixes
-            </h3>
-            <p className="text-lg opacity-50 font-light leading-relaxed italic">
-              Géret votre capital humain et vos dépenses opérationnelles. Suivez
-              les performances de votre personnel et maîtrisez vos coûts fixes
-              (loyer, énergie).
-            </p>
-            <ul className="space-y-4 font-bold text-sm opacity-80 uppercase tracking-widest">
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-red-500" /> Suivi du CA
-                par serveur
-              </li>
-              <li className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="text-red-500" /> Contrôle des
-                dépenses hors-stock
-              </li>
-            </ul>
-          </div>
-          <div
-            className={`flex-1 w-full aspect-video rounded-[50px] border relative overflow-hidden group ${isDarkMode ? "bg-white/[0.03] border-white/10" : "bg-white border-slate-200 shadow-2xl"}`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-            <img
-              src="/api/placeholder/800/600"
-              alt="Gestion du Personnel"
-              className="w-full h-full object-cover grayscale-[50%] group-hover:grayscale-0 transition-all duration-700"
-            />
-          </div>
+    {/* 5. RH & PERSONNEL */}
+    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+      <div className="flex-[0.8] space-y-8 text-left">
+        <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center text-red-500"><Users size={32} /></div>
+        <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">RH & <br /> Performances</h3>
+        <p className="text-xl opacity-50 font-light leading-relaxed text-left">Suivez les performances de vos serveurs et maîtrisez votre masse salariale en un coup d'œil.</p>
+        <div className="flex flex-col gap-4 font-black text-xs uppercase tracking-widest opacity-60 text-left">
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-red-500" /> Suivi du CA par employé</span>
+          <span className="flex items-center gap-3"><CheckCircle2 size={18} className="text-red-500" /> Gestion des accès sécurisés</span>
         </div>
-      </section>
+      </div>
+      <div className="flex-[1.2] w-full group relative">
+        <div className="absolute -inset-10 bg-red-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="/api/placeholder/1100/700" alt="Gestion RH" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* --- SECTION CTA FINAL LUXE --- */}
       <section className="py-32 px-[8%]">
