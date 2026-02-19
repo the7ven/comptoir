@@ -50,7 +50,7 @@ useEffect(() => {
   const checkAuth = async () => {
     const timeout = setTimeout(() => {
       if (isMounted && authLoading) {
-        console.error("⏱️ Timeout : La session met trop de temps à répondre.");
+        console.error("⏱ Timeout : La session met trop de temps à répondre.");
         setAuthLoading(false);
       }
     }, 5000);
@@ -227,7 +227,7 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
     dayTotal: 0, 
     dayExpenses: 0, 
     netProfit: 0, 
-    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0 }, 
+    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0,"Carte Bancaire": 0}, 
     chartData: [], 
     popularItems: [] 
   });
@@ -322,10 +322,12 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mt-8 pt-6 border-t border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mt-8 pt-6 border-t border-white/5">
             <PaymentMiniStat label="Espèces" value={realStats.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
             <PaymentMiniStat label="Orange Money" value={realStats.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
             <PaymentMiniStat label="Wave" value={realStats.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
+            <PaymentMiniStat label="MTN" value={realStats.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
+            <PaymentMiniStat label="Visa/MC" value={realStats.byMethod["Carte Bancaire"]} icon={<CreditCard size={16}/>} color="indigo" />
             <PaymentMiniStat label="Dépenses" value={realStats.dayExpenses} icon={<ArrowDownCircle size={16}/>} color="red" />
           </div>
         </div>
@@ -390,6 +392,8 @@ function PaymentMiniStat({ label, value, icon, color }) {
     green: "bg-green-500/10 text-green-500", 
     orange: "bg-orange-500/10 text-orange-500", 
     blue: "bg-blue-500/10 text-blue-500",
+    yellow: "bg-yellow-500/10 text-yellow-600", 
+    indigo: "bg-indigo-500/10 text-indigo-500", 
     red: "bg-red-500/10 text-red-500"
   };
   return (

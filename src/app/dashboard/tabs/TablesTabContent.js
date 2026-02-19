@@ -363,8 +363,14 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
                   <button onClick={() => handleFinalizeTable("Orange Money")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-orange-500 transition-all border border-white/5">
                     <Smartphone size={20} /><span className="text-[8px] font-black uppercase">Orange</span>
                   </button>
+                  <button onClick={() => handleFinalizeTable("MTN Money")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-yellow-500 transition-all border border-white/5">
+                    <Smartphone size={20} /><span className="text-[8px] font-black uppercase">MTN</span>
+                  </button>
                   <button onClick={() => handleFinalizeTable("Wave")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-blue-500 transition-all border border-white/5">
                     <CreditCard size={20} /><span className="text-[8px] font-black uppercase">Wave</span>
+                  </button>
+                  <button onClick={() => handleFinalizeTable("Visa")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-red-500 transition-all border border-white/5">
+                    <CreditCard size={20} /><span className="text-[8px] font-black uppercase">Visa</span>
                   </button>
                 </div>
                 <button onClick={() => setShowPaymentSelector(false)} className="w-full mt-6 text-[9px] text-white/30 uppercase font-black tracking-widest hover:text-white transition-all">Annuler</button>
