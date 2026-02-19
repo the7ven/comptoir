@@ -2,26 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Grid, Users, Printer, X, 
+  Grid, Users, Printer, X, Bluetooth,
   Plus, Receipt, CreditCard, CheckCircle2, MoreHorizontal, Clock, AlertCircle, Trash2, Smartphone, Banknote
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+// IMPORT DU DRIVER BLUETOOTH
+import { printViaBluetooth } from '@/lib/bluetoothPrint';
 
 export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingOrder }) {
   const [tables, setTables] = useState([]);
   const [activeOrders, setActiveOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false); // État pour l'animation d'impression
   
-  // ÉTATS POUR LA FACTURATION ET LA SUPPRESSION (CORRIGÉ)
   const [selectedOrderForBill, setSelectedOrderForBill] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   
-  // ÉTATS POUR GESTION DYNAMIQUE
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
   const [multiOrderTable, setMultiOrderTable] = useState(null);
-
-  // NOUVEL ÉTAT POUR LE CHOIX DU PAIEMENT
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
 
   useEffect(() => {
@@ -38,8 +37,6 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-
-      // Filtrage par restaurant_id
       const { data: tablesData, error: tableError } = await supabase
         .from('restaurant_tables')
         .select('*')
@@ -66,13 +63,29 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
     }
   };
 
-  // FONCTION DE CLÔTURE FINALE
+  // --- NOUVELLE LOGIQUE D'IMPRESSION BLUETOOTH ---
+  const handleBluetoothPrint = async () => {
+    if (!selectedOrderForBill) return;
+    setIsPrinting(true);
+    try {
+      // On utilise les données de la commande sélectionnée
+      const cartToPrint = selectedOrderForBill.items_details || [];
+      await printViaBluetooth(
+        cartToPrint, 
+        selectedOrderForBill.table_number, 
+        "Sur place"
+      );
+    } catch (error) {
+      alert("Erreur Bluetooth : Vérifiez la connexion de l'imprimante.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const handleFinalizeTable = async (method) => {
     const order = selectedOrderForBill;
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
-      // 1. Enregistrement transaction avec restaurant_id
       const { error: transError } = await supabase.from('transactions').insert([{
         restaurant_id: user.id,
         table_number: order.table_number,
@@ -83,7 +96,6 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
       }]);
       if (transError) throw transError;
 
-      // 2. Libération table
       const { error: orderError } = await supabase.from('orders').update({ status: 'Servi' }).eq('id', order.id);
       if (orderError) throw orderError;
 
@@ -97,9 +109,7 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
     e.preventDefault();
     const tableName = e.target.tableName.value;
     const capacity = parseInt(e.target.capacity.value);
-    
     const { data: { user } } = await supabase.auth.getUser();
-
     const { error } = await supabase
       .from('restaurant_tables')
       .insert([{ 
@@ -159,23 +169,19 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
 
   return (
     <div className="fade-in text-left">
-      {/* --- HEADER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 no-print">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div className="text-left">
           <h3 className="text-3xl font-black italic tracking-tighter uppercase text-left">Plan de Salle</h3>
-          <p className="opacity-50 text-[10px] font-black uppercase tracking-widest text-left text-left">Gestion dynamique • {tables.length} Tables</p>
+          <p className="opacity-50 text-[10px] font-black uppercase tracking-widest text-left">{tables.length} Tables en gestion</p>
         </div>
-        
-        <button 
-          onClick={() => setIsAddTableModalOpen(true)}
-          className="flex items-center gap-2 bg-[#00D9FF] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
-        >
+        <button onClick={() => setIsAddTableModalOpen(true)} className="flex items-center gap-2 bg-[#00D9FF] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">
           <Plus size={18} /> Nouvelle Table
         </button>
       </div>
 
-      {/* --- GRILLE DES TABLES --- */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 no-print">
+      {/* GRILLE DES TABLES */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         {tables.map((table) => {
           const tableOrders = activeOrders.filter(o => o.table_number === table.table_name);
           const currentStatus = tableOrders.length > 0 
@@ -183,32 +189,16 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
             : "Libre";
           
           return (
-            <div 
-              key={table.id} 
-              onClick={() => handleTableClick(table.table_name)}
-              className={`group relative p-8 rounded-[40px] border transition-all duration-500 flex flex-col items-center justify-center gap-4 cursor-pointer ${getStatusStyle(currentStatus)} hover:scale-[1.03]`}
-            >
-              <button 
-                onClick={(e) => { e.stopPropagation(); deleteTable(table.id); }}
-                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:scale-125 transition-all"
-              >
-                <Trash2 size={16} />
-              </button>
-
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center border ${currentStatus === 'Libre' ? 'border-dashed border-current/20' : 'border-current'}`}>
-                <Grid size={24} />
-              </div>
-              
+            <div key={table.id} onClick={() => handleTableClick(table.table_name)} className={`group relative p-8 rounded-[40px] border transition-all duration-500 flex flex-col items-center justify-center gap-4 cursor-pointer ${getStatusStyle(currentStatus)} hover:scale-[1.03]`}>
+              <button onClick={(e) => { e.stopPropagation(); deleteTable(table.id); }} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 text-red-500 transition-all"><Trash2 size={16} /></button>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center border ${currentStatus === 'Libre' ? 'border-dashed border-current/20' : 'border-current'}`}><Grid size={24} /></div>
               <div className="text-center">
                 <h4 className="text-lg font-black tracking-tight">{table.table_name}</h4>
-                <p className="text-[10px] uppercase font-bold opacity-50 flex items-center justify-center gap-1">
-                  <Users size={10} /> {table.capacity} p.
-                </p>
+                <p className="text-[10px] uppercase font-bold opacity-50 flex items-center justify-center gap-1"><Users size={10} /> {table.capacity} p.</p>
               </div>
-
               {tableOrders.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-current/10 w-full text-center">
-                  <p className="text-[9px] font-black uppercase tracking-tighter">{tableOrders.length} factures</p>
+                  <p className="text-[9px] font-black uppercase tracking-tighter">{tableOrders.length} clients</p>
                   <p className="text-xs font-black">{tableOrders.reduce((acc, o) => acc + (o.total_amount || 0), 0).toLocaleString()} F</p>
                 </div>
               )}
@@ -217,54 +207,39 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
         })}
       </div>
 
-      {/* --- MODALE : AJOUTER UNE TABLE --- */}
+      {/* MODALE : AJOUTER UNE TABLE */}
       {isAddTableModalOpen && (
         <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
           <div className={`relative w-full max-w-sm p-10 rounded-[45px] border shadow-2xl ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-200'}`}>
-            <button 
-              onClick={() => setIsAddTableModalOpen(false)}
-              className="absolute top-6 right-6 p-2 opacity-50 hover:opacity-100 transition-all text-white"
-            >
-              <X size={24} />
-            </button>
-
-            <form onSubmit={handleAddTable} className="text-left">
-              <h3 className="text-xl font-black mb-8 italic uppercase tracking-tighter">Créer une table</h3>
+            <button onClick={() => setIsAddTableModalOpen(false)} className="absolute top-6 right-6 p-2 opacity-50 hover:opacity-100 text-white"><X size={24} /></button>
+            <form onSubmit={handleAddTable}>
+              <h3 className="text-xl font-black mb-8 italic uppercase">Créer une table</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 ml-4 tracking-widest text-left">Identifiant (Nom)</label>
-                  <input name="tableName" required placeholder="ex: Table 07B" className={`w-full mt-2 px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
+                  <label className="text-[10px] font-black uppercase opacity-40 ml-4">Nom / Identifiant</label>
+                  <input name="tableName" required placeholder="ex: T-05" className={`w-full mt-2 px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50'}`} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 ml-4 tracking-widest text-left text-left">Capacité</label>
-                  <input name="capacity" type="number" required defaultValue="4" className={`w-full mt-2 px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
+                  <label className="text-[10px] font-black uppercase opacity-40 ml-4">Capacité</label>
+                  <input name="capacity" type="number" required defaultValue="4" className={`w-full mt-2 px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50'}`} />
                 </div>
-                <button type="submit" className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest mt-4">
-                  Valider la création
-                </button>
+                <button type="submit" className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl uppercase text-[10px] tracking-widest mt-4">Valider</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODALE : SÉLECTEUR DE FACTURE (Multi-clients) --- */}
+      {/* MODALE : SÉLECTEUR DE FACTURE */}
       {multiOrderTable && (
         <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
           <div className={`relative w-full max-w-md p-8 rounded-[40px] border shadow-2xl ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-200'}`}>
             <button onClick={() => setMultiOrderTable(null)} className="absolute top-6 right-6 opacity-50 hover:opacity-100 text-white"><X size={24}/></button>
-            <h3 className="text-xl font-black mb-6 italic text-left uppercase text-left">Factures : {multiOrderTable.name}</h3>
+            <h3 className="text-xl font-black mb-6 italic uppercase">Factures : {multiOrderTable.name}</h3>
             <div className="space-y-3">
               {multiOrderTable.orders.map((order, idx) => (
-                <div 
-                  key={order.id}
-                  onClick={() => { setSelectedOrderForBill(order); setMultiOrderTable(null); }}
-                  className={`flex items-center justify-between p-5 rounded-3xl border cursor-pointer transition-all ${isDarkMode ? 'bg-white/5 border-white/5 hover:border-[#00D9FF]' : 'bg-gray-50 border-gray-100 hover:border-cyan-500'}`}
-                >
-                  <div className="text-left">
-                    <p className="text-xs font-black uppercase tracking-widest text-left">Groupe {idx + 1}</p>
-                    <p className="text-[9px] opacity-40 font-bold text-left">{order.items_summary?.substring(0, 30)}...</p>
-                  </div>
+                <div key={order.id} onClick={() => { setSelectedOrderForBill(order); setMultiOrderTable(null); }} className={`flex items-center justify-between p-5 rounded-3xl border cursor-pointer transition-all ${isDarkMode ? 'bg-white/5 border-white/5 hover:border-[#00D9FF]' : 'bg-gray-50 hover:border-cyan-500'}`}>
+                  <div className="text-left"><p className="text-xs font-black uppercase">Groupe {idx + 1}</p><p className="text-[9px] opacity-40 font-bold">{order.items_summary?.substring(0, 30)}...</p></div>
                   <p className="font-black text-[#00D9FF] text-sm">{order.total_amount?.toLocaleString()} F</p>
                 </div>
               ))}
@@ -273,105 +248,58 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
         </div>
       )}
 
-      {/* --- MODALE FACTURE THERMIQUE --- */}
+      {/* MODALE FACTURE THERMIQUE */}
       {selectedOrderForBill && (
-        <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 no-print text-left">
-          <div className="w-full max-w-sm fade-in">
-            <div id="printable-bill" className="bg-white text-black p-6 rounded-sm shadow-2xl overflow-hidden printable-receipt font-mono text-[12px] leading-tight border-t-8 border-black">
+        <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 text-left">
+          <div className="w-full max-w-sm">
+            <div className="bg-white text-black p-6 rounded-sm shadow-2xl font-mono text-[12px] leading-tight border-t-8 border-black">
               <div className="text-center border-b border-black pb-4 mb-4">
-                <h4 className="text-lg font-black uppercase tracking-tighter italic text-center">RestoPay Luxe</h4>
-                <p className="text-[9px] font-bold text-center">ABIDJAN • COTE D'IVOIRE</p>
+                <h4 className="text-lg font-black uppercase tracking-tighter italic">RestoPay Luxe</h4>
+                <p className="text-[9px] font-bold">ABIDJAN • COTE D'IVOIRE</p>
               </div>
-              
-              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2 text-center">
+              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2">
                 <span>{selectedOrderForBill.table_number}</span>
                 <span>{new Date(selectedOrderForBill.created_at).toLocaleDateString('fr-FR')}</span>
               </div>
-
-              <div className="flex justify-between text-[10px] font-black uppercase border-b border-black pb-1 mb-3">
-                <span className="w-3/5 text-left">Désignation</span>
-                <span className="w-2/5 text-right">Prix (F)</span>
+              <div className="space-y-2 mb-6">
+                {selectedOrderForBill.items_details?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-start leading-none">
+                    <span className="w-3/5 font-bold uppercase text-[11px]">{item.name}</span>
+                    <span className="w-2/5 text-right font-black">{item.price?.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="space-y-2 mb-6 text-left">
-                {selectedOrderForBill.items_details ? (
-                  selectedOrderForBill.items_details.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start leading-none">
-                      <span className="w-3/5 text-left font-bold uppercase text-[11px]">{item.name}</span>
-                      <span className="w-2/5 text-right font-black">{item.price?.toLocaleString()}</span>
-                    </div>
-                  ))
-                ) : (
-                  selectedOrderForBill.items_summary?.split(',').map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start italic">
-                      <span className="w-3/5 text-left">{item.trim()}</span>
-                      <span className="w-2/5 text-right">---</span> 
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="border-t-2 border-black pt-3 space-y-1">
-                <div className="flex justify-between items-center font-bold">
-                  <span className="text-[10px] uppercase">Sous-Total</span>
-                  <span>{selectedOrderForBill.total_amount?.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 mt-2 border-t-4 border-black font-black">
-                  <span className="text-[12px] uppercase italic">TOTAL NET</span>
-                  <span className="text-xl">
-                    {selectedOrderForBill.total_amount?.toLocaleString()} F
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-8 text-center pt-4 border-t border-dashed border-black">
-                <p className="text-[9px] font-black uppercase tracking-widest text-center">Merci de votre visite !</p>
+              <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
+                <span className="text-[12px] uppercase italic">TOTAL NET</span>
+                <span className="text-xl">{selectedOrderForBill.total_amount?.toLocaleString()} F</span>
               </div>
             </div>
 
-            {/* LOGIQUE DE CLÔTURE ET ACTIONS */}
             {!showPaymentSelector ? (
               <div className="mt-6 flex flex-col gap-3">
-                <button 
-                  onClick={() => setShowPaymentSelector(true)} 
-                  className="w-full h-14 bg-green-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-                >
-                  <CheckCircle2 size={18} /> Clôturer & Encaisser
-                </button>
+                <button onClick={() => setShowPaymentSelector(true)} className="w-full h-14 bg-green-500 text-white rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg"><CheckCircle2 size={18} /> Encaisser</button>
                 <div className="flex gap-3">
-                  <button onClick={() => window.print()} className="flex-1 h-14 bg-[#00D9FF] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg">
-                    <Printer size={18} /> Imprimer
-                  </button>
                   <button 
-                    onClick={() => { setOrderToDelete(selectedOrderForBill); setIsDeleteModalOpen(true); }}
-                    className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                    onClick={handleBluetoothPrint} 
+                    disabled={isPrinting}
+                    className={`flex-1 h-14 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-lg transition-all ${isPrinting ? 'bg-orange-500 text-white animate-pulse' : 'bg-[#00D9FF] text-black'}`}
                   >
-                    <Trash2 size={20} />
+                    {isPrinting ? <Bluetooth size={18} /> : <Printer size={18} />} {isPrinting ? 'Impression...' : 'Imprimer'}
                   </button>
-                  <button onClick={() => setSelectedOrderForBill(null)} className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-black'} shadow-lg`}>
-                    <X size={20} />
-                  </button>
+                  <button onClick={() => { setOrderToDelete(selectedOrderForBill); setIsDeleteModalOpen(true); }} className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg"><Trash2 size={20} /></button>
+                  <button onClick={() => setSelectedOrderForBill(null)} className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${isDarkMode ? 'border-white/10 text-white' : 'border-gray-200 text-black'} shadow-lg`}><X size={20} /></button>
                 </div>
               </div>
             ) : (
-              <div className="mt-6 p-6 bg-[#0a0a0a] border border-white/10 rounded-[35px] fade-in shadow-2xl">
-                <h4 className="text-white text-[10px] font-black uppercase mb-6 text-center tracking-widest opacity-60">Mode de Paiement</h4>
+              <div className="mt-6 p-6 bg-[#0a0a0a] border border-white/10 rounded-[35px] shadow-2xl">
+                <h4 className="text-white text-[10px] font-black uppercase mb-6 text-center tracking-widest opacity-60">Paiement</h4>
                 <div className="grid grid-cols-3 gap-3">
-                  <button onClick={() => handleFinalizeTable("Espèces")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-green-500 transition-all border border-white/5">
-                    <Banknote size={20} /><span className="text-[8px] font-black uppercase">Espèces</span>
-                  </button>
-                  <button onClick={() => handleFinalizeTable("Orange Money")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-orange-500 transition-all border border-white/5">
-                    <Smartphone size={20} /><span className="text-[8px] font-black uppercase">Orange</span>
-                  </button>
-                  <button onClick={() => handleFinalizeTable("MTN Money")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-yellow-500 transition-all border border-white/5">
-                    <Smartphone size={20} /><span className="text-[8px] font-black uppercase">MTN</span>
-                  </button>
-                  <button onClick={() => handleFinalizeTable("Wave")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-blue-500 transition-all border border-white/5">
-                    <CreditCard size={20} /><span className="text-[8px] font-black uppercase">Wave</span>
-                  </button>
-                  <button onClick={() => handleFinalizeTable("Visa")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-red-500 transition-all border border-white/5">
-                    <CreditCard size={20} /><span className="text-[8px] font-black uppercase">Visa</span>
-                  </button>
+                  {["Espèces", "Orange Money", "MTN Money", "Wave", "Visa"].map((m) => (
+                    <button key={m} onClick={() => handleFinalizeTable(m)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-[#00D9FF] hover:text-black transition-all border border-white/5">
+                      {m === "Espèces" ? <Banknote size={18}/> : m === "Visa" ? <CreditCard size={18}/> : <Smartphone size={18}/>}
+                      <span className="text-[7px] font-black uppercase">{m}</span>
+                    </button>
+                  ))}
                 </div>
                 <button onClick={() => setShowPaymentSelector(false)} className="w-full mt-6 text-[9px] text-white/30 uppercase font-black tracking-widest hover:text-white transition-all">Annuler</button>
               </div>
@@ -380,43 +308,19 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
         </div>
       )}
 
-      {/* MODAL SUPPRESSION (LOGIQUE CORRIGÉE) */}
+      {/* MODAL SUPPRESSION */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center p-4 backdrop-blur-md bg-black/40 no-print text-center">
-          <div className={`w-full max-w-sm rounded-[40px] p-8 border shadow-2xl ${isDarkMode ? 'bg-[#0f0f0f] border-white/10' : 'bg-white border-gray-200'}`}>
-            <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <AlertCircle size={32} />
-            </div>
-            <h3 className="text-xl font-black text-center mb-2 tracking-tighter uppercase">Annuler Commande</h3>
-            <p className="text-sm opacity-50 text-center mb-8 font-medium italic">Supprimer définitivement cette commande ?</p>
+        <div className="fixed inset-0 z-[900] flex items-center justify-center p-4 backdrop-blur-md bg-black/40 text-center">
+          <div className={`w-full max-w-sm rounded-[40px] p-8 border shadow-2xl ${isDarkMode ? 'bg-[#0f0f0f] border-white/10 text-white' : 'bg-white border-gray-200'}`}>
+            <AlertCircle size={32} className="text-red-500 mx-auto mb-6" />
+            <h3 className="text-xl font-black mb-8 uppercase">Supprimer la commande ?</h3>
             <div className="flex gap-3">
               <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5">Retour</button>
-              <button onClick={handleDeleteOrder} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-red-500 text-white shadow-lg">Confirmer</button>
+              <button onClick={handleDeleteOrder} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-red-500 text-white">Confirmer</button>
             </div>
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden !important; background: none !important; }
-          .printable-receipt, .printable-receipt * {
-            visibility: visible !important;
-            display: block !important;
-            color: black !important;
-          }
-          .printable-receipt {
-            position: fixed !important;
-            left: 0 !important; top: 0 !important;
-            width: 80mm !important;
-            background: white !important;
-            padding: 20px !important;
-            font-family: 'Courier New', Courier, monospace !important;
-          }
-          .flex { display: flex !important; }
-          .justify-between { justify-content: space-between !important; }
-        }
-      `}</style>
     </div>
   );
 }
