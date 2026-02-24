@@ -8,29 +8,31 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
+export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfile }) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [totalExpenses, setTotalExpenses] = useState(0);
 
   useEffect(() => {
-    fetchExpenses();
-  }, [selectedDate]);
+    if (userProfile) {
+      fetchExpenses();
+    }
+  }, [selectedDate, userProfile]);
 
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
+      
       const start = `${selectedDate}T00:00:00.000Z`;
       const end = `${selectedDate}T23:59:59.999Z`;
 
+      // LOGIQUE DE PARTAGE : On filtre par owner_email au lieu de session.user.id
       const { data, error } = await supabase
+     
         .from('expenses')
         .select('*')
-        .eq('restaurant_id', session.user.id)
+        .eq('owner_email', userProfile.owner_email) // Utilisation de l'email du propriétaire
         .gte('created_at', start)
         .lte('created_at', end)
         .order('created_at', { ascending: false });
@@ -39,7 +41,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
       setExpenses(data || []);
       setTotalExpenses(data?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0);
     } catch (err) {
-      console.error(err.message);
+      console.error("Erreur chargement dépenses:", err.message);
     } finally {
       setLoading(false);
     }
@@ -49,12 +51,12 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
     e.preventDefault();
     const formData = new FormData(e.target);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session expirée");
+      if (!userProfile) throw new Error("Profil utilisateur non chargé");
 
-      // MISE À JOUR : On utilise 'label' au lieu de 'description'
+      // INSERTION AVEC IDENTIFIANTS PARTAGÉS
       const { error } = await supabase.from('expenses').insert([{
-        restaurant_id: session.user.id,
+        restaurant_id: userProfile.id, // ID de celui qui crée (caissier ou owner)
+        owner_email: userProfile.owner_email, // Email du patron pour que tout le monde voie
         label: formData.get('label'), 
         amount: Number(formData.get('amount')),
         category: formData.get('category'),
@@ -73,9 +75,19 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
 
   const deleteExpense = async (id) => {
     if (confirm("Supprimer cette dépense ?")) {
-      const { data: { session } } = await supabase.auth.getSession();
-      await supabase.from('expenses').delete().eq('id', id).eq('restaurant_id', session.user.id);
-      fetchExpenses();
+      try {
+        // Sécurité : On vérifie l'ID et l'appartenance au compte via owner_email
+        const { error } = await supabase
+          .from('expenses')
+          .delete()
+          .eq('id', id)
+          .eq('owner_email', userProfile.owner_email);
+
+        if (error) throw error;
+        fetchExpenses();
+      } catch (err) {
+        alert("Erreur lors de la suppression");
+      }
     }
   };
 
@@ -109,12 +121,11 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
             ) : (
               expenses.map((exp) => (
                 <tr key={exp.id} className="group hover:bg-white/[0.01]">
-                  {/* MISE À JOUR : On affiche exp.label */}
                   <td className="px-8 py-6 font-bold text-sm">{exp.label}</td>
                   <td className="px-8 py-6 opacity-40 text-xs font-black uppercase">{exp.category}</td>
                   <td className="px-8 py-6 text-right font-black text-red-400">{exp.amount.toLocaleString()} F</td>
                   <td className="px-8 py-6 text-right">
-                    <button onClick={() => deleteExpense(exp.id)} className="p-2 text-red-500 md:opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
+                    <button onClick={() => deleteExpense(exp.id)} className="p-2 text-red-500 md:opacity-0 group-hover:opacity-100 transition-all border-none bg-transparent cursor-pointer"><Trash2 size={16}/></button>
                   </td>
                 </tr>
               ))
@@ -128,7 +139,6 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
           <form onSubmit={handleAddExpense} className={`w-full max-w-sm p-10 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-100 shadow-2xl'}`}>
             <h3 className="text-xl font-black mb-8 italic uppercase tracking-tighter text-white">Nouvelle Dépense</h3>
             <div className="space-y-6">
-              {/* Le name="label" ici doit correspondre au formData.get('label') plus haut */}
               <input name="label" required placeholder="Désignation (ex: Sac de riz)" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-100'}`} />
               <input name="amount" type="number" required placeholder="Montant (F)" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-100'}`} />
               <select name="category" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-[#151515] border-white/10 text-white' : 'bg-gray-50 border-gray-100'}`}>
@@ -138,8 +148,8 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate }) {
                 <option>Autre</option>
               </select>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className={`flex-1 font-bold ${isDarkMode ? 'text-white/40' : 'text-gray-400'}`}>Annuler</button>
-                <button type="submit" className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase hover:bg-red-600 transition-colors">Enregistrer</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className={`flex-1 font-bold border-none bg-transparent cursor-pointer ${isDarkMode ? 'text-white/40' : 'text-gray-400'}`}>Annuler</button>
+                <button type="submit" className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase hover:bg-red-600 transition-colors border-none cursor-pointer">Enregistrer</button>
               </div>
             </div>
           </form>

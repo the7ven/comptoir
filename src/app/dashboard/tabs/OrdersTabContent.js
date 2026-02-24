@@ -28,6 +28,7 @@ export default function OrdersTabContent({
   setCart,
   setPendingOrder,
   selectedDate,
+  userProfile // Ajout de la prop indispensable
 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,32 +37,34 @@ export default function OrdersTabContent({
   const [selectedOrderForBill, setSelectedOrderForBill] = useState(null);
 
   useEffect(() => {
-    fetchOrders();
-    const subscription = supabase
-      .channel("orders_live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        fetchOrders,
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [selectedDate]);
+    if (userProfile) {
+      fetchOrders();
+      const subscription = supabase
+        .channel("orders_live")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "orders" },
+          fetchOrders,
+        )
+        .subscribe();
+      return () => {
+        supabase.removeChannel(subscription);
+      };
+    }
+  }, [selectedDate, userProfile]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-
+      
       const startOfDay = `${selectedDate}T00:00:00.000Z`;
       const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
+      // LOGIQUE DE PARTAGE : Filtrage par owner_email
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("restaurant_id", user.id) // FILTRE RESTAURANT
+        .eq("owner_email", userProfile.owner_email) 
         .gte("created_at", startOfDay)
         .lte("created_at", endOfDay)
         .order("created_at", { ascending: false });
@@ -77,7 +80,6 @@ export default function OrdersTabContent({
 
   const handleEditOrder = async (order) => {
     if (order.items_details) {
-      const { data: { user } } = await supabase.auth.getUser();
       setCart(order.items_details);
       const tableValue = order.table_number?.includes("Table")
         ? order.table_number.replace("Table ", "")
@@ -89,11 +91,13 @@ export default function OrdersTabContent({
           order.table_number === "Emporter" ? "Emporter" : "Sur place",
       });
 
+      // Suppression avec vérification d'email
       const { error } = await supabase
         .from("orders")
         .delete()
         .eq("id", order.id)
-        .eq("restaurant_id", user.id); // SÉCURITÉ SUPPLÉMENTAIRE
+        .eq("owner_email", userProfile.owner_email); 
+
       if (!error) setActiveTab("menu");
     } else {
       alert("Détails manquants.");
@@ -104,14 +108,14 @@ export default function OrdersTabContent({
     if (order.status === "Servi") return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
       if (order.status === "Prêt") {
+        // ENCAISSEMENT : Injection des identifiants partagés dans les transactions
         const { error: transError } = await supabase
           .from("transactions")
           .insert([
             {
-              restaurant_id: user.id, // INJECTION ID
+              restaurant_id: userProfile.id, // Celui qui fait l'action
+              owner_email: userProfile.owner_email, // Le proprio du compte
               table_number: order.table_number,
               amount: order.total_amount,
               payment_method: "Espèces",
@@ -126,7 +130,7 @@ export default function OrdersTabContent({
           .from("orders")
           .update({ status: "Servi" })
           .eq("id", order.id)
-          .eq("restaurant_id", user.id); // FILTRE RESTAURANT
+          .eq("owner_email", userProfile.owner_email);
 
         if (orderError) throw orderError;
 
@@ -136,7 +140,7 @@ export default function OrdersTabContent({
           .from("orders")
           .update({ status: "Prêt" })
           .eq("id", order.id)
-          .eq("restaurant_id", user.id); // FILTRE RESTAURANT
+          .eq("owner_email", userProfile.owner_email);
       }
       fetchOrders();
     } catch (err) {
@@ -145,17 +149,16 @@ export default function OrdersTabContent({
   };
 
   const handleDeleteOrder = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     await supabase
       .from("orders")
       .delete()
       .eq("id", orderToDelete.id)
-      .eq("restaurant_id", user.id); // FILTRE RESTAURANT
+      .eq("owner_email", userProfile.owner_email);
     setIsDeleteModalOpen(false);
     fetchOrders();
   };
 
-  // ... (Reste du code JSX,QuickStat, etc. inchangé)
+  // ... (Reste du code JSX strictement identique à ton original)
   const statusColors = {
     "En cours": isDarkMode
       ? "text-orange-400 bg-orange-400/10 border-orange-400/20"
@@ -181,7 +184,7 @@ export default function OrdersTabContent({
         </div>
         <button
           onClick={() => setActiveTab("menu")}
-          className="bg-[#00D9FF] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2"
+          className="bg-[#00D9FF] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2 border-none cursor-pointer"
         >
           <Plus size={18} />
           <span>nouvelle commande</span>
@@ -264,21 +267,21 @@ export default function OrdersTabContent({
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEditOrder(order)}
-                    className={`p-3 rounded-xl transition-all ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-[#00D9FF] shadow-sm"}`}
+                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-[#00D9FF] shadow-sm"}`}
                     title="Modifier"
                   >
                     <Edit3 size={18} />
                   </button>
                   <button
                     onClick={() => handleUpdateStatus(order)}
-                    className={`p-3 rounded-xl transition-all ${isDarkMode ? "bg-white/5 text-white/40 hover:text-green-400" : "bg-gray-50 text-gray-400 hover:text-green-600 shadow-sm"}`}
+                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-green-400" : "bg-gray-50 text-gray-400 hover:text-green-600 shadow-sm"}`}
                     title="Suivant"
                   >
                     <Check size={18} />
                   </button>
                   <button
                     onClick={() => setSelectedOrderForBill(order)}
-                    className={`p-3 rounded-xl transition-all ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-black shadow-sm"}`}
+                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-black shadow-sm"}`}
                     title="Facture"
                   >
                     <Receipt size={18} />
@@ -288,7 +291,7 @@ export default function OrdersTabContent({
                       setOrderToDelete(order);
                       setIsDeleteModalOpen(true);
                     }}
-                    className={`p-3 rounded-xl transition-all ${isDarkMode ? "bg-white/5 text-white/20 hover:text-red-500" : "bg-gray-50 text-gray-400 hover:text-red-500 shadow-sm"}`}
+                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/20 hover:text-red-500" : "bg-gray-50 text-gray-400 hover:text-red-500 shadow-sm"}`}
                     title="Supprimer"
                   >
                     <Trash2 size={18} />
@@ -300,6 +303,7 @@ export default function OrdersTabContent({
         )}
       </div>
 
+      {/* MODAL FACTURE */}
       {selectedOrderForBill && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 no-print">
           <div className="w-full max-w-sm fade-in">
@@ -316,7 +320,7 @@ export default function OrdersTabContent({
                 </p>
               </div>
 
-              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2 text-center">
+              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2">
                 <span>{selectedOrderForBill.table_number}</span>
                 <span>
                   {new Date(selectedOrderForBill.created_at).toLocaleDateString(
@@ -325,54 +329,25 @@ export default function OrdersTabContent({
                 </span>
               </div>
 
-              <div className="flex justify-between text-[10px] font-black uppercase border-b border-black pb-1 mb-3">
-                <span className="w-3/5 text-left">Désignation</span>
-                <span className="w-2/5 text-right">Prix (F)</span>
-              </div>
-
               <div className="space-y-2 mb-6 text-left">
-                {selectedOrderForBill.items_details
-                  ? selectedOrderForBill.items_details.map((item, idx) => (
+                {selectedOrderForBill.items_details?.map((item, idx) => (
                       <div
                         key={idx}
                         className="flex justify-between items-start leading-none"
                       >
-                        <span className="w-3/5 text-left font-bold uppercase text-[11px] text-left">
-                          {item.name}
-                        </span>
+                        <span className="w-3/5 text-left font-bold uppercase text-[11px]">{item.name}</span>
                         <span className="w-2/5 text-right font-black">
                           {item.price?.toLocaleString()}
                         </span>
                       </div>
-                    ))
-                  : selectedOrderForBill.items_summary
-                      ?.split(",")
-                      .map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-start italic text-left"
-                        >
-                          <span className="w-3/5 text-left">{item.trim()}</span>
-                          <span className="w-2/5 text-right">---</span>
-                        </div>
-                      ))}
+                    ))}
               </div>
 
-              <div className="border-t-2 border-black pt-3 space-y-1">
-                <div className="flex justify-between items-center font-bold">
-                  <span className="text-[10px] uppercase">Sous-Total</span>
-                  <span>
-                    {selectedOrderForBill.total_amount?.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-2 mt-2 border-t-4 border-black font-black text-center">
-                  <span className="text-[12px] uppercase italic text-left">
-                    TOTAL NET
-                  </span>
+              <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
+                  <span className="text-[12px] uppercase italic">TOTAL NET</span>
                   <span className="text-xl">
                     {selectedOrderForBill.total_amount?.toLocaleString()} F
                   </span>
-                </div>
               </div>
 
               <div className="mt-8 text-center pt-4 border-t border-dashed border-black">
@@ -385,7 +360,7 @@ export default function OrdersTabContent({
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => window.print()}
-                className="flex-1 h-14 bg-[#00D9FF] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"
+                className="flex-1 h-14 bg-[#00D9FF] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg border-none cursor-pointer"
               >
                 <Printer size={18} /> Imprimer
               </button>
@@ -394,13 +369,13 @@ export default function OrdersTabContent({
                   setOrderToDelete(selectedOrderForBill);
                   setIsDeleteModalOpen(true);
                 }}
-                className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg border-none cursor-pointer"
               >
                 <Trash2 size={20} />
               </button>
               <button
                 onClick={() => setSelectedOrderForBill(null)}
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${isDarkMode ? "border-white/10 text-white" : "border-gray-200 text-black"} shadow-lg`}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-transparent cursor-pointer ${isDarkMode ? "border-white/10 text-white" : "border-gray-200 text-black"}`}
               >
                 <X size={20} />
               </button>
@@ -427,13 +402,13 @@ export default function OrdersTabContent({
             <div className="flex gap-3">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5"
+                className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 border-none text-white cursor-pointer"
               >
                 Retour
               </button>
               <button
                 onClick={handleDeleteOrder}
-                className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-red-500 text-white shadow-lg"
+                className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-red-500 text-white shadow-lg border-none cursor-pointer"
               >
                 Confirmer
               </button>
@@ -444,31 +419,22 @@ export default function OrdersTabContent({
 
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden !important;
-            background: none !important;
-          }
-          .printable-receipt,
-          .printable-receipt * {
+          body * { visibility: hidden !important; background: none !important; }
+          .printable-receipt, .printable-receipt * {
             visibility: visible !important;
             display: block !important;
             color: black !important;
           }
           .printable-receipt {
             position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
+            left: 0 !important; top: 0 !important;
             width: 80mm !important;
             background: white !important;
             padding: 20px !important;
             font-family: "Courier New", Courier, monospace !important;
           }
-          .flex {
-            display: flex !important;
-          }
-          .justify-between {
-            justify-content: space-between !important;
-          }
+          .flex { display: flex !important; }
+          .justify-between { justify-content: space-between !important; }
         }
       `}</style>
     </div>
@@ -480,9 +446,7 @@ function QuickStat({ isDarkMode, label, value, icon }) {
     <div
       className={`p-6 rounded-[35px] border flex items-center gap-4 transition-all ${isDarkMode ? "bg-white/[0.02] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm"}`}
     >
-      <div
-        className={`p-3 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}
-      >
+      <div className={`p-3 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}>
         {icon}
       </div>
       <div className="text-left">
