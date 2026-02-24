@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { 
   ShieldCheck, Store, TrendingUp, 
   Loader2, CheckCircle2, AlertCircle, Search, 
-  PieChart, DollarSign, Sun, Moon
+  PieChart, DollarSign, Sun, Moon, Eye
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, 
@@ -24,6 +24,8 @@ export default function MasterAdminPage() {
   const [restaurants, setRestaurants] = useState([]);
   const [systemHealth, setSystemHealth] = useState({ status: 'checking', latency: 0 });
 
+  const router = useRouter();
+
   const [saasData] = useState([
     { name: 'Jan', total: 0 }, { name: 'Fév', total: 0 }, { name: 'Mar', total: 0 }
   ]);
@@ -33,10 +35,8 @@ export default function MasterAdminPage() {
     { name: 'Wave', value: 300, color: '#00d9ff' },
     { name: 'MTN', value: 200, color: '#ffcc00' },
     { name: 'Visa/MC', value: 150, color: '#1a1f71' }, 
-    { name: 'Espèces', value: 50, color: '#22c55e' }  
+    { name: 'Espèces', value: 50, color: '#22c55e' }   
   ]);
-
-  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -127,6 +127,14 @@ export default function MasterAdminPage() {
     } catch (err) { alert("Erreur technique"); }
   };
 
+  // --- LOGIQUE IMPERSONNATE ---
+  const handleImpersonate = (restoId) => {
+    // On stocke l'ID du restaurant cible
+    localStorage.setItem('impersonate_resto_id', restoId);
+    // On redirige vers le dashboard
+    router.push('/dashboard');
+  };
+
   const filteredRestos = restaurants.filter(r => 
     r.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     r.owner_email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -179,7 +187,7 @@ export default function MasterAdminPage() {
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <Link href="/dashboard" className={`flex items-center gap-2 px-6 py-4 border rounded-2xl text-xs font-bold transition-all ${isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-700 shadow-sm'}`}>
-               Dashboard
+                Dashboard
             </Link>
         </div>
       </div>
@@ -187,7 +195,7 @@ export default function MasterAdminPage() {
       {/* --- SECTION ANALYTIQUE --- */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
         <div className={`lg:col-span-2 border p-8 rounded-[45px] ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-8 text-left">
                 <h3 className={`text-lg font-black italic uppercase tracking-tighter flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     <TrendingUp size={20} className="text-[#00D9FF]" /> Revenus SaaS
                 </h3>
@@ -281,11 +289,11 @@ export default function MasterAdminPage() {
             <tbody className={`divide-y ${isDarkMode ? 'divide-white/[0.02]' : 'divide-gray-100'}`}>
               {activeRestos.map((resto) => (
                 <tr key={resto.id} className={`group transition-colors ${isDarkMode ? 'hover:bg-white/[0.01]' : 'hover:bg-gray-50'}`}>
-                  <td className="px-8 py-6">
+                  <td className="px-8 py-6 text-left">
                     <p className={`font-black text-sm uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name || "N/A"}</p>
                     <p className={`text-[10px] ${isDarkMode ? 'opacity-40' : 'text-gray-500'}`}>{resto.location || "Non défini"}</p>
                   </td>
-                  <td className="px-8 py-6">
+                  <td className="px-8 py-6 text-left">
                     <p className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{resto.owner_email}</p>
                     <span className="text-[9px] font-black text-green-500 uppercase flex items-center gap-1"><CheckCircle2 size={10} /> Actif</span>
                   </td>
@@ -293,9 +301,19 @@ export default function MasterAdminPage() {
                     <p className="font-black text-sm text-[#00D9FF]">{resto.total_sales.toLocaleString()} F</p>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button onClick={() => toggleStatus(resto.id, true)} className="text-red-500 bg-red-500/10 border border-red-500/20 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
-                      Suspendre
-                    </button>
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={() => handleImpersonate(resto.id)}
+                            className={`p-3 rounded-xl border flex items-center gap-2 transition-all ${isDarkMode ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'}`}
+                            title="Voir en tant que"
+                        >
+                            <Eye size={16} />
+                            <span className="text-[9px] font-black uppercase hidden sm:block">Aperçu</span>
+                        </button>
+                        <button onClick={() => toggleStatus(resto.id, true)} className="text-red-500 bg-red-500/10 border border-red-500/20 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
+                            Suspendre
+                        </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -308,9 +326,7 @@ export default function MasterAdminPage() {
 }
 
 function StatCard({ isDarkMode, label, value, color, icon, highlight = false }) {
-  
   const valueColor = color ? color : (isDarkMode ? 'text-white' : 'text-gray-900');
-  
   return (
     <div className={`p-6 border rounded-[35px] text-left transition-all ${highlight ? 'border-orange-500/50 bg-orange-500/5' : isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
       <div className={`flex items-center gap-2 mb-2 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>

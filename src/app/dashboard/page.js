@@ -67,13 +67,26 @@ export default function AdminDashboard() {
           if (isMounted) router.replace('/auth/login');
           return;
         }
-        const { data: profile, error } = await supabase.from('restaurants').select('*').eq('id', session.user.id).maybeSingle();
-        if (error) throw error;
+
+        const { data: realProfile } = await supabase.from('restaurants').select('*').eq('id', session.user.id).maybeSingle();
+        if (!realProfile) {
+          if (isMounted) router.replace('/auth/login');
+          return;
+        }
+
+        // LOGIQUE APERÇU
+        const impersonateId = localStorage.getItem('impersonate_resto_id');
+        let profileToUse = realProfile;
+
+        if (impersonateId && realProfile.is_super_admin) {
+          const { data: targetProfile } = await supabase.from('restaurants').select('*').eq('id', impersonateId).maybeSingle();
+          if (targetProfile) profileToUse = targetProfile;
+        }
+
         if (isMounted) {
-          if (!profile) { router.replace('/auth/login'); return; }
-          setUserProfile(profile);
-          setRestaurantName(profile.name);
-          setIsActive(profile.is_active);
+          setUserProfile(profileToUse);
+          setRestaurantName(profileToUse.name);
+          setIsActive(profileToUse.is_active);
           setAuthLoading(false);
           setMounted(true);
         }
@@ -87,6 +100,7 @@ export default function AdminDashboard() {
   }, [selectedDateISO]);
 
   const handleLogout = async () => {
+    localStorage.removeItem('impersonate_resto_id'); // On nettoie au cas où
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');
@@ -106,7 +120,6 @@ export default function AdminDashboard() {
 
   const renderContent = () => {
     const commonProps = { isDarkMode, setActiveTab, selectedDate: selectedDateISO, userProfile };
-    
     switch (activeTab) {
       case "overview": return <OverviewTabContent {...commonProps} />;
       case "orders": return <OrdersTabContent {...commonProps} setCart={setCart} setPendingOrder={setPendingOrder} />;
@@ -126,6 +139,24 @@ export default function AdminDashboard() {
   return (
     <div className={`min-h-screen flex overflow-x-hidden ${isDarkMode ? "bg-[#050505] text-white" : "bg-[#F9FAFB] text-[#1F2937]"}`}>
       
+      {/* BANDEAU MODE APERÇU - ICI IL SERA VISIBLE */}
+      {mounted && localStorage.getItem('impersonate_resto_id') && (
+        <div className="fixed top-0 left-0 right-0 z-[1000] bg-orange-600 text-white py-2 px-4 flex justify-center items-center gap-4 shadow-xl">
+          <span className="text-[10px] font-black uppercase tracking-widest">
+            Attention : Mode Support Actif (Vue sur {restaurantName})
+          </span>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('impersonate_resto_id');
+              window.location.reload();
+            }}
+            className="bg-white text-orange-600 px-3 py-1 rounded-full text-[9px] font-black uppercase hover:bg-orange-100 transition-all border-none cursor-pointer"
+          >
+            Quitter l'aperçu
+          </button>
+        </div>
+      )}
+
       {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-[200] w-72 transition-all lg:static lg:h-screen flex flex-col p-6 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="flex items-center justify-between mb-10">
@@ -139,7 +170,6 @@ export default function AdminDashboard() {
           ))}
         </nav>
 
-        {/* --- BOUTON SUPER ADMIN --- */}
         {userProfile?.is_super_admin && (
           <Link 
             href="/admin/master" 
@@ -177,6 +207,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 // --- VUE D'ENSEMBLE ---
 
