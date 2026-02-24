@@ -105,7 +105,6 @@ export default function AdminDashboard() {
   }
 
   const renderContent = () => {
-    // PASSAGE SYSTÉMATIQUE DU userProfile À TOUS LES ONGLETS
     const commonProps = { isDarkMode, setActiveTab, selectedDate: selectedDateISO, userProfile };
     
     switch (activeTab) {
@@ -139,7 +138,19 @@ export default function AdminDashboard() {
             <NavItem key={item.id} isDarkMode={isDarkMode} icon={item.icon} label={item.label} active={activeTab === item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} />
           ))}
         </nav>
-        <button onClick={handleLogout} className="mt-2 flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-400/10 rounded-xl font-bold w-full text-left bg-transparent border-none cursor-pointer">
+
+        {/* --- BOUTON SUPER ADMIN --- */}
+        {userProfile?.is_super_admin && (
+          <Link 
+            href="/admin/master" 
+            className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest mb-2 transition-all no-underline
+              ${isDarkMode ? "bg-white/5 text-[#00D9FF] hover:bg-[#00D9FF] hover:text-black" : "bg-gray-100 text-[#00D9FF] hover:bg-cyan-50"}`}
+          >
+            <ShieldCheck size={20} /> God Mode
+          </Link>
+        )}
+
+        <button onClick={handleLogout} className={`mt-2 flex items-center gap-3 px-4 py-3 rounded-xl font-bold w-full text-left bg-transparent border-none cursor-pointer transition-all ${isDarkMode ? "text-red-400 hover:bg-red-400/10" : "text-red-600 hover:bg-red-50"}`}>
           <LogOut size={20} /> Déconnexion
         </button>
       </aside>
@@ -167,9 +178,7 @@ export default function AdminDashboard() {
   );
 }
 
-// --- VUE D'ENSEMBLE AVEC GRAPHIQUE ET FILTRE PARTAGÉ ---
-
-
+// --- VUE D'ENSEMBLE ---
 
 function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfile }) {
   const [realStats, setRealStats] = useState({ 
@@ -243,11 +252,9 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
     <div className="fade-in space-y-8 pb-10">
       <div className={`p-10 rounded-[40px] relative overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"}`}>
         <div className="relative z-10">
-          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4">Ventes du jour</p>
+          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4 text-left">Ventes du jour</p>
           <div className="flex justify-between items-end">
-            <h2 className="text-5xl lg:text-7xl font-black">{realStats.dayTotal.toLocaleString()} <span className="text-2xl opacity-30 italic">F</span></h2>
-            
-            {/* --- AJOUT DES DÉPENSES ET DU NET ICI --- */}
+            <h2 className="text-5xl lg:text-7xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-2xl opacity-30 italic">F</span></h2>
             <div className="flex gap-8 text-right hidden md:flex">
                 <div className="text-right">
                   <p className="text-[10px] uppercase opacity-40 font-black mb-1">Total Dépenses</p>
@@ -266,8 +273,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
             <PaymentMiniStat label="Wave" value={realStats.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
             <PaymentMiniStat label="MTN" value={realStats.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
             <PaymentMiniStat label="Visa/MC" value={realStats.byMethod["Carte Bancaire"]} icon={<CreditCard size={16}/>} color="indigo" />
-            
-            {/* --- MINI STAT DÉPENSES DANS LA GRILLE --- */}
             <PaymentMiniStat label="Dépenses" value={realStats.dayExpenses} icon={<ArrowDownCircle size={16}/>} color="red" />
           </div>
         </div>
@@ -311,8 +316,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
   );
 }
 
-
-
 function PaymentMiniStat({ label, value, icon, color }) {
   const colors = { 
     green: "bg-green-500/10 text-green-500", 
@@ -329,21 +332,6 @@ function PaymentMiniStat({ label, value, icon, color }) {
         <p className="text-[9px] uppercase font-black opacity-40 tracking-widest text-left">{label}</p>
         <p className="text-sm font-black text-left">{value?.toLocaleString() || 0} F</p>
       </div>
-    </div>
-  );
-}
-
-function OrderRow({ table, dishes, total, status, isDarkMode }) {
-  return (
-    <div className={`flex items-center justify-between p-4 rounded-2xl ${isDarkMode ? "bg-white/[0.02] border border-white/5" : "bg-gray-50 border border-gray-100"}`}>
-      <div className="flex items-center gap-4 text-left">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-[#00D9FF]/10 text-[#00D9FF] text-xs">{table}</div>
-        <div className="text-left">
-          <h4 className="font-bold text-xs uppercase tracking-tight">{dishes}</h4>
-          <p className="text-[10px] opacity-40">{total}</p>
-        </div>
-      </div>
-      <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-[#00D9FF]/10 text-[#00D9FF]">{status}</span>
     </div>
   );
 }
@@ -379,5 +367,22 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
       </span>
       <span>{label}</span>
     </button>
+  );
+}
+
+function AccountInactiveScreen({ restaurantName, handleLogout }) {
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8">
+        <ShieldCheck size={40} />
+      </div>
+      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
+      <p className="text-white/40 max-w-md mb-10 font-medium">
+        Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès à RestoPay est suspendu. Veuillez contacter l'administration pour régulariser votre abonnement.
+      </p>
+      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">
+        Déconnexion
+      </button>
+    </div>
   );
 }
