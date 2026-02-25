@@ -458,14 +458,19 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
   );
 }
 
-function AccountInactiveScreen({ restaurantName, handleLogout}) {
-  return(
-    <div className="min-h-scren bg-[#050505] flex flex-col items-center justofy-center  p-6 text-center">
-      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex item-center justify-center mb-8">
-      <ShieldCheck size={40}/>
-      </div>
-      
-    </div>
-  )
-}
-
+function AccountInactiveScreen({ restaurantName, handleLogout }) {
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8">
+        <ShieldCheck size={40} />
+      </div>
+      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
+      <p className="text-white/40 max-w-md mb-10 font-medium">
+        Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès à RestoPay est suspendu. Veuillez contacter l'administration pour régulariser votre abonnement.
+      </p>
+      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">
+        Déconnexion
+      </button>
+    </div>
+  );
+} 
