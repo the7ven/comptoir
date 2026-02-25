@@ -90,7 +90,7 @@ export default function TablesTabContent({ isDarkMode, setActiveTab, setPendingO
     try {
       const { error: transError } = await supabase.from('transactions').insert([{
         restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email, // Indispensable pour tes stats proprio
+        owner_email: userProfile.owner_email, // indispensable pour   stats proprio
         table_number: order.table_number,
         amount: order.total_amount,
         payment_method: method,

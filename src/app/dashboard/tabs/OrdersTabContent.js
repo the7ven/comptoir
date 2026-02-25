@@ -2,65 +2,40 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  ShoppingBag,
-  Clock,
-  CheckCircle2,
-  ChevronRight,
-  Plus,
-  Filter,
-  MoreVertical,
-  Flame,
-  Utensils,
-  Search,
-  Trash2,
-  AlertCircle,
-  X,
-  Check,
-  Printer,
-  Receipt,
-  Edit3,
+  ShoppingBag, Clock, CheckCircle2, Plus, Flame, Utensils,
+  Search, Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Loader2, Send, Beer
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { printViaBluetooth } from '@/lib/bluetoothPrint'; 
 
 export default function OrdersTabContent({
-  isDarkMode,
-  setActiveTab,
-  setCart,
-  setPendingOrder,
-  selectedDate,
-  userProfile // Ajout de la prop indispensable
+  isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [selectedOrderForBill, setSelectedOrderForBill] = useState(null);
+  const [previewOrder, setPreviewOrder] = useState(null); 
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
       fetchOrders();
       const subscription = supabase
         .channel("orders_live")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "orders" },
-          fetchOrders,
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchOrders)
         .subscribe();
-      return () => {
-        supabase.removeChannel(subscription);
-      };
+      return () => { supabase.removeChannel(subscription); };
     }
   }, [selectedDate, userProfile]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      
       const startOfDay = `${selectedDate}T00:00:00.000Z`;
       const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
-      // LOGIQUE DE PARTAGE : Filtrage par owner_email
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -71,392 +46,228 @@ export default function OrdersTabContent({
 
       if (error) throw error;
       setOrders(data || []);
-    } catch (error) {
-      console.error("Erreur:", error.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error("Erreur:", error.message); } 
+    finally { setLoading(false); }
   };
 
-  const handleEditOrder = async (order) => {
-    if (order.items_details) {
-      setCart(order.items_details);
-      const tableValue = order.table_number?.includes("Table")
-        ? order.table_number.replace("Table ", "")
-        : order.table_number;
+  // --- LOGIQUE ENVOI DISPATCHÉ ---
+  const sendToPrinter = async (items, target, table) => {
+    if (items.length === 0) return alert("Rien à imprimer ici.");
+    setIsPrinting(true);
+    try {
+      const ticketData = {
+        title: target === "KITCHEN" ? "BON CUISINE" : "BON BAR",
+        table: table, // Numéro de table inclus ici
+        date: new Date().toLocaleTimeString("fr-FR"),
+        items: items.map(item => ({
+          name: item.name.toUpperCase(),
+          qty: item.quantity
+        })),
+        footer: target === "KITCHEN" ? "*** SECTION CUISINE ***" : "*** SECTION BAR ***"
+      };
 
-      setPendingOrder({
-        table_number: tableValue,
-        order_type:
-          order.table_number === "Emporter" ? "Emporter" : "Sur place",
-      });
-
-      // Suppression avec vérification d'email
-      const { error } = await supabase
-        .from("orders")
-        .delete()
-        .eq("id", order.id)
-        .eq("owner_email", userProfile.owner_email); 
-
-      if (!error) setActiveTab("menu");
-    } else {
-      alert("Détails manquants.");
+      await printViaBluetooth(ticketData); 
+      alert("Impression lancée !");
+    } catch (error) {
+      alert("Erreur Bluetooth.");
+    } finally {
+      setIsPrinting(false);
     }
   };
 
   const handleUpdateStatus = async (order) => {
-    if (order.status === "Servi") return;
-
     try {
+      const nextStatus = order.status === "En cours" ? "Prêt" : "Servi";
       if (order.status === "Prêt") {
-        // ENCAISSEMENT : Injection des identifiants partagés dans les transactions
-        const { error: transError } = await supabase
-          .from("transactions")
-          .insert([
-            {
-              restaurant_id: userProfile.id, // Celui qui fait l'action
-              owner_email: userProfile.owner_email, // Le proprio du compte
-              table_number: order.table_number,
-              amount: order.total_amount,
-              payment_method: "Espèces",
-              items: order.items_details || [],
-              created_at: new Date().toISOString(),
-            },
-          ]);
-
-        if (transError) throw transError;
-
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({ status: "Servi" })
-          .eq("id", order.id)
-          .eq("owner_email", userProfile.owner_email);
-
-        if (orderError) throw orderError;
-
-        alert(`Commande ${order.table_number} encaissée avec succès !`);
-      } else {
-        await supabase
-          .from("orders")
-          .update({ status: "Prêt" })
-          .eq("id", order.id)
-          .eq("owner_email", userProfile.owner_email);
+        await supabase.from("transactions").insert([{
+          restaurant_id: userProfile.id,
+          owner_email: userProfile.owner_email,
+          table_number: order.table_number,
+          amount: order.total_amount,
+          payment_method: "Espèces",
+          items: order.items_details || [],
+        }]);
       }
+      await supabase.from("orders").update({ status: nextStatus }).eq("id", order.id);
       fetchOrders();
-    } catch (err) {
-      alert("Erreur : " + err.message);
-    }
+    } catch (err) { alert(err.message); }
   };
 
   const handleDeleteOrder = async () => {
-    await supabase
-      .from("orders")
-      .delete()
-      .eq("id", orderToDelete.id)
-      .eq("owner_email", userProfile.owner_email);
+    await supabase.from("orders").delete().eq("id", orderToDelete.id);
     setIsDeleteModalOpen(false);
     fetchOrders();
   };
 
-  // ... (Reste du code JSX strictement identique à ton original)
-  const statusColors = {
-    "En cours": isDarkMode
-      ? "text-orange-400 bg-orange-400/10 border-orange-400/20"
-      : "text-orange-600 bg-orange-50 border-orange-100",
-    Prêt: isDarkMode
-      ? "text-green-400 bg-green-400/10 border-green-400/20"
-      : "text-green-600 bg-green-50 border-green-100",
-    Servi: isDarkMode
-      ? "text-white/30 bg-white/5 border-white/5"
-      : "text-gray-400 bg-gray-50 border-gray-100",
-  };
+  // Filtrage pour les aperçus
+  const kitchenItems = previewOrder?.items_details.filter(i => ["Plats", "Accompagnements"].includes(i.category)) || [];
+  const barItems = previewOrder?.items_details.filter(i => !["Plats", "Accompagnements"].includes(i.category)) || [];
 
   return (
     <div className="fade-in text-left pb-20">
-      <div className="flex justify-between items-center mb-10 no-print">
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-8 no-print">
         <div className="text-left">
-          <h3 className="text-3xl font-black italic tracking-tighter text-left uppercase">
-            Commandes Live
-          </h3>
-          <p className="opacity-50 text-[10px] font-black uppercase tracking-widest text-left">
-            Suivi temps réel • Flux Cuisine
-          </p>
+          <h3 className="text-2xl font-black italic tracking-tighter uppercase">Commandes</h3>
+          <p className="opacity-40 text-[9px] font-black uppercase tracking-widest">Multi-Dispatch Bluetooth</p>
         </div>
-        <button
-          onClick={() => setActiveTab("menu")}
-          className="bg-[#00D9FF] text-black px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2 border-none cursor-pointer"
-        >
-          <Plus size={18} />
-          <span>nouvelle commande</span>
+        <button onClick={() => setActiveTab("menu")} className="bg-[#00D9FF] text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all border-none cursor-pointer flex items-center gap-2">
+          <Plus size={16} strokeWidth={3} /> Nouveau
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10 no-print">
-        <QuickStat
-          isDarkMode={isDarkMode}
-          label="Cuisine"
-          value={orders.filter((o) => o.status === "En cours").length}
-          icon={<Flame className="text-orange-500" />}
-        />
-        <QuickStat
-          isDarkMode={isDarkMode}
-          label="Prêts"
-          value={orders.filter((o) => o.status === "Prêt").length}
-          icon={<Utensils className="text-green-500" />}
-        />
-        <QuickStat
-          isDarkMode={isDarkMode}
-          label="Servis"
-          value={orders.filter((o) => o.status === "Servi").length}
-          icon={<CheckCircle2 className="text-[#00D9FF]" />}
-        />
+      {/* QUICK STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 no-print">
+        <QuickStat isDarkMode={isDarkMode} label="En attente" value={orders.filter((o) => o.status === "En cours").length} icon={<Flame size={18} className="text-orange-500" />} />
+        <QuickStat isDarkMode={isDarkMode} label="Prêts" value={orders.filter((o) => o.status === "Prêt").length} icon={<Utensils size={18} className="text-green-500" />} />
+        <QuickStat isDarkMode={isDarkMode} label="Finalisés" value={orders.filter((o) => o.status === "Servi").length} icon={<CheckCircle2 size={18} className="text-[#00D9FF]" />} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 no-print">
-        {loading && orders.length === 0 ? (
-          <div className="col-span-full text-center py-20 opacity-20 italic font-bold">
-            Chargement des données...
-          </div>
-        ) : (
-          orders.map((order) => (
-            <div
-              key={order.id}
-              className={`p-6 rounded-[40px] border transition-all duration-500 flex flex-col justify-between h-full ${isDarkMode ? "bg-[#0a0a0a] border-white/5 hover:border-[#00D9FF]/30" : "bg-white border-gray-100 shadow-sm hover:shadow-xl"}`}
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg ${order.status === "En cours" ? "bg-[#00D9FF] text-black shadow-lg shadow-cyan-500/20" : isDarkMode ? "bg-white/5 text-white/40" : "bg-gray-100 text-gray-500"}`}
-                >
-                  {order.table_number?.replace("Table ", "T.")}
-                </div>
-                <div
-                  className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusColors[order.status]}`}
-                >
-                  {order.status}
-                </div>
+      {/* LISTE DES COMMANDES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 no-print">
+        {orders.map((order) => (
+          <div key={order.id} className={`p-5 rounded-3xl border transition-all flex flex-col justify-between ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
+            <div className="flex justify-between items-start mb-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${order.status === "En cours" ? "bg-[#00D9FF] text-black" : "bg-white/5 text-white/20"}`}>
+                {order.table_number?.replace("Table ", "T.")}
               </div>
+              <button onClick={() => setPreviewOrder(order)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all border-none cursor-pointer">
+                <Printer size={14} />
+                <span className="text-[8px] font-black uppercase tracking-tighter">Imprimer</span>
+              </button>
+            </div>
 
-              <div className="flex-1 mb-6 text-left">
-                <div className="flex items-center gap-2 mb-2 opacity-30 text-left">
-                  <Clock size={12} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-left">
-                    {Math.floor(
-                      (new Date() - new Date(order.created_at)) / 60000,
-                    )}{" "}
-                    MIN
-                  </span>
-                </div>
-                <p
-                  className={`text-base font-black leading-tight text-left ${isDarkMode ? "text-white" : "text-gray-800"}`}
-                >
-                  {order.items_summary}
-                </p>
-              </div>
-
-              <div
-                className={`pt-6 border-t ${isDarkMode ? "border-white/5" : "border-gray-100"} flex items-center justify-between`}
-              >
-                <div className="text-left">
-                  <p className="text-[9px] uppercase font-black opacity-30 tracking-widest text-left">
-                    Total
-                  </p>
-                  <p className="font-black text-[#00D9FF] text-lg text-left">
-                    {order.total_amount?.toLocaleString()} F
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditOrder(order)}
-                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-[#00D9FF] shadow-sm"}`}
-                    title="Modifier"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(order)}
-                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-green-400" : "bg-gray-50 text-gray-400 hover:text-green-600 shadow-sm"}`}
-                    title="Suivant"
-                  >
-                    <Check size={18} />
-                  </button>
-                  <button
-                    onClick={() => setSelectedOrderForBill(order)}
-                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/40 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-black shadow-sm"}`}
-                    title="Facture"
-                  >
-                    <Receipt size={18} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setOrderToDelete(order);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/20 hover:text-red-500" : "bg-gray-50 text-gray-400 hover:text-red-500 shadow-sm"}`}
-                    title="Supprimer"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+            <div className="flex-1 mb-4 text-left">
+              <p className={`text-sm font-black leading-tight mb-2 ${isDarkMode ? "text-white" : "text-gray-800"}`}>{order.items_summary}</p>
+              <div className="flex items-center gap-2 opacity-30">
+                <Clock size={10} />
+                <span className="text-[9px] font-bold uppercase">{new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
-          ))
-        )}
+
+            <div className={`pt-4 border-t ${isDarkMode ? "border-white/5" : "border-gray-100"} flex items-center justify-between`}>
+              <p className="font-black text-[#00D9FF] text-base">{order.total_amount?.toLocaleString()} F</p>
+              <div className="flex gap-1">
+                <ActionBtn onClick={() => { setCart(order.items_details); setPendingOrder(order); setActiveTab("menu"); }} icon={<Edit3 size={14}/>} isDarkMode={isDarkMode} />
+                <ActionBtn onClick={() => handleUpdateStatus(order)} icon={<Check size={14}/>} isDarkMode={isDarkMode} />
+                <ActionBtn onClick={() => setSelectedOrderForBill(order)} icon={<Receipt size={14}/>} isDarkMode={isDarkMode} />
+                <ActionBtn onClick={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }} icon={<Trash2 size={14}/>} isDarkMode={isDarkMode} />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* MODAL FACTURE */}
-      {selectedOrderForBill && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 no-print">
-          <div className="w-full max-w-sm fade-in">
-            <div
-              id="printable-bill"
-              className="bg-white text-black p-6 rounded-sm shadow-2xl overflow-hidden printable-receipt font-mono text-[12px] leading-tight border-t-8 border-black"
-            >
-              <div className="text-center border-b border-black pb-4 mb-4">
-                <h4 className="text-lg font-black uppercase tracking-tighter italic text-center">
-                  RestoPay Luxe
-                </h4>
-                <p className="text-[9px] font-bold text-center">
-                  ABIDJAN • COTE D'IVOIRE
-                </p>
-              </div>
+    {/* --- DOUBLE APERÇU (CUISINE & BAR) --- */}
+{previewOrder && (
+  <div 
+    className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto"
+    onClick={() => setPreviewOrder(null)} // Ferme si on clique sur le fond sombre
+  >
+    <div 
+      className="w-full max-w-4xl flex flex-col md:flex-row gap-6 p-4 relative"
+      onClick={(e) => e.stopPropagation()} // Empêche la fermeture si on clique sur les tickets
+    >
+      
+      {/* BOUTON FERMER (CROIX) - Toujours visible en haut à droite */}
+      <button 
+        onClick={() => setPreviewOrder(null)} 
+        className="absolute -top-10 right-4 md:-right-6 text-white/50 hover:text-white transition-all border-none bg-transparent cursor-pointer flex items-center gap-2"
+      >
+        <span className="text-[10px] font-black uppercase tracking-widest">Fermer</span>
+        <X size={24} />
+      </button>
 
-              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2">
-                <span>{selectedOrderForBill.table_number}</span>
-                <span>
-                  {new Date(selectedOrderForBill.created_at).toLocaleDateString(
-                    "fr-FR",
-                  )}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-6 text-left">
-                {selectedOrderForBill.items_details?.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between items-start leading-none"
-                      >
-                        <span className="w-3/5 text-left font-bold uppercase text-[11px]">{item.name}</span>
-                        <span className="w-2/5 text-right font-black">
-                          {item.price?.toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-              </div>
-
-              <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
-                  <span className="text-[12px] uppercase italic">TOTAL NET</span>
-                  <span className="text-xl">
-                    {selectedOrderForBill.total_amount?.toLocaleString()} F
-                  </span>
-              </div>
-
-              <div className="mt-8 text-center pt-4 border-t border-dashed border-black">
-                <p className="text-[9px] font-black uppercase tracking-widest text-center">
-                  Merci de votre visite !
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => window.print()}
-                className="flex-1 h-14 bg-[#00D9FF] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg border-none cursor-pointer"
-              >
-                <Printer size={18} /> Imprimer
-              </button>
-              <button
-                onClick={() => {
-                  setOrderToDelete(selectedOrderForBill);
-                  setIsDeleteModalOpen(true);
-                }}
-                className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg border-none cursor-pointer"
-              >
-                <Trash2 size={20} />
-              </button>
-              <button
-                onClick={() => setSelectedOrderForBill(null)}
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-transparent cursor-pointer ${isDarkMode ? "border-white/10 text-white" : "border-gray-200 text-black"}`}
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
+      {/* TICKET CUISINE */}
+      <div className="flex-1 bg-white text-black p-6 rounded-xl shadow-2xl font-mono border-t-8 border-orange-600">
+        <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
+          <span className="font-black text-[12px] uppercase">BON CUISINE</span>
+          <Utensils size={18} className="text-orange-600" />
         </div>
-      )}
+        <div className="mb-4 text-center py-2 border-b-2 border-black">
+          <p className="text-2xl font-black">{previewOrder.table_number}</p>
+          <p className="text-[10px] font-bold opacity-60 uppercase">Heure: {new Date().toLocaleTimeString()}</p>
+        </div>
+        <div className="min-h-[150px] space-y-2 mb-6">
+          {kitchenItems.length > 0 ? kitchenItems.map((item, idx) => (
+            <div key={idx} className="flex justify-between text-[14px] font-black border-b border-gray-100 py-1 text-left">
+              <span>{item.quantity} x {item.name.toUpperCase()}</span>
+            </div>
+          )) : <p className="text-center opacity-20 italic text-[10px] py-10">Aucun plat</p>}
+        </div>
+        <button 
+          onClick={() => sendToPrinter(kitchenItems, "KITCHEN", previewOrder.table_number)}
+          disabled={isPrinting || kitchenItems.length === 0}
+          className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-none cursor-pointer shadow-lg transition-all ${kitchenItems.length > 0 ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-gray-100 text-gray-400 opacity-50'}`}
+        >
+          <Printer size={16} /> Imprimer Cuisine
+        </button>
+      </div>
 
-      {/* Modal suppression + Styles Print + QuickStat (Gardés identiques) */}
+      {/* TICKET BAR */}
+      <div className="flex-1 bg-white text-black p-6 rounded-xl shadow-2xl font-mono border-t-8 border-blue-600">
+        <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
+          <span className="font-black text-[12px] uppercase">BON BAR</span>
+          <Beer size={18} className="text-blue-600" />
+        </div>
+        <div className="mb-4 text-center py-2 border-b-2 border-black">
+          <p className="text-2xl font-black">{previewOrder.table_number}</p>
+          <p className="text-[10px] font-bold opacity-60 uppercase">Heure: {new Date().toLocaleTimeString()}</p>
+        </div>
+        <div className="min-h-[150px] space-y-2 mb-6">
+          {barItems.length > 0 ? barItems.map((item, idx) => (
+            <div key={idx} className="flex justify-between text-[14px] font-black border-b border-gray-100 py-1 text-left">
+              <span>{item.quantity} x {item.name.toUpperCase()}</span>
+            </div>
+          )) : <p className="text-center opacity-20 italic text-[10px] py-10">Aucune boisson</p>}
+        </div>
+        <button 
+          onClick={() => sendToPrinter(barItems, "BAR", previewOrder.table_number)}
+          disabled={isPrinting || barItems.length === 0}
+          className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-none cursor-pointer shadow-lg transition-all ${barItems.length > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 opacity-50'}`}
+        >
+          <Printer size={16} /> Imprimer Bar
+        </button>
+      </div>
+
+    </div>
+  </div>
+)} 
+
+      {/* MODALE SUPPRESSION */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 backdrop-blur-md bg-black/40 no-print text-center">
-          <div
-            className={`w-full max-w-sm rounded-[40px] p-8 border shadow-2xl ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"}`}
-          >
-            <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <AlertCircle size={32} />
-            </div>
-            <h3 className="text-xl font-black text-center mb-2 tracking-tighter uppercase">
-              Annuler Commande
-            </h3>
-            <p className="text-sm opacity-50 text-center mb-8 font-medium italic">
-              Supprimer définitivement cette commande ?
-            </p>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-center">
+          <div className={`w-full max-w-sm rounded-[32px] p-10 ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-2xl"}`}>
+            <AlertCircle size={40} className="text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black uppercase italic mb-2">Annuler ?</h3>
+            <p className="text-xs opacity-40 mb-8 font-medium">Supprimer cette commande ?</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase bg-white/5 border-none text-white cursor-pointer"
-              >
-                Retour
-              </button>
-              <button
-                onClick={handleDeleteOrder}
-                className="flex-1 py-4 rounded-2xl font-black text-xs uppercase bg-red-500 text-white shadow-lg border-none cursor-pointer"
-              >
-                Confirmer
-              </button>
+              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-4 rounded-xl font-bold bg-white/5 border-none text-current cursor-pointer uppercase text-[10px]">Retour</button>
+              <button onClick={handleDeleteOrder} className="flex-1 py-4 rounded-xl font-black bg-red-500 text-white border-none cursor-pointer uppercase text-[10px]">Confirmer</button>
             </div>
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden !important; background: none !important; }
-          .printable-receipt, .printable-receipt * {
-            visibility: visible !important;
-            display: block !important;
-            color: black !important;
-          }
-          .printable-receipt {
-            position: fixed !important;
-            left: 0 !important; top: 0 !important;
-            width: 80mm !important;
-            background: white !important;
-            padding: 20px !important;
-            font-family: "Courier New", Courier, monospace !important;
-          }
-          .flex { display: flex !important; }
-          .justify-between { justify-content: space-between !important; }
-        }
-      `}</style>
     </div>
   );
 }
 
 function QuickStat({ isDarkMode, label, value, icon }) {
   return (
-    <div
-      className={`p-6 rounded-[35px] border flex items-center gap-4 transition-all ${isDarkMode ? "bg-white/[0.02] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm"}`}
-    >
-      <div className={`p-3 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}>
-        {icon}
-      </div>
+    <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
+      <div className={`p-2 rounded-lg ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}>{icon}</div>
       <div className="text-left">
-        <p className="text-[9px] uppercase tracking-widest opacity-40 font-black text-left">
-          {label}
-        </p>
-        <p className="text-2xl font-black italic tracking-tighter text-left">
-          {value}
-        </p>
+        <p className="text-[8px] uppercase tracking-widest opacity-40 font-black">{label}</p>
+        <p className="text-lg font-black italic">{value}</p>
       </div>
     </div>
+  );
+}
+
+function ActionBtn({ onClick, icon, isDarkMode }) {
+  return (
+    <button onClick={onClick} className={`p-2 rounded-lg transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/30 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-[#00D9FF]"}`}>
+      {icon}
+    </button>
   );
 }

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Wallet, Banknote, Smartphone, CreditCard, 
   ArrowRight, CheckCircle2, AlertTriangle, 
-  History, Printer, Loader2, Save, Receipt, ArrowDownCircle
+  History, Printer, Loader2, Save, Receipt, 
+  ArrowDownCircle, Utensils, GlassWater, Flame, Beer
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -13,8 +14,17 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   const [transactions, setTransactions] = useState([]);
   const [salesData, setSalesData] = useState({
     total: 0,
-    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Carte Bancaire": 0 }
+    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 }
   });
+  
+  // NOUVEAUX ÉTATS POUR LES SECTIONS
+  const [sectionData, setSectionData] = useState({
+    repas: 0,
+    cocktails: 0,
+    jusNaturel: 0,
+    barGlobal: 0
+  });
+
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [closingData, setClosingData] = useState({ cashInHand: "", notes: "" });
   const [isClosing, setIsClosing] = useState(false);
@@ -29,7 +39,6 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
       const start = `${selectedDate}T00:00:00.000Z`;
       const end = `${selectedDate}T23:59:59.999Z`;
 
-      // 1. Récupérer les Transactions
       const { data: trans, error: transErr } = await supabase
         .from('transactions')
         .select('*')
@@ -37,7 +46,6 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         .gte('created_at', start)
         .lte('created_at', end);
 
-      // 2. Récupérer les Dépenses
       const { data: exp, error: expErr } = await supabase
         .from('expenses')
         .select('amount')
@@ -47,17 +55,38 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
       if (transErr || expErr) throw transErr || expErr;
 
+      // --- LOGIQUE DE VENTILATION PAR SECTIONS ---
+      let repas = 0, cocktails = 0, jus = 0, bar = 0;
+
+      trans?.forEach(t => {
+        t.items?.forEach(item => {
+          const cat = item.category;
+          const price = Number(item.price) * (item.quantity || 1);
+          
+          if (cat === "Plats" || cat === "Accompagnements") {
+            repas += price;
+          } else if (cat === "Cocktails") {
+            cocktails += price;
+          } else if (cat === "Jus Naturel") {
+            jus += price;
+          } else if (["Bière", "Whisky", "Vin", "Jus Brasserie"].includes(cat)) {
+            bar += price;
+          }
+        });
+      });
+
       const totalSales = trans?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
       const methods = trans?.reduce((acc, curr) => {
         const m = curr.payment_method || "Espèces";
         acc[m] = (acc[m] || 0) + Number(curr.amount);
         return acc;
-      }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Carte Bancaire": 0 });
+      }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 });
 
       const totalExp = exp?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
       setTransactions(trans || []);
       setSalesData({ total: totalSales, byMethod: methods });
+      setSectionData({ repas, cocktails, jusNaturel: jus, barGlobal: bar });
       setTotalExpenses(totalExp);
     } catch (err) {
       console.error("Erreur caisse:", err.message);
@@ -66,7 +95,6 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
     }
   };
 
-  // Le montant que le caissier DOIT avoir en main (Ventes - Dépenses)
   const expectedBalance = salesData.total - totalExpenses;
   const difference = closingData.cashInHand ? Number(closingData.cashInHand) - expectedBalance : 0;
 
@@ -105,7 +133,33 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-2 space-y-6">
-          {/* --- RÉCAPITULATIF FINANCIER --- */}
+          
+          {/* --- NOUVELLE SECTION : VENTILATION PAR CATÉGORIES --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* SECTION REPAS */}
+            <div className={`p-6 rounded-[35px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white shadow-lg'}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-orange-500/10 text-orange-500 rounded-xl"><Utensils size={20}/></div>
+                <h4 className="text-sm font-black uppercase italic">Section Repas</h4>
+              </div>
+              <p className="text-2xl font-black text-orange-500">{sectionData.repas.toLocaleString()} F</p>
+              <p className="text-[9px] uppercase font-bold opacity-30 mt-1">Plats & Accompagnements</p>
+            </div>
+
+            {/* SECTION BOISSONS */}
+            <div className={`p-6 rounded-[35px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white shadow-lg'}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[#00D9FF]/10 text-[#00D9FF] rounded-xl"><GlassWater size={20}/></div>
+                <h4 className="text-sm font-black uppercase italic">Section Boissons</h4>
+              </div>
+              <div className="space-y-3">
+                <MiniRow label="Cocktails" value={sectionData.cocktails} icon={<Flame size={12} className="text-pink-500"/>} isDarkMode={isDarkMode} />
+                <MiniRow label="Jus Naturels" value={sectionData.jusNaturel} icon={<ArrowRight size={12} className="text-green-500"/>} isDarkMode={isDarkMode} />
+                <MiniRow label="Bar (Bière, Whisky, Vin...)" value={sectionData.barGlobal} icon={<Beer size={12} className="text-yellow-500"/>} isDarkMode={isDarkMode} />
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
               <p className="text-[#00D9FF] text-[10px] font-black uppercase tracking-widest mb-2">Total Recettes</p>
@@ -117,18 +171,16 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
             </div>
           </div>
 
-          {/* Méthodes de paiement */}
           <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <MethodStat label="Espèces" value={salesData.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
                 <MethodStat label="Orange" value={salesData.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
                 <MethodStat label="Wave" value={salesData.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
                 <MethodStat label="MTN" value={salesData.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
-                <MethodStat label="Visa" value={salesData.byMethod["Carte Bancaire"]} icon={<CreditCard size={16}/>} color="indigo" />
+                <MethodStat label="Visa" value={salesData.byMethod["Visa"]} icon={<CreditCard size={16}/>} color="indigo" />
              </div>
           </div>
 
-          {/* Journal des flux */}
           <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
             <h4 className="font-black uppercase italic text-sm mb-6">Journal des flux</h4>
             <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
@@ -142,7 +194,6 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
           </div>
         </div>
 
-        {/* --- SECTION CLÔTURE --- */}
         <div className="space-y-6">
           <div className={`p-10 rounded-[40px] ${isDarkMode ? 'bg-[#00D9FF] text-black' : 'bg-black text-white'}`}>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-60">Solde Attendu (Net)</p>
@@ -173,7 +224,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
               <button 
                 onClick={handleRegisterClosing}
                 disabled={isClosing}
-                className="w-full py-5 bg-[#00D9FF] text-black rounded-[25px] font-black text-xs uppercase shadow-xl"
+                className="w-full py-5 bg-[#00D9FF] text-black rounded-[25px] font-black text-xs uppercase shadow-xl border-none cursor-pointer hover:brightness-110 transition-all"
               >
                 Valider la clôture
               </button>
@@ -181,6 +232,19 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// COMPOSANTS INTERNES
+function MiniRow({ label, value, icon, isDarkMode }) {
+  return (
+    <div className={`flex items-center justify-between p-3 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-[10px] font-black uppercase opacity-60 tracking-tight">{label}</span>
+      </div>
+      <span className="text-xs font-black">{value.toLocaleString()} F</span>
     </div>
   );
 }

@@ -100,7 +100,7 @@ export default function AdminDashboard() {
   }, [selectedDateISO]);
 
   const handleLogout = async () => {
-    localStorage.removeItem('impersonate_resto_id'); // On nettoie au cas où
+    localStorage.removeItem('impersonate_resto_id'); 
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');
@@ -215,8 +215,10 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
   const [realStats, setRealStats] = useState({ 
     dayTotal: 0, 
     dayExpenses: 0, 
-    netProfit: 0, 
-    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Carte Bancaire": 0 }, 
+    netProfit: 0,
+    cuisineTotal: 0, 
+    barTotal: 0,     
+    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 }, 
     chartData: [], 
     popularItems: [] 
   });
@@ -243,11 +245,29 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
         const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0; 
         
+        // Logique de ventilation Cuisine vs Bar
+        let cuisine = 0;
+        let bar = 0;
+        
+        transData.forEach(t => {
+          if (t.items) {
+            t.items.forEach(item => {
+              const itemTotal = Number(item.price) * (item.quantity || 1);
+              // On vérifie la catégorie stockée dans le JSON de l'item
+              if (item.category === "Plats" || item.category === "Accompagnements") {
+                cuisine += itemTotal;
+              } else {
+                bar += itemTotal;
+              }
+            });
+          }
+        });
+
         const methods = transData.reduce((acc, curr) => {
           const m = curr.payment_method || "Espèces";
           acc[m] = (acc[m] || 0) + Number(curr.amount);
           return acc;
-        }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Carte Bancaire": 0 });
+        }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 });
 
         const itemCounts = {};
         transData.forEach(t => { 
@@ -268,7 +288,9 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         setRealStats({ 
           dayTotal: total, 
           dayExpenses: totalExp, 
-          netProfit: total - totalExp, 
+          netProfit: total - totalExp,
+          cuisineTotal: cuisine,
+          barTotal: bar,
           byMethod: methods, 
           chartData: hourlySales, 
           popularItems: sortedItems 
@@ -280,20 +302,25 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
   }, [selectedDate, userProfile]);
 
   return (
-    <div className="fade-in space-y-8 pb-10">
-      <div className={`p-10 rounded-[40px] relative overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"}`}>
+    <div className="fade-in space-y-6 pb-10">
+      {/* BLOC PRINCIPAL VENTES */}
+      <div className={`p-8 lg:p-10 rounded-[40px] relative overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"}`}>
         <div className="relative z-10">
-          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4 text-left">Ventes du jour</p>
-          <div className="flex justify-between items-end">
-            <h2 className="text-5xl lg:text-7xl font-black text-left">{realStats.dayTotal.toLocaleString()} <span className="text-2xl opacity-30 italic">F</span></h2>
-            <div className="flex gap-8 text-right hidden md:flex">
-                <div className="text-right">
-                  <p className="text-[10px] uppercase opacity-40 font-black mb-1">Total Dépenses</p>
-                  <p className="text-2xl font-black text-red-500">-{realStats.dayExpenses.toLocaleString()} F</p>
+          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4 text-left">Ventes totales du jour</p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <h2 className="text-5xl lg:text-7xl font-black text-left">
+              {realStats.dayTotal.toLocaleString()} <span className="text-2xl opacity-30 italic font-light text-current">F</span>
+            </h2>
+            <div className="flex gap-8 text-right">
+                <div className="text-left md:text-right">
+                  <p className="text-[10px] uppercase opacity-40 font-black mb-1">Dépenses</p>
+                  <p className="text-xl font-black text-red-500">-{realStats.dayExpenses.toLocaleString()} F</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left md:text-right">
                   <p className="text-[10px] uppercase opacity-40 font-black mb-1">Bénéfice Net</p>
-                  <p className={`text-2xl font-black ${realStats.netProfit >= 0 ? 'text-[#00D9FF]' : 'text-red-500'}`}>{realStats.netProfit.toLocaleString()} F</p>
+                  <p className={`text-xl font-black ${realStats.netProfit >= 0 ? 'text-[#00D9FF]' : 'text-red-500'}`}>
+                    {realStats.netProfit.toLocaleString()} F
+                  </p>
                 </div>
             </div>
           </div>
@@ -303,13 +330,43 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
             <PaymentMiniStat label="Orange" value={realStats.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
             <PaymentMiniStat label="Wave" value={realStats.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
             <PaymentMiniStat label="MTN" value={realStats.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
-            <PaymentMiniStat label="Visa/MC" value={realStats.byMethod["Carte Bancaire"]} icon={<CreditCard size={16}/>} color="indigo" />
+            <PaymentMiniStat label="Visa/MC" value={realStats.byMethod["Visa"]} icon={<CreditCard size={16}/>} color="indigo" />
             <PaymentMiniStat label="Dépenses" value={realStats.dayExpenses} icon={<ArrowDownCircle size={16}/>} color="red" />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      {/* NOUVEAU BLOC : DETAILS CUISINE ET BAR */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`p-8 rounded-[35px] flex items-center justify-between transition-all ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-lg border border-gray-50"}`}>
+          <div className="text-left">
+            <div className="flex items-center gap-2 mb-2 text-orange-500">
+               <UtensilsCrossed size={20} />
+               <span className="text-[10px] font-black uppercase tracking-widest">Recettes Cuisine</span>
+            </div>
+            <h3 className="text-3xl font-black italic">{realStats.cuisineTotal.toLocaleString()} <span className="text-sm opacity-40">F</span></h3>
+          </div>
+          <div className="text-right opacity-10">
+            <UtensilsCrossed size={60} />
+          </div>
+        </div>
+
+        <div className={`p-8 rounded-[35px] flex items-center justify-between transition-all ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-lg border border-gray-50"}`}>
+          <div className="text-left">
+            <div className="flex items-center gap-2 mb-2 text-[#00D9FF]">
+               <Flame size={20} />
+               <span className="text-[10px] font-black uppercase tracking-widest">Recettes Bar</span>
+            </div>
+            <h3 className="text-3xl font-black italic">{realStats.barTotal.toLocaleString()} <span className="text-sm opacity-40">F</span></h3>
+          </div>
+          <div className="text-right opacity-10">
+            <Flame size={60} />
+          </div>
+        </div>
+      </div>
+
+      {/* GRAPHIQUE ET TOP PLATS */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className={`xl:col-span-2 p-8 rounded-[40px] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl"}`}>
           <h3 className="text-xl font-bold mb-8 italic flex items-center gap-3">
             <TrendingUp size={20} className="text-[#00D9FF]" /> Performance Horaire
@@ -401,19 +458,14 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
   );
 }
 
-function AccountInactiveScreen({ restaurantName, handleLogout }) {
-  return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8">
-        <ShieldCheck size={40} />
+function AccountInactiveScreen({ restaurantName, handleLogout}) {
+  return(
+    <div className="min-h-scren bg-[#050505] flex flex-col items-center justofy-center  p-6 text-center">
+      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex item-center justify-center mb-8">
+      <ShieldCheck size={40}/>
       </div>
-      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
-      <p className="text-white/40 max-w-md mb-10 font-medium">
-        Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès à RestoPay est suspendu. Veuillez contacter l'administration pour régulariser votre abonnement.
-      </p>
-      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">
-        Déconnexion
-      </button>
+      
     </div>
-  );
+  )
 }
+
