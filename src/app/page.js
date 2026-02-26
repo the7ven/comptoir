@@ -359,11 +359,11 @@ export default function LandingPage() {
       </div>
       <div className="flex-[1.2] w-full group relative">
         <div className="absolute -inset-10 bg-cyan-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-        <img src="/api/placeholder/1100/700" alt="Plan de salle" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+        <img src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/plandesalle.webp" alt="Plan de salle" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
       </div>
     </div>
 
-    {/* 2. STOCKS & INVENTAIRE */}
+    {/* 2. STOCKS & INVENTAIRE *
     <div className="flex flex-col lg:flex-row-reverse items-center gap-12 lg:gap-24">
       <div className="flex-[0.8] space-y-8 text-left">
         <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"><Package size={32} /></div>
@@ -379,9 +379,9 @@ export default function LandingPage() {
         <img src="/api/placeholder/1100/700" alt="Gestion Stocks" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
       </div>
     </div>
-
+/}
     {/* 3. CAISSE & PAIEMENTS */}
-    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+    <div className="flex flex-col lg:flex-row-reverse items-center gap-12 lg:gap-24">
       <div className="flex-[0.8] space-y-8 text-left">
         <div className="w-16 h-16 rounded-3xl bg-purple-500/10 flex items-center justify-center text-purple-500"><Wallet size={32} /></div>
         <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Caisse & <br /> Flux Digitaux</h3>
@@ -393,12 +393,12 @@ export default function LandingPage() {
       </div>
       <div className="flex-[1.2] w-full group relative">
         <div className="absolute -inset-10 bg-purple-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-        <img src="/api/placeholder/1100/700" alt="Caisse Digitale" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+        <img src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/Caisse.webp" alt="Caisse Digitale" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
       </div>
     </div>
 
     {/* 4. ANALYTICS & HISTORIQUE  */}
-    <div className="flex flex-col lg:flex-row-reverse items-center gap-12 lg:gap-24">
+    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
       <div className="flex-[0.8] space-y-8 text-left">
         <div className="w-16 h-16 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-500"><BarChart3 size={32} /></div>
         <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">Rapports & <br /> Historique</h3>
@@ -409,13 +409,13 @@ export default function LandingPage() {
         </div>
       </div>
       <div className="flex-[1.2] w-full group relative">
-        <div className="absolute -inset-10 bg-blue-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-        <img src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/dashboard.webp" alt="Dashboard" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[10%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+        <div className="absolute -inset-10  bg-blue-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+        <img src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/rapports.webp" alt="Dashboard" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[10%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
       </div>
     </div>
 
     {/* 5. RH & PERSONNEL */}
-    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+    <div className="flex flex-col  items-center gap-12 lg:gap-24">
       <div className="flex-[0.8] space-y-8 text-left">
         <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center text-red-500"><Users size={32} /></div>
         <h3 className="text-5xl font-[900] tracking-tighter leading-tight uppercase italic text-left">RH & <br /> Performances</h3>
@@ -427,13 +427,14 @@ export default function LandingPage() {
       </div>
       <div className="flex-[1.2] w-full group relative">
         <div className="absolute -inset-10 bg-red-500/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-        <img src="/api/placeholder/1100/700" alt="Gestion RH" className={`w-full h-auto rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ${isDarkMode ? "shadow-black/50" : "shadow-slate-400/30"} grayscale-[15%] group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-1000 relative z-10`} />
+
+       
       </div>
     </div>
   </div>
 </section>
 
-      {/* --- SECTION CTA FINAL LUXE --- */}
+      {/* --- SECTION CTA --- */}
       <section className="py-32 px-[8%]">
         <div
           className={`max-w-6xl mx-auto rounded-[60px] p-12 md:p-24 relative overflow-hidden text-center border ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-slate-200 shadow-2xl"}`}
@@ -537,21 +538,21 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-left">
             <TestimonialCard
               isDarkMode={isDarkMode}
-              name="Mme Kouadio"
+              name="Mr Kouadio"
               role="Gérante à Cocody"
               image="https://i.pravatar.cc/150?u=kouadio"
               text="Le point de fin de journée est devenu un moment de plaisir. Tout est clair et précis."
             />
             <TestimonialCard
               isDarkMode={isDarkMode}
-              name="Jean-Marc"
+              name="Jeanne"
               role="Propriétaire Groupe"
               image="https://i.pravatar.cc/150?u=jeanmarc"
               text="Je pilote mes 3 restaurants depuis mon smartphone avec une aisance incroyable."
             />
             <TestimonialCard
               isDarkMode={isDarkMode}
-              name="Fatou B."
+              name="Bianca."
               role="Hôtellerie Dakar"
               image="https://i.pravatar.cc/150?u=fatou"
               text="Le support VIP est exceptionnel. On sent que RestoPay comprend nos besoins réels."
@@ -579,7 +580,13 @@ export default function LandingPage() {
               Contact
             </h4>
             <div className="space-y-2 opacity-60 text-sm text-left">
-              <p>support@restopay.com</p>
+                <p className="opacity-40 hover:opacity-100 transition-opacity">
+                    <a 
+                        href="mailto:srestopay@gmail.com" 
+                        className="text-[#00D9FF] font-black  tracking-widest text-[15px] no-underline">
+                                       srestopay@gmail.com
+                    </a>
+                </p>
               <p>Plateau, Abidjan, Côte d'Ivoire</p>
             </div>
           </div>
@@ -615,7 +622,7 @@ export default function LandingPage() {
 
       {/* --- WHATSAPP FLOATING --- */}
       <a
-        href="https://wa.me/2250000000000"
+        href="https://wa.me/2250757471552"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-10 right-10 z-[200] flex items-center justify-center w-16 h-16 bg-[#25D366] text-white rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-all shadow-green-500/20"

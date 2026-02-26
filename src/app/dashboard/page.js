@@ -74,7 +74,6 @@ export default function AdminDashboard() {
           return;
         }
 
-        // LOGIQUE APERÇU
         const impersonateId = localStorage.getItem('impersonate_resto_id');
         let profileToUse = realProfile;
 
@@ -139,7 +138,6 @@ export default function AdminDashboard() {
   return (
     <div className={`min-h-screen flex overflow-x-hidden ${isDarkMode ? "bg-[#050505] text-white" : "bg-[#F9FAFB] text-[#1F2937]"}`}>
       
-      {/* BANDEAU MODE APERÇU - ICI IL SERA VISIBLE */}
       {mounted && localStorage.getItem('impersonate_resto_id') && (
         <div className="fixed top-0 left-0 right-0 z-[1000] bg-orange-600 text-white py-2 px-4 flex justify-center items-center gap-4 shadow-xl">
           <span className="text-[10px] font-black uppercase tracking-widest">
@@ -163,6 +161,10 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF]">
             <LayoutDashboard size={28} /> <span>RestoPay</span>
           </div>
+          {/* BOUTON FERMER SIDEBAR (MOBILE) */}
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 opacity-50 bg-transparent border-none cursor-pointer">
+            <X size={24} />
+          </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar">
           {menuConfig.filter(item => item.roles.includes(userProfile?.role)).map((item) => (
@@ -187,9 +189,15 @@ export default function AdminDashboard() {
 
       <main className="flex-1 p-4 lg:p-8 w-full max-h-screen overflow-y-auto">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6 text-left">
-          <div className="text-left">
-            <h2 className={`text-xl lg:text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-gray-900"}`}>Bonjour, {restaurantName}</h2>
-            <p className="text-[#888] text-xs font-medium uppercase italic tracking-widest">{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
+          <div className="flex items-center gap-4">
+            {/* BOUTON HAMBURGER (MOBILE) */}
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 rounded-xl bg-white/5 border-none cursor-pointer">
+              <MenuIcon size={24} />
+            </button>
+            <div className="text-left">
+              <h2 className={`text-xl lg:text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-gray-900"}`}>Bonjour, {restaurantName}</h2>
+              <p className="text-[#888] text-xs font-medium uppercase italic tracking-widest">{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <div onClick={() => dateInputRef.current?.showPicker()} className={`flex items-center gap-3 px-5 py-3 rounded-2xl cursor-pointer ${isDarkMode ? "bg-white/5 text-white" : "bg-white text-gray-700 shadow-md"}`}>
@@ -204,6 +212,32 @@ export default function AdminDashboard() {
         </header>
         {renderContent()}
       </main>
+
+
+      {/* BOUTON FLOTTANT WHATSAPP GLOBAL */}
+      <a 
+        href={`https://wa.me/2250757471552?text=${encodeURIComponent(
+          `Bonjour RestoPay, je suis ${restaurantName}. J'ai besoin d'assistance sur ma console de gestion.`
+        )}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-[999] bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center group no-underline"
+      >
+        <div className="flex items-center gap-2">
+          {/* Label qui apparaît au survol */}
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-black text-[10px] uppercase tracking-widest whitespace-nowrap">
+            Besoin d'aide ?
+          </span>
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="currentColor" 
+          >
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+          </svg>
+        </div>
+      </a>
     </div>
   );
 }
@@ -245,7 +279,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
         const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0; 
         
-        // Logique de ventilation Cuisine vs Bar
         let cuisine = 0;
         let bar = 0;
         
@@ -253,7 +286,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
           if (t.items) {
             t.items.forEach(item => {
               const itemTotal = Number(item.price) * (item.quantity || 1);
-              // On vérifie la catégorie stockée dans le JSON de l'item
               if (item.category === "Plats" || item.category === "Accompagnements") {
                 cuisine += itemTotal;
               } else {
@@ -303,7 +335,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
 
   return (
     <div className="fade-in space-y-6 pb-10">
-      {/* BLOC PRINCIPAL VENTES */}
       <div className={`p-8 lg:p-10 rounded-[40px] relative overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"}`}>
         <div className="relative z-10">
           <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4 text-left">Ventes totales du jour</p>
@@ -336,7 +367,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         </div>
       </div>
 
-      {/* NOUVEAU BLOC : DETAILS CUISINE ET BAR */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className={`p-8 rounded-[35px] flex items-center justify-between transition-all ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-lg border border-gray-50"}`}>
           <div className="text-left">
@@ -365,7 +395,6 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         </div>
       </div>
 
-      {/* GRAPHIQUE ET TOP PLATS */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className={`xl:col-span-2 p-8 rounded-[40px] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl"}`}>
           <h3 className="text-xl font-bold mb-8 italic flex items-center gap-3">
@@ -400,6 +429,9 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
           </div>
         </div>
       </div>
+
+      
+
     </div>
   );
 }
@@ -459,18 +491,18 @@ function NavItem({ icon, label, active, onClick, isDarkMode }) {
 }
 
 function AccountInactiveScreen({ restaurantName, handleLogout }) {
-  return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8">
-        <ShieldCheck size={40} />
-      </div>
-      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
-      <p className="text-white/40 max-w-md mb-10 font-medium">
-        Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès à RestoPay est suspendu. Veuillez contacter l'administration pour régulariser votre abonnement.
-      </p>
-      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">
-        Déconnexion
-      </button>
-    </div>
-  );
-} 
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8">
+        <ShieldCheck size={40} />
+      </div>
+      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
+      <p className="text-white/40 max-w-md mb-10 font-medium">
+        Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès à RestoPay est suspendu. Veuillez contacter l'administration pour régulariser votre abonnement.
+      </p>
+      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">
+        Déconnexion
+      </button>
+    </div>
+  );
+}
