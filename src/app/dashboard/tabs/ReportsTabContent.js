@@ -25,6 +25,19 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     paymentDistribution: []
   });
 
+  // LOGIQUE DE MISE À JOUR AUTOMATIQUE DE LA PÉRIODE
+  // Si la date sélectionnée change (ex: clic depuis l'historique), on ajuste le filtre
+  useEffect(() => {
+    if (selectedDate) {
+      // Si la date finit par "-01", c'est probablement une sélection de mois depuis l'historique
+      if (selectedDate.endsWith('-01')) {
+        setPeriod('mensuel');
+      } else {
+        setPeriod('journalier');
+      }
+    }
+  }, [selectedDate]);
+
   useEffect(() => {
     if (userProfile) {
       fetchReportData();
@@ -39,6 +52,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
 
       const calendarDate = new Date(selectedDate);
 
+      // --- LOGIQUE DE CALCUL DES PÉRIODES ---
       if (period === 'journalier') {
         startStr = `${selectedDate}T00:00:00.000Z`;
         endStr = `${selectedDate}T23:59:59.999Z`;
@@ -47,9 +61,12 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         weekStart.setDate(weekStart.getDate() - 7);
         startStr = weekStart.toISOString();
         endStr = `${selectedDate}T23:59:59.999Z`;
-      } else {
+      } else if (period === 'mensuel') {
         startStr = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1).toISOString();
         endStr = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      } else if (period === 'annuel') {
+        startStr = new Date(calendarDate.getFullYear(), 0, 1).toISOString();
+        endStr = new Date(calendarDate.getFullYear(), 11, 31, 23, 59, 59).toISOString();
       }
 
       const [transRes, expRes] = await Promise.all([
@@ -61,7 +78,6 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
       const transactions = transRes.data || [];
       const expenses = expRes.data || [];
 
-      // --- LOGIQUE DE VENTILATION CUISINE VS BAR ---
       let cuisine = 0;
       let bar = 0;
 
@@ -87,7 +103,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         return acc;
       }, {});
 
-      const colors = { 'Espèces': '#22c55e', 'Orange Money': '#ff6b00', 'Wave': '#00d9ff', 'MTN MoMo': '#ffcc00', 'CB': '#a259ff' };
+      const colors = { 'Espèces': '#22c55e', 'Orange Money': '#ff6b00', 'Wave': '#00d9ff', 'MTN Money': '#ffcc00', 'Visa': '#a259ff' };
 
       setData({
         recettes: totalRecettes,
@@ -121,18 +137,26 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           <h3 className="text-3xl font-black italic tracking-tighter uppercase">Rapports Financiers</h3>
           <p className="opacity-50 text-sm font-light uppercase tracking-widest text-left">Bilan {period}</p>
         </div>
-        <div className="flex gap-2">
-          <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-200'}`}>
-            {['journalier', 'hebdomadaire', 'mensuel'].map((p) => (
-              <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${period === p ? 'bg-[#00D9FF] text-black shadow-lg shadow-cyan-500/20' : 'text-gray-500 hover:text-current'}`}>
-                {p.slice(0, 4)}
-              </button>
-            ))}
+        
+        {/* --- LOGIQUE DE DISCRÉTION POUR LE OWNER --- */}
+        {userProfile?.role === 'owner' && (
+          <div className="flex gap-2">
+            <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-200'}`}>
+              {['journalier', 'hebdomadaire', 'mensuel', 'annuel'].map((p) => (
+                <button 
+                  key={p} 
+                  onClick={() => setPeriod(p)} 
+                  className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer ${period === p ? 'bg-[#00D9FF] text-black shadow-lg shadow-cyan-500/20' : 'text-gray-500 hover:text-current bg-transparent'}`}
+                >
+                  {p.slice(0, 4)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* --- CARDS GÉNÉRALES --- */}
+      {/* --- KPI CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <ReportSummaryCard isDarkMode={isDarkMode} label="Recettes" value={`${data.recettes.toLocaleString()} F`} icon={<ArrowUpCircle className="text-green-500" />} />
         <ReportSummaryCard isDarkMode={isDarkMode} label="Achats" value={`${data.achats.toLocaleString()} F`} icon={<ArrowDownCircle className="text-red-500" />} />
@@ -140,7 +164,6 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         <ReportSummaryCard isDarkMode={isDarkMode} label="Virtuel" value={`${data.virtuel.toLocaleString()} F`} icon={<Smartphone className="text-[#00D9FF]" />} />
       </div>
 
-      {/* --- NOUVELLE SECTION : PERFORMANCE PAR DÉPARTEMENT --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
         <div className={`p-8 rounded-[40px] border flex items-center justify-between ${isDarkMode ? 'bg-orange-500/5 border-orange-500/10' : 'bg-orange-50 border-orange-100'}`}>
           <div className="text-left">
@@ -168,7 +191,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
       {/* --- GRAPHIQUES --- */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-          <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left">
+          <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left text-current">
             <PieChart size={20} className="text-[#00D9FF]" /> Règlement
           </h4>
           <div className="h-64 flex flex-col md:flex-row items-center">
@@ -197,7 +220,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         </div>
 
         <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-          <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left">
+          <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left text-current">
             <BarChart3 size={20} className="text-purple-500" /> Comparatif {period}
           </h4>
           <div className="h-64 w-full">
