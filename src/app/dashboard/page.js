@@ -163,6 +163,7 @@ export default function AdminDashboard() {
       )}
 
       {/* SIDEBAR */}
+      
       <aside className={`fixed inset-y-0 left-0 z-[200] w-72 transition-all lg:static lg:h-screen flex flex-col p-6 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF]">

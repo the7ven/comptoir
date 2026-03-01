@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, UserPlus, Star, Clock, 
-  Phone, Mail, MoreVertical, Edit3, 
-  Trash2, ShieldCheck, CheckCircle2, X, Lock, Loader2, User
+  Users, UserPlus, ShieldCheck, CheckCircle2, X, Loader2, Trash2, Mail, Phone
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -14,11 +12,11 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Formulaire adapté pour le pseudo-email
   const [formData, setFormData] = useState({
-    username: '', // On demande un nom d'utilisateur au lieu d'un vrai mail
     name: '',
+    email: '',
     password: '',
+    phone: ''
   });
 
   useEffect(() => {
@@ -47,15 +45,9 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
   const handleCreateCashier = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // GÉNÉRATION DU PSEUDO-EMAIL
-    // On transforme "moussa" en "moussa@restopay.resto"
-    const pseudoEmail = `${formData.username.toLowerCase().trim()}@restopay.resto`;
-
     try {
-      // 1. Inscription dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: pseudoEmail,
+        email: formData.email,
         password: formData.password,
         options: {
           data: {
@@ -67,7 +59,6 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
 
       if (authError) throw authError;
 
-      // 2. Création du profil dans la table restaurants
       const { error: profileError } = await supabase
         .from('restaurants')
         .insert([{
@@ -81,9 +72,8 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
 
       if (profileError) throw profileError;
 
-      alert(`Compte créé ! Identifiant : ${pseudoEmail}`);
+      alert("Compte caissier créé !");
       setShowAddModal(false);
-      setFormData({ username: '', name: '', password: '' });
       fetchStaff();
     } catch (error) {
       alert("Erreur: " + error.message);
@@ -91,14 +81,6 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
       setIsSubmitting(false);
     }
   };
-
-  const deleteStaff = async (id, name) => {
-    if(confirm(`Voulez-vous vraiment supprimer l'accès de ${name} ?`)) {
-      // Note: Cela supprime le profil, pas l'auth (nécessite une Edge Function pour l'auth)
-      const { error } = await supabase.from('restaurants').delete().eq('id', id);
-      if (!error) fetchStaff();
-    }
-  }
 
   if (loading) return <div className="flex h-64 items-center justify-center italic opacity-50 font-black uppercase text-[10px] tracking-widest">Chargement de l'équipe...</div>;
 
@@ -121,10 +103,13 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
         </button>
       </div>
 
-      {/* --- LISTE DES CAISSIERS --- */}
+      {/* --- GRILLE DE CARTES --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {staff.map((member) => (
-          <div key={member.id} className={`group p-8 rounded-[40px] border transition-all hover:border-[#00D9FF]/30 ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-xl'}`}>
+          <div 
+            key={member.id} 
+            className={`group p-8 rounded-[40px] border transition-all hover:border-[#00D9FF]/30 ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-xl'}`}
+          >
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-[#00D9FF]/10 text-[#00D9FF] flex items-center justify-center font-black text-xl italic border border-[#00D9FF]/20">
@@ -138,14 +123,15 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => deleteStaff(member.id, member.name)}
-                className="p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-transparent border-none cursor-pointer"
-              >
-                <Trash2 size={18} />
-              </button>
             </div>
             
+            <div className="space-y-3 mb-6">
+               <div className="flex items-center gap-3 opacity-60">
+                  <Mail size={14} />
+                  <span className="text-xs font-medium truncate">{member.owner_email}</span>
+               </div>
+            </div>
+
             <div className="flex items-center justify-between pt-6 border-t border-white/5">
               <div className="flex flex-col">
                 <span className="text-[8px] font-black uppercase opacity-30 tracking-[0.2em] mb-1">Status</span>
@@ -159,6 +145,12 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
             </div>
           </div>
         ))}
+
+        {staff.length === 0 && (
+          <div className="col-span-full py-20 text-center opacity-20 italic">
+            Aucun membre d'équipe enregistré.
+          </div>
+        )}
       </div>
 
       {/* --- MODAL D'AJOUT --- */}
@@ -166,47 +158,32 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
           <div className={`w-full max-w-md p-10 rounded-[50px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-200 shadow-2xl'}`}>
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Accès Caissier</h3>
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Nouvel Accès</h3>
               <button onClick={() => setShowAddModal(false)} className="bg-transparent border-none text-white cursor-pointer opacity-30 hover:opacity-100"><X /></button>
             </div>
             
             <form onSubmit={handleCreateCashier} className="space-y-6">
-              <div>
-                <label className="text-[9px] font-black uppercase opacity-30 ml-4 tracking-widest">Nom complet</label>
-                <input 
-                  type="text" 
-                  placeholder="ex: Moussa Traoré"
-                  className={`w-full mt-2 p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-[#00D9FF]' : 'bg-gray-50 border-gray-200'}`}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-black uppercase opacity-30 ml-4 tracking-widest">Identifiant (Pseudo)</label>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="moussa"
-                    className={`w-full mt-2 p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-[#00D9FF]' : 'bg-gray-50 border-gray-200'}`}
-                    onChange={(e) => setFormData({...formData, username: e.target.value})}
-                    required
-                  />
-                  <span className="absolute right-5 top-[27px] text-[10px] font-black opacity-20 uppercase">@restopay.resto</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[9px] font-black uppercase opacity-30 ml-4 tracking-widest">Mot de passe</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className={`w-full mt-2 p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-[#00D9FF]' : 'bg-gray-50 border-gray-200'}`}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required
-                />
-              </div>
-
+              <input 
+                type="text" 
+                placeholder="Nom complet"
+                className={`w-full p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50'}`}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
+              <input 
+                type="email" 
+                placeholder="Email professionnel"
+                className={`w-full p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50'}`}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required
+              />
+              <input 
+                type="password" 
+                placeholder="Mot de passe"
+                className={`w-full p-5 rounded-2xl border outline-none font-bold text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50'}`}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required
+              />
               <button 
                 type="submit" 
                 disabled={isSubmitting}
