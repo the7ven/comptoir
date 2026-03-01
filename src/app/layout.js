@@ -1,6 +1,6 @@
 import { Lexend } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/context/ThemeContext'; // On importe le provider (voir note plus bas)
+import { ThemeProvider } from '@/context/ThemeContext'; 
 
 // Configuration de la police
 const lexend = Lexend({
@@ -18,7 +18,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr" className={lexend.variable} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning={true}>
-        {/* On enveloppe toute l'application avec le ThemeProvider */}
         <ThemeProvider>
           {children}
         </ThemeProvider>
