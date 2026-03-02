@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, PieChart, ArrowDownCircle, ArrowUpCircle, 
-  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp
+  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp, Calendar, FileText
 } from 'lucide-react';
 import { 
   PieChart as RePieChart, Pie, Cell, ResponsiveContainer, 
@@ -22,14 +22,12 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     cuisineRecette: 0,
     barRecette: 0,
     comparison: [],
-    paymentDistribution: []
+    paymentDistribution: [],
+    monthlyBreakdown: [] // Pour la nouvelle section
   });
 
-  // LOGIQUE DE MISE À JOUR AUTOMATIQUE DE LA PÉRIODE
-  // Si la date sélectionnée change (ex: clic depuis l'historique), on ajuste le filtre
   useEffect(() => {
     if (selectedDate) {
-      // Si la date finit par "-01", c'est probablement une sélection de mois depuis l'historique
       if (selectedDate.endsWith('-01')) {
         setPeriod('mensuel');
       } else {
@@ -52,7 +50,6 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
 
       const calendarDate = new Date(selectedDate);
 
-      // --- LOGIQUE DE CALCUL DES PÉRIODES ---
       if (period === 'journalier') {
         startStr = `${selectedDate}T00:00:00.000Z`;
         endStr = `${selectedDate}T23:59:59.999Z`;
@@ -105,6 +102,26 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
 
       const colors = { 'Espèces': '#22c55e', 'Orange Money': '#ff6b00', 'Wave': '#00d9ff', 'MTN Money': '#ffcc00', 'Visa': '#a259ff' };
 
+      // Logique pour le récapitulatif par mois (si période annuelle ou mensuelle)
+      const monthlyMap = {};
+      transactions.forEach(t => {
+        const monthKey = new Date(t.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { cuisine: 0, bar: 0, depenses: 0, total: 0 };
+        
+        t.items?.forEach(item => {
+          const price = Number(item.price) * (item.quantity || 1);
+          if (item.category === "Plats" || item.category === "Accompagnements") monthlyMap[monthKey].cuisine += price;
+          else monthlyMap[monthKey].bar += price;
+        });
+        monthlyMap[monthKey].total += Number(t.amount) || 0;
+      });
+
+      expenses.forEach(e => {
+        const monthKey = new Date(e.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { cuisine: 0, bar: 0, depenses: 0, total: 0 };
+        monthlyMap[monthKey].depenses += Number(e.amount) || 0;
+      });
+
       setData({
         recettes: totalRecettes,
         achats: totalAchats,
@@ -116,7 +133,8 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           { name: 'Ventes', recettes: totalRecettes, achats: 0 },
           { name: 'Dépenses', recettes: 0, achats: totalAchats }
         ],
-        paymentDistribution: Object.entries(methods).map(([name, value]) => ({ name, value, color: colors[name] || '#8884d8' }))
+        paymentDistribution: Object.entries(methods).map(([name, value]) => ({ name, value, color: colors[name] || '#8884d8' })),
+        monthlyBreakdown: Object.entries(monthlyMap).map(([month, vals]) => ({ month, ...vals }))
       });
 
     } catch (err) { console.error("Erreur rapports:", err.message); } 
@@ -138,7 +156,6 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           <p className="opacity-50 text-sm font-light uppercase tracking-widest text-left">Bilan {period}</p>
         </div>
         
-        {/* --- LOGIQUE DE DISCRÉTION POUR LE OWNER --- */}
         {userProfile?.role === 'owner' && (
           <div className="flex gap-2">
             <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-200'}`}>
@@ -156,7 +173,6 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         )}
       </div>
 
-      {/* --- KPI CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <ReportSummaryCard isDarkMode={isDarkMode} label="Recettes" value={`${data.recettes.toLocaleString()} F`} icon={<ArrowUpCircle className="text-green-500" />} />
         <ReportSummaryCard isDarkMode={isDarkMode} label="Achats" value={`${data.achats.toLocaleString()} F`} icon={<ArrowDownCircle className="text-red-500" />} />
@@ -188,8 +204,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         </div>
       </div>
 
-      {/* --- GRAPHIQUES --- */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-10">
         <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
           <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left text-current">
             <PieChart size={20} className="text-[#00D9FF]" /> Règlement
@@ -234,6 +249,43 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* --- NOUVELLE SECTION : RÉCAPITULATIF PAR MOIS --- */}
+      <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left text-current">
+          <Calendar size={20} className="text-[#00D9FF]" /> Récapitulatif Mensuel
+        </h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/10 opacity-40 text-[10px] uppercase font-black tracking-widest">
+                <th className="py-4 px-2">Mois</th>
+                <th className="py-4 px-2">Cuisine</th>
+                <th className="py-4 px-2">Bar</th>
+                <th className="py-4 px-2 text-red-500">Dépenses</th>
+                <th className="py-4 px-2 text-[#00D9FF]">Total Ventes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {data.monthlyBreakdown.length > 0 ? (
+                data.monthlyBreakdown.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-white/5 transition-colors">
+                    <td className="py-4 px-2 text-[11px] font-black uppercase italic">{row.month}</td>
+                    <td className="py-4 px-2 text-xs font-medium">{row.cuisine.toLocaleString()} F</td>
+                    <td className="py-4 px-2 text-xs font-medium">{row.bar.toLocaleString()} F</td>
+                    <td className="py-4 px-2 text-xs font-black text-red-500 italic">-{row.depenses.toLocaleString()} F</td>
+                    <td className="py-4 px-2 text-sm font-black text-[#00D9FF] italic">{row.total.toLocaleString()} F</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="py-10 text-center opacity-20 italic text-xs">Aucune donnée disponible pour cette période</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

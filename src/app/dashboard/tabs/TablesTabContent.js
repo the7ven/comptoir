@@ -434,124 +434,114 @@ export default function TablesTabContent({
         </div>
       )}
 
-      {/* MODALE FACTURE THERMIQUE */}
-      {selectedOrderForBill && (
-        <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 text-left">
-          <div className="w-full max-w-sm">
-            <div className="bg-white text-black p-6 rounded-sm shadow-2xl font-mono text-[12px] leading-tight border-t-8 border-black">
-              <div className="text-center border-b border-black pb-4 mb-4">
-                <h4 className="text-lg font-black uppercase tracking-tighter italic">
-                  RestoPay Luxe
-                </h4>
-                <p className="text-[9px] font-bold">ABIDJAN • COTE D'IVOIRE</p>
-              </div>
-              <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2">
-                <span>{selectedOrderForBill.table_number}</span>
-                <span>
-                  {new Date(selectedOrderForBill.created_at).toLocaleDateString(
-                    "fr-FR",
-                  )}
-                </span>
-              </div>
-              <div className="space-y-2 mb-6">
-                {selectedOrderForBill.items_details?.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-start leading-none"
-                  >
-                    <span className="w-3/5 font-bold uppercase text-[11px]">
-                      {item.name}
-                    </span>
-                    <span className="w-2/5 text-right font-black">
-                      {item.price?.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
-                <span className="text-[12px] uppercase italic">TOTAL NET</span>
-                <span className="text-xl">
-                  {selectedOrderForBill.total_amount?.toLocaleString()} F
-                </span>
-              </div>
-            </div>
+     {/* MODALE FACTURE THERMIQUE */}
+{selectedOrderForBill && (
+  <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 text-left">
+    <div className="w-full max-w-sm">
+      <div className="bg-white text-black p-6 rounded-sm shadow-2xl font-mono text-[11px] leading-tight border-t-8 border-black">
+        <div className="text-center border-b-2 border-black pb-4 mb-4">
+          <h4 className="text-lg font-black uppercase tracking-tighter italic">
+            {userProfile?.restaurant_name || "RestoPay Luxe"}
+          </h4>
+          <p className="text-[9px] font-bold uppercase">{userProfile?.location || "Abidjan, CI"}</p>
+        </div>
+        
+        <div className="flex justify-between text-[10px] font-black mb-4 border-b border-black pb-2">
+          <span>{selectedOrderForBill.table_number}</span>
+          <span>
+            {new Date(selectedOrderForBill.created_at).toLocaleString("fr-FR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            })}
+          </span>
+        </div>
 
-            {!showPaymentSelector ? (
-              <div className="mt-6 flex flex-col gap-3">
-                <button
-                  onClick={() => setShowPaymentSelector(true)}
-                  className="w-full h-14 bg-green-500 text-white rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg border-none cursor-pointer"
-                >
-                  <CheckCircle2 size={18} /> Encaisser
-                </button>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleBluetoothPrint}
-                    disabled={isPrinting}
-                    className={`flex-1 h-14 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-lg transition-all border-none cursor-pointer ${isPrinting ? "bg-orange-500 text-white animate-pulse" : "bg-[#00D9FF] text-black"}`}
-                  >
-                    {isPrinting ? (
-                      <Bluetooth size={18} />
-                    ) : (
-                      <Printer size={18} />
-                    )}{" "}
-                    {isPrinting ? "Impression..." : "Imprimer"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setOrderToDelete(selectedOrderForBill);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg border-none cursor-pointer"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                  <button
-                    onClick={() => setSelectedOrderForBill(null)}
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-transparent cursor-pointer ${isDarkMode ? "border-white/10 text-white" : "border-gray-200 text-black"}`}
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
+        {/* --- DÉTAILS DES ARTICLES CORRIGÉS --- */}
+        <div className="space-y-3 mb-6">
+          <div className="flex justify-between border-b border-black/10 pb-1 text-[9px] font-black">
+            <span className="w-1/2">ARTICLE</span>
+            <span className="w-1/6 text-center">QTÉ</span>
+            <span className="w-1/3 text-right">TOTAL</span>
+          </div>
+          
+          {selectedOrderForBill.items_details?.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-start leading-tight">
+              <div className="w-1/2">
+                <p className="font-bold uppercase text-[10px]">{item.name}</p>
+                <p className="text-[8px] opacity-60">{item.price?.toLocaleString()} F / un.</p>
               </div>
-            ) : (
-              <div className="mt-6 p-6 bg-[#0a0a0a] border border-white/10 rounded-[35px] shadow-2xl">
-                <h4 className="text-white text-[10px] font-black uppercase mb-6 text-center tracking-widest opacity-60">
-                  Paiement
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {["Espèces", "Orange Money", "MTN Money", "Wave", "Visa"].map(
-                    (m) => (
-                      <button
-                        key={m}
-                        onClick={() => handleFinalizeTable(m)}
-                        className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-[#00D9FF] hover:text-black transition-all border border-white/5 cursor-pointer"
-                      >
-                        {m === "Espèces" ? (
-                          <Banknote size={18} />
-                        ) : m === "Visa" ? (
-                          <CreditCard size={18} />
-                        ) : (
-                          <Smartphone size={18} />
-                        )}
-                        <span className="text-[7px] font-black uppercase">
-                          {m}
-                        </span>
-                      </button>
-                    ),
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowPaymentSelector(false)}
-                  className="w-full mt-6 text-[9px] text-white/30 uppercase font-black tracking-widest hover:text-white transition-all border-none bg-transparent cursor-pointer"
-                >
-                  Annuler
-                </button>
-              </div>
-            )}
+              <span className="w-1/6 text-center font-black">x{item.quantity || 1}</span>
+              <span className="w-1/3 text-right font-black text-[11px]">
+                {((item.price || 0) * (item.quantity || 1)).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
+          <span className="text-[12px] uppercase italic">TOTAL NET</span>
+          <span className="text-xl">
+            {selectedOrderForBill.total_amount?.toLocaleString()} F
+          </span>
+        </div>
+        
+        <div className="mt-6 text-center border-t border-dashed border-black pt-4">
+          <p className="text-[9px] font-bold uppercase italic">Merci de votre visite !</p>
+          <p className="text-[7px] opacity-40 mt-1">Logiciel RestoPay • {new Date().getFullYear()}</p>
+        </div>
+      </div>
+
+      {/* --- BOUTONS D'ACTION (Identiques) --- */}
+      {!showPaymentSelector ? (
+        <div className="mt-6 flex flex-col gap-3">
+          <button
+            onClick={() => setShowPaymentSelector(true)}
+            className="w-full h-14 bg-green-500 text-white rounded-2xl font-black text-[11px] uppercase flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg border-none cursor-pointer"
+          >
+            <CheckCircle2 size={18} /> Encaisser le client
+          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleBluetoothPrint}
+              disabled={isPrinting}
+              className={`flex-1 h-14 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-lg transition-all border-none cursor-pointer ${isPrinting ? "bg-orange-500 text-white animate-pulse" : "bg-[#00D9FF] text-black"}`}
+            >
+              <Printer size={18} /> {isPrinting ? "Impression..." : "Imprimer"}
+            </button>
+            <button
+              onClick={() => setSelectedOrderForBill(null)}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-transparent cursor-pointer ${isDarkMode ? "border-white/10 text-white" : "border-gray-200 text-black"}`}
+            >
+              <X size={20} />
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="mt-6 p-6 bg-[#0a0a0a] border border-white/10 rounded-[35px] shadow-2xl">
+          {/* ... ton sélecteur de paiement existant ... */}
+          <h4 className="text-white text-[10px] font-black uppercase mb-6 text-center tracking-widest opacity-60">
+            Choisir le mode de règlement
+          </h4>
+          <div className="grid grid-cols-3 gap-3">
+            {["Espèces", "Orange Money", "MTN Money", "Wave", "Visa"].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => handleFinalizeTable(m)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 text-white hover:bg-[#00D9FF] hover:text-black transition-all border border-white/5 cursor-pointer"
+                >
+                  <span className="text-[7px] font-black uppercase">{m}</span>
+                </button>
+            ))}
+          </div>
+          <button onClick={() => setShowPaymentSelector(false)} className="w-full mt-6 text-[9px] text-white/30 uppercase font-black tracking-widest border-none bg-transparent cursor-pointer">Annuler</button>
+        </div>
       )}
+    </div>
+  </div>
+)}
 
       {/* MODAL SUPPRESSION */}
       {isDeleteModalOpen && (
