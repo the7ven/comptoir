@@ -13,65 +13,56 @@ export default function SignupPage() {
   const router = useRouter();
 
 const handleSignup = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      // 1. Inscription dans Supabase Auth
-      const { data, error: authError } = await supabase.auth.signUp({
+  e.preventDefault();
+  setLoading(true);
+  
+  try {
+    // 1. Inscription dans Supabase Auth
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (authError) throw authError;
+
+    if (data?.user) {
+      // 2. Création/Mise à jour sécurisée du profil (UPSERT au lieu de INSERT)
+      const { error: dbError } = await supabase
+        .from('restaurants')
+        .upsert({ 
+          id: data.user.id, 
+          name: formData.restoName,
+          owner_email: formData.email,
+          is_active: true, // On l'active par défaut pour tes tests
+          is_super_admin: false 
+        }, { onConflict: 'id' }); // Si l'ID existe déjà, on met à jour la ligne
+
+      if (dbError) throw dbError;
+
+      // 3. Connexion explicite pour stabiliser la session
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (authError) throw authError;
-
-      if (data?.user) {
-        // 2. Création forcée du profil restaurant
-        const { error: dbError } = await supabase
-          .from('restaurants')
-          .insert([
-            { 
-              id: data.user.id, 
-              name: formData.restoName,
-              owner_email: formData.email,
-              is_active: false, 
-              is_super_admin: false 
-            }
-          ]);
-
-        if (dbError) throw dbError;
-
-        // --- LA PROTECTION ANTI-BOUCLE ---
-        
-        // A. On s'assure que la session est bien enregistrée localement
-        // Parfois signUp ne connecte pas automatiquement selon la config Supabase
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (loginError) {
-          // Si on n'arrive pas à connecter auto, on envoie au login avec un message
-          alert("Compte créé ! Veuillez vous connecter avec vos identifiants.");
-          router.push('/auth/login');
-          return;
-        }
-
-        // B. Petit délai de 1.5 seconde pour laisser la DB se propager
-        // C'est crucial pour ton Lenovo et les connexions à Abidjan
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // C. On rafraîchit les cookies et on fonce au dashboard
-        router.refresh();
-        router.replace('/dashboard');
+      if (loginError) {
+        alert("Compte créé ! Connectez-vous maintenant.");
+        router.push('/auth/login');
+        return;
       }
-    } catch (err) {
-      alert("Erreur critique : " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
+      // Délai de courtoisie pour la propagation réseau
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      router.refresh();
+      router.replace('/dashboard');
+    }
+  } catch (err) {
+    alert("Erreur : " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-[#050505] text-white font-[family-name:var(--font-lexend)] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
