@@ -23,7 +23,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     barRecette: 0,
     comparison: [],
     paymentDistribution: [],
-    monthlyBreakdown: [] // Pour la nouvelle section
+    monthlyBreakdown: [] 
   });
 
   useEffect(() => {
@@ -252,7 +252,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         </div>
       </div>
 
-      {/* --- NOUVELLE SECTION : RÉCAPITULATIF PAR MOIS --- */}
+      {/* --- SECTION : RÉCAPITULATIF PAR MOIS --- */}
       <div className={`p-8 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
         <h4 className="text-lg font-black flex items-center gap-2 mb-8 italic uppercase tracking-tighter text-left text-current">
           <Calendar size={20} className="text-[#00D9FF]" /> Récapitulatif Mensuel

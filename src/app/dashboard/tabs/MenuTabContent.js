@@ -160,7 +160,7 @@ export default function MenuTabContent({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 no-print min-h-screen text-left">
-      {/* --- PANIER COMPACT --- */}
+      {/* --- PANIER --- */}
       <aside
         className={`w-full lg:w-80 flex flex-col rounded-3xl shrink-0 lg:sticky lg:top-8 h-fit max-h-[calc(100vh-40px)] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl border border-gray-100"}`}
       >

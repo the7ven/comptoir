@@ -95,6 +95,7 @@ export default function HistoryTabContent({ isDarkMode, selectedDate, userProfil
       const total = periodTrans.reduce((acc, curr) => acc + Number(curr.amount), 0);
       
       // On crée une date brute exploitable pour setSelectedDate
+      
       let rawDate;
       if (filter === 'année') {
           const [y, m] = periodStr.split('-');

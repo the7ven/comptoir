@@ -19,7 +19,6 @@ import {
   Banknote,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-// IMPORT DU DRIVER BLUETOOTH
 import { printViaBluetooth } from "@/lib/bluetoothPrint";
 
 export default function TablesTabContent({

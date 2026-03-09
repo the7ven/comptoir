@@ -95,7 +95,7 @@ export default function LandingPage() {
     <div
       className={`min-h-screen transition-all duration-1000 font-[family-name:var(--font-lexend)] overflow-x-hidden ${isDarkMode ? "bg-[#030303] text-white/90" : "bg-[#FAFBFF] text-slate-800"}`}
     >
-      {/* --- NAVBAR LUXE --- */}
+      {/* --- NAVBAR --- */}
       <nav
         className={`fixed top-0 w-full z-[100] flex justify-between items-center px-[8%] py-6 backdrop-blur-xl border-b transition-all ${isDarkMode ? "bg-black/20 border-white/5" : "bg-white/40 border-slate-200/50"}`}
       >
@@ -204,7 +204,7 @@ export default function LandingPage() {
         )}
       </nav>
 
-      {/* --- HERO SECTION BACKGROUND SOFT --- */}
+      {/* --- HERO SECTION BACKGROUND --- */}
       <header className="relative min-h-screen flex items-center px-[8%] overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
@@ -330,7 +330,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- SECTION SERVICES COMPLÈTE  --- */}
+      {/* --- SECTION SERVICES --- */}
   <section
   id="services"
   className={`py-32 px-[8%] max-w-[1600px] mx-auto space-y-60 transition-colors duration-500 ${isDarkMode ? "bg-[#030303]" : "bg-[#FAFBFF]"}`}
@@ -484,7 +484,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- PRICING LUXE --- */}
+      {/* --- PRICING --- */}
       <section
         id="pricing"
         className="py-32 px-[8%] max-w-7xl mx-auto text-left"
@@ -526,7 +526,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- TÉMOIGNAGES SOFT --- */}
+      {/* --- TÉMOIGNAGES--- */}
       <section
         id="testimonials"
         className={`py-32 px-[8%] transition-colors ${isDarkMode ? "bg-[#050505]" : "bg-white shadow-inner"}`}
@@ -620,7 +620,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* --- WHATSAPP FLOATING --- */}
+      {/* --- WHATSAPP --- */}
       <a
         href="https://wa.me/2250757471552"
         target="_blank"
