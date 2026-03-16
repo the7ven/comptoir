@@ -31,7 +31,6 @@ export default function MenuTabContent({
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [searchQuery, setSearchQuery] = useState("");
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -278,18 +277,21 @@ export default function MenuTabContent({
                 active={activeCategory === "Tous"}
                 onClick={() => setActiveCategory("Tous")}
                 icon={<List size={12} />}
+                isDarkMode={isDarkMode}
               />
               <CategoryButton
                 label="Cuisine"
                 active={activeCategory === "Plats"}
                 onClick={() => setActiveCategory("Plats")}
                 icon={<Utensils size={12} />}
+                isDarkMode={isDarkMode}
               />
               <CategoryButton
                 label="Bar"
                 active={activeCategory === "Boissons"}
                 onClick={() => setActiveCategory("Boissons")}
                 icon={<Beer size={12} />}
+                isDarkMode={isDarkMode}
               />
             </div>
           </div>
@@ -572,13 +574,22 @@ export default function MenuTabContent({
   );
 }
 
-function CategoryButton({ label, active, onClick, icon }) {
+function CategoryButton({ label, active, onClick, icon, isDarkMode }) {
   return (
     <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-wider transition-all border-none cursor-pointer ${active ? "bg-[#00D9FF] text-black shadow-md" : "bg-white/5 text-white/40 hover:text-white"}`}
-    >
-      {icon} {label}
-    </button>
+    onClick={onClick}
+    className={`
+      flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-[10px] uppercase transition-all border-none cursor-pointer
+      ${active 
+        ? "bg-[#00D9FF] text-black shadow-lg" 
+        : isDarkMode 
+          ? "bg-[#1a1a1a] text-white hover:bg-[#252525]" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200" 
+      }
+    `}
+  >
+    {icon}
+    {label}
+  </button>
   );
 }
