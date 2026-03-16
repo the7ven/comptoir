@@ -303,3 +303,5 @@ function ReportSummaryCard({ isDarkMode, label, value, icon }) {
     </div>
   );
 }
+
+

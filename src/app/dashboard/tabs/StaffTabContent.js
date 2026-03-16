@@ -20,7 +20,7 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
   });
 
   useEffect(() => {
-    fetchStaff();
+    fetchStaff();                                  
   }, []);
 
   const fetchStaff = async () => {
