@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function HistoryTabContent({ isDarkMode, selectedDate, userProfile, setActiveTab, setSelectedDate }) {
   const [showAllDays, setShowAllDays] = useState(false);
-  const [monthlyData, setMonthlyData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('jour'); 
   const currentMonth = useMemo(() => new Date(selectedDate).getMonth(), [selectedDate]);
