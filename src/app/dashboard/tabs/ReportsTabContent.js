@@ -102,7 +102,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
 
       const colors = { 'Espèces': '#22c55e', 'Orange Money': '#ff6b00', 'Wave': '#00d9ff', 'MTN Money': '#ffcc00', 'Visa': '#a259ff' };
 
-      // Logique pour le récapitulatif par mois (si période annuelle ou mensuelle)
+      // Logique pour le récap hebdo , mensuelle et annuelle 
       const monthlyMap = {};
       transactions.forEach(t => {
         const monthKey = new Date(t.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });

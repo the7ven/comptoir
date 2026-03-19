@@ -8,7 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell 
 } from 'recharts';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; 
 
 export default function HistoryTabContent({ isDarkMode, selectedDate, userProfile, setActiveTab, setSelectedDate }) {
   const [showAllDays, setShowAllDays] = useState(false);

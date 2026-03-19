@@ -208,15 +208,16 @@ export default function LandingPage() {
       <header className="relative min-h-screen flex items-center px-[8%] overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1556742393-d75f468bfcb0?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+            src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/simon-kadula--gkndM1GvSA-unsplash.jpg"
             alt="Ambiance Restaurant Luxe"
-            className="w-full h-full object-cover"
+           className={`w-full h-full object-cover ${!isDarkMode ? "opacity-40" : "opacity-100"}`}
+
           />
           <div
             className={`absolute inset-0 transition-all duration-1000 ${
               isDarkMode
                 ? "bg-gradient-to-r from-[#030303] via-[#030303]/85 to-transparent"
-                : "bg-gradient-to-r from-[#FAFBFF] via-[#FAFBFF]/85 to-transparent"
+                : "bg-transparent" 
             }`}
           ></div>
         </div>

@@ -37,8 +37,11 @@ export const printViaBluetooth = async (cart, tableNum, orderType) => {
     });
 
     const total = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
+    const totalFormatte = total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+
     cmds += "--------------------------------\n" + CENTER + BOLD_ON;
-    cmds += `TOTAL: ${total.toLocaleString()} F\n`;
+    cmds += `TOTAL: ${totalFormatte} F\n`;
     cmds += BOLD_OFF + "\nMerci de votre confiance !\n\n\n\n";
 
     const bytes = encoder.encode(cmds);
