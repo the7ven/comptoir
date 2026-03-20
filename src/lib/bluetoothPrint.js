@@ -46,7 +46,7 @@ export const printViaBluetooth = async (cart, tableNum, orderType) => {
 
     const bytes = encoder.encode(cmds);
     
-    // Envoi par paquets de 20 octets (limite du Bluetooth Low Energy)
+    
     for (let i = 0; i < bytes.length; i += 20) {
       await characteristic.writeValue(bytes.slice(i, i + 20));
     }
