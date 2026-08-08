@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  ShieldCheck, Store, TrendingUp, 
-  Loader2, CheckCircle2, AlertCircle, Search, 
-  PieChart, DollarSign, Sun, Moon, Eye
+import {
+  ShieldCheck, Store, TrendingUp,
+  Loader2, CheckCircle2, AlertCircle, Search,
+  PieChart, DollarSign, Sun, Moon, Eye, Ban, RotateCcw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, 
@@ -124,10 +124,13 @@ export default function MasterAdminPage() {
     try {
       const activating = !currentStatus;
       const payload = { is_active: activating };
-      // On horodate l'approbation uniquement au moment de l'activation —
-      // une suspension ultérieure ne l'efface pas, pour garder l'historique
-      // de la première (ou dernière) date de validation par le Master Admin.
+      // approved_at et suspended_at sont des horodatages "dernière fois que
+      // X est arrivé" — ni l'un ni l'autre n'est jamais effacé par l'action
+      // inverse. C'est ce qui permet de distinguer, une fois is_active=false,
+      // un compte jamais approuvé (approved_at NULL) d'un compte suspendu
+      // après avoir été actif (approved_at rempli).
       if (activating) payload.approved_at = new Date().toISOString();
+      else payload.suspended_at = new Date().toISOString();
 
       const { error } = await supabase.from('restaurants').update(payload).eq('id', restoId);
       if (!error) fetchData();
@@ -155,7 +158,10 @@ export default function MasterAdminPage() {
     r.owner_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const pendingRestos = filteredRestos.filter(r => !r.is_active);
+  // approved_at NULL => jamais approuvé => vraie inscription en attente.
+  // approved_at rempli => a déjà été actif un jour => suspendu, pas "en attente".
+  const pendingRestos = filteredRestos.filter(r => !r.is_active && !r.approved_at);
+  const suspendedRestos = filteredRestos.filter(r => !r.is_active && r.approved_at);
   const activeRestos = filteredRestos.filter(r => r.is_active);
 
   if (!mounted) return null;
@@ -277,6 +283,32 @@ export default function MasterAdminPage() {
                 </div>
                 <button onClick={() => toggleStatus(resto.id, false)} className="bg-orange-500 text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
                   Activer
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* COMPTES SUSPENDUS — distincts des inscriptions en attente : ceux-ci
+          ont déjà été actifs un jour (approved_at rempli) avant d'être suspendus. */}
+      {suspendedRestos.length > 0 && (
+        <div className="max-w-7xl mx-auto mb-10">
+          <h3 className={`flex items-center gap-3 font-black italic uppercase tracking-tighter mb-6 ml-4 text-left ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+            <Ban size={22} /> Comptes suspendus
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {suspendedRestos.map(resto => (
+              <div key={resto.id} className={`border p-6 rounded-[35px] flex justify-between items-center transition-all ${isDarkMode ? 'bg-red-500/5 border-red-500/20' : 'bg-red-50 border-red-200'}`}>
+                <div className="text-left">
+                  <p className={`font-black uppercase text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name}</p>
+                  <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{resto.owner_email}</p>
+                  <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>
+                    Approuvé le {formatDateTime(resto.approved_at) || 'N/A'} • Suspendu le {formatDateTime(resto.suspended_at) || 'N/A'}
+                  </p>
+                </div>
+                <button onClick={() => toggleStatus(resto.id, false)} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all ${isDarkMode ? 'bg-white/10 text-white' : 'bg-white text-gray-900 border border-gray-200'}`}>
+                  <RotateCcw size={14} /> Réactiver
                 </button>
               </div>
             ))}
