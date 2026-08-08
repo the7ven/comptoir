@@ -257,7 +257,7 @@ export default function TablesTabContent({
   if (loading)
     return (
       <div className="flex h-64 items-center justify-center italic opacity-50">
-        Chargement du plan de salle RestoPay...
+        Chargement du plan de salle Comptoir...
       </div>
     );
 
@@ -444,7 +444,7 @@ export default function TablesTabContent({
       <div className="bg-white text-black p-6 rounded-sm shadow-2xl font-mono text-[11px] leading-tight border-t-8 border-black">
         <div className="text-center border-b-2 border-black pb-4 mb-4">
           <h4 className="text-lg font-black uppercase tracking-tighter italic">
-            {userProfile?.restaurant_name || "RestoPay Luxe"}
+            {userProfile?.restaurant_name || "Comptoir Luxe"}
           </h4>
           <p className="text-[9px] font-bold uppercase">{userProfile?.location || "Abidjan, CI"}</p>
         </div>
@@ -493,7 +493,7 @@ export default function TablesTabContent({
         
         <div className="mt-6 text-center border-t border-dashed border-black pt-4">
           <p className="text-[9px] font-bold uppercase italic">Merci de votre visite !</p>
-          <p className="text-[7px] opacity-40 mt-1">Logiciel RestoPay • {new Date().getFullYear()}</p>
+          <p className="text-[7px] opacity-40 mt-1">Logiciel Comptoir • {new Date().getFullYear()}</p>
         </div>
       </div>
 

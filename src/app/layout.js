@@ -10,7 +10,7 @@ const lexend = Lexend({
 });
 
 export const metadata = {
-  title: 'RestoPay - Gestion de restaurant',
+  title: 'Comptoir - Gestion de restaurant',
   description: 'Gérez votre restaurant à la vitesse de la lumière',
 };
 

@@ -176,7 +176,7 @@ export default function AdminDashboard() {
       <aside className={`fixed inset-y-0 left-0 z-[200] w-72 transition-all lg:static lg:h-screen flex flex-col p-6 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF]">
-            <LayoutDashboard size={28} /> <span>RestoPay</span>
+            <LayoutDashboard size={28} /> <span>Comptoir</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 opacity-50 bg-transparent border-none cursor-pointer">
             <X size={24} />
@@ -230,7 +230,7 @@ export default function AdminDashboard() {
 
       <a 
         href={`https://wa.me/2250757471552?text=${encodeURIComponent(
-          `Bonjour RestoPay, je suis ${restaurantName}. J'ai besoin d'assistance sur ma console de gestion.`
+          `Bonjour Comptoir, je suis ${restaurantName}. J'ai besoin d'assistance sur ma console de gestion.`
         )}`}
         target="_blank"
         rel="noopener noreferrer"

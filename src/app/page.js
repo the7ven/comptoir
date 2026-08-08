@@ -104,7 +104,7 @@ export default function LandingPage() {
             <ChefHat size={28} className="text-white" />
           </div>
           <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            RestoPay
+            Comptoir
           </span>
         </div>
 
@@ -281,13 +281,13 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* --- SECTION POURQUOI CHOISIR RESTOPAY --- */}
+      {/* --- SECTION POURQUOI CHOISIR COMPTOIR --- */}
       <section id="why" className="py-32 px-[8%] max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8 text-left">
             <h2 className="text-4xl md:text-5xl font-[900] tracking-tighter leading-tight">
               Pourquoi l'élite choisit <br />{" "}
-              <span className="text-cyan-500">RestoPay ?</span>
+              <span className="text-cyan-500">Comptoir ?</span>
             </h2>
             <p className="text-lg opacity-60 font-light leading-relaxed">
               Nous avons fusionné la haute technologie avec les besoins réels
@@ -452,7 +452,7 @@ export default function LandingPage() {
 
             <p className="opacity-50 max-w-2xl mx-auto text-lg md:text-xl font-light italic leading-relaxed">
               Rejoignez les établissements qui redéfinissent les standards de la
-              gastronomie moderne. RestoPay est plus qu'un outil, c'est votre
+              gastronomie moderne. Comptoir est plus qu'un outil, c'est votre
               nouvel avantage compétitif.
             </p>
 
@@ -504,7 +504,7 @@ export default function LandingPage() {
             title="Essence"
             price="Gratuit"
             period="7 jours"
-            desc="Découvrez le potentiel de RestoPay sans limites."
+            desc="Découvrez le potentiel de Comptoir sans limites."
             icon={<Zap size={24} />}
           />
           <PriceCard
@@ -556,7 +556,7 @@ export default function LandingPage() {
               name="Bianca."
               role="Hôtellerie Dakar"
               image="https://i.pravatar.cc/150?u=fatou"
-              text="Le support VIP est exceptionnel. On sent que RestoPay comprend nos besoins réels."
+              text="Le support VIP est exceptionnel. On sent que Comptoir comprend nos besoins réels."
             />
           </div>
         </div>
@@ -570,7 +570,7 @@ export default function LandingPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 text-2xl font-black tracking-tight text-left">
               <ChefHat size={32} className="text-[#00D9FF]" />
-              <span>RestoPay</span>
+              <span>Comptoir</span>
             </div>
             <p className="text-sm opacity-50 max-w-xs leading-relaxed font-light text-left">
               L'élégance technologique au service de la gastronomie africaine.
@@ -612,7 +612,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] uppercase tracking-[0.3em] font-bold opacity-30">
-          <p>© 2026 RestoPay Africa. Tous droits réservés.</p>
+          <p>© 2026 Comptoir Africa. Tous droits réservés.</p>
           <div className="flex items-center gap-2">
             <span>By</span>
             <span className="text-[#00D9FF]">Corneille Nkwel</span>
