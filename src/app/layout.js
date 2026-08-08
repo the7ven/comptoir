@@ -1,12 +1,26 @@
-import { Lexend } from 'next/font/google';
+import { Lexend, Inter, Manrope } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/context/ThemeContext'; 
+import { ThemeProvider } from '@/context/ThemeContext';
 
 // Configuration de la police
 const lexend = Lexend({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-lexend',
+});
+
+// Polices dédiées à la landing page (design "Comptoir")
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const manrope = Manrope({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  display: 'swap',
+  variable: '--font-manrope',
 });
 
 export const metadata = {
@@ -16,7 +30,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="fr" className={lexend.variable} suppressHydrationWarning>
+    <html lang="fr" className={`${lexend.variable} ${inter.variable} ${manrope.variable}`} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning={true}>
         <ThemeProvider>
           {children}
