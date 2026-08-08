@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { THEME as C, bodyFont, headFont } from "@/lib/theme";
 
 // ---------------------------------------------------------------------------
 // Landing page — refonte "Comptoir".
@@ -11,22 +12,9 @@ import Link from "next/link";
 // Contenu réel de RestoPay substitué à la copie générique de la maquette :
 // témoignages/tarifs/moyens de paiement/stats sont ceux déjà établis pour ce
 // produit — aucun faux client ni chiffre inventé n'a été repris tel quel.
+// Jetons de couleur/typo partagés avec les pages connexion/inscription
+// via src/lib/theme.js.
 // ---------------------------------------------------------------------------
-
-const C = {
-  bg: "oklch(0.995 0.002 255)",
-  ink: "oklch(0.20 0.02 255)",
-  muted: "oklch(0.45 0.02 255)",
-  faint: "oklch(0.55 0.02 255)",
-  line: "oklch(0.9 0.015 255)",
-  wash: "oklch(0.96 0.025 255)",
-  accent: "oklch(0.52 0.19 255)",
-  accentDark: "oklch(0.38 0.17 255)",
-  white: "#ffffff",
-};
-
-const bodyFont = "var(--font-inter), 'Inter', sans-serif";
-const headFont = "var(--font-manrope), 'Manrope', sans-serif";
 
 const trustLogos = [
   "Gastro d'Or",

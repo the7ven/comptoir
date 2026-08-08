@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { LayoutDashboard, Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -13,141 +14,179 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({ email: '', password: '', restoName: '' });
   const router = useRouter();
 
-const handleSignup = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  
-  try {
-    // 1. Inscription dans Supabase Auth
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    });
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-    if (authError) throw authError;
-
-    if (data?.user) {
-      // 2. Création/Mise à jour sécurisée du profil (UPSERT au lieu de INSERT)
-      // SÉCURITÉ : on n'envoie jamais is_active / is_super_admin depuis le
-      // client. Ces colonnes doivent avoir un DEFAULT false côté base et ne
-      // doivent être modifiables que par un service_role (ex: validation
-      // manuelle par le Master Admin) — sinon n'importe quel appel API
-      // pourrait s'auto-activer ou s'auto-promouvoir super admin.
-      const { error: dbError } = await supabase
-        .from('restaurants')
-        .upsert({
-          id: data.user.id,
-          name: formData.restoName,
-          owner_email: formData.email,
-        }, { onConflict: 'id' }); // Si l'ID existe déjà, on met à jour la ligne
-
-      if (dbError) throw dbError;
-
-      // 3. Connexion explicite pour stabiliser la session
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+    try {
+      // 1. Inscription dans Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
 
-      if (loginError) {
-        alert("Compte créé ! Connectez-vous maintenant.");
-        router.push('/auth/login');
-        return;
+      if (authError) throw authError;
+
+      if (data?.user) {
+        // 2. Création/Mise à jour sécurisée du profil (UPSERT au lieu de INSERT)
+        // SÉCURITÉ : on n'envoie jamais is_active / is_super_admin depuis le
+        // client. Ces colonnes doivent avoir un DEFAULT false côté base et ne
+        // doivent être modifiables que par un service_role (ex: validation
+        // manuelle par le Master Admin) — sinon n'importe quel appel API
+        // pourrait s'auto-activer ou s'auto-promouvoir super admin.
+        const { error: dbError } = await supabase
+          .from('restaurants')
+          .upsert({
+            id: data.user.id,
+            name: formData.restoName,
+            owner_email: formData.email,
+          }, { onConflict: 'id' }); // Si l'ID existe déjà, on met à jour la ligne
+
+        if (dbError) throw dbError;
+
+        // 3. Connexion explicite pour stabiliser la session
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (loginError) {
+          alert("Compte créé ! Connectez-vous maintenant.");
+          router.push('/auth/login');
+          return;
+        }
+
+        // Délai de courtoisie pour la propagation réseau
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        router.refresh();
+        router.replace('/dashboard');
       }
-
-      // Délai de courtoisie pour la propagation réseau
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      router.refresh();
-      router.replace('/dashboard');
+    } catch (err) {
+      alert(toUserMessage(err, "Impossible de créer votre compte pour le moment."));
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    alert(toUserMessage(err, "Impossible de créer votre compte pour le moment."));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  const inputStyle = {
+    width: '100%',
+    background: C.white,
+    border: `1px solid ${C.line}`,
+    padding: '14px 16px 14px 44px',
+    borderRadius: 10,
+    outline: 'none',
+    fontFamily: bodyFont,
+    fontWeight: 600,
+    fontSize: 14,
+    color: C.ink,
+  };
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-[family-name:var(--font-lexend)] flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="flex items-center gap-3 text-2xl font-black tracking-tighter text-[#00D9FF] mb-12 justify-center">
-          <LayoutDashboard size={32} />
-          <span>Comptoir SaaS</span>
-        </div>
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, flexShrink: 0 }} />
+          <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', color: C.ink }}>Comptoir</span>
+        </Link>
 
-        <div className="bg-[#0a0a0a] border border-white/5 p-10 rounded-[45px] shadow-2xl relative overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#00D9FF]/5 blur-[100px] rounded-full"></div>
+        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
+          <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Créer un compte</h1>
+          <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Lancez votre restaurant sur le cloud</p>
 
-          <h2 className="text-3xl font-black italic tracking-tighter mb-2 relative z-10 text-left">CRÉER UN COMPTE</h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 mb-8 font-bold text-[#00D9FF] relative z-10 text-left text-wrap">Lancez votre restaurant sur le cloud</p>
-
-          <form onSubmit={handleSignup} className="space-y-6 relative z-10">
-            {/* NOM RESTO */}
-            <div className="text-left">
-              <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest text-left block">Nom du Restaurant</label>
-              <div className="relative mt-2">
-                <User className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                <input 
-                  required 
-                  type="text" 
-                  placeholder="ex: Le Grill du Plateau" 
-                  value={formData.restoName} 
-                  onChange={e => setFormData({...formData, restoName: e.target.value})} 
-                  className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+          <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Nom du restaurant</label>
+              <div style={{ position: 'relative' }}>
+                <User size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                <input
+                  required
+                  type="text"
+                  placeholder="ex: Le Grill du Plateau"
+                  value={formData.restoName}
+                  onChange={e => setFormData({ ...formData, restoName: e.target.value })}
+                  style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = C.accent)}
+                  onBlur={e => (e.target.style.borderColor = C.line)}
                 />
               </div>
             </div>
 
-            {/* EMAIL */}
-            <div className="text-left">
-              <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest text-left block">Email Professionnel</label>
-              <div className="relative mt-2">
-                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                <input 
-                  required 
-                  type="email" 
-                  placeholder="contact@votre-resto.com" 
-                  value={formData.email} 
-                  onChange={e => setFormData({...formData, email: e.target.value})} 
-                  className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Email professionnel</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                <input
+                  required
+                  type="email"
+                  placeholder="contact@votre-resto.com"
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = C.accent)}
+                  onBlur={e => (e.target.style.borderColor = C.line)}
                 />
               </div>
             </div>
 
-            {/* MOT DE PASSE */}
-            <div className="text-left">
-              <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest text-left block">Mot de passe</label>
-              <div className="relative mt-2">
-                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                <input 
-                  required 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Min. 6 caractères" 
-                  value={formData.password} 
-                  onChange={e => setFormData({...formData, password: e.target.value})} 
-                  className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Mot de passe</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 6 caractères"
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  style={{ ...inputStyle, paddingRight: 44 }}
+                  onFocus={e => (e.target.style.borderColor = C.accent)}
+                  onBlur={e => (e.target.style.borderColor = C.line)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#00D9FF] transition-colors p-0 border-none bg-transparent cursor-pointer"
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 mt-4"
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                background: C.accent,
+                color: '#fff',
+                fontFamily: bodyFont,
+                fontWeight: 700,
+                fontSize: 15,
+                padding: '14px 0',
+                borderRadius: 10,
+                border: 'none',
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                marginTop: 8,
+              }}
             >
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <>DEVENIR PARTENAIRE <ArrowRight size={16} /></>}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : (
+                <>
+                  <span>Devenir partenaire</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
-          <p className="mt-8 text-center text-[10px] font-bold opacity-30 relative z-10">
-            DÉJÀ MEMBRE ? <Link href="/auth/login" className="text-[#00D9FF] hover:underline hover:text-cyan-300">SE CONNECTER</Link>
+          <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
+            Déjà membre ?{' '}
+            <Link href="/auth/login" style={{ color: C.accent, fontWeight: 700 }}>Se connecter</Link>
           </p>
         </div>
       </div>

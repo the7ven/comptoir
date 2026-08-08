@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { LayoutDashboard, Mail, Lock, LogIn, Loader2, Eye, EyeOff, HelpCircle } from 'lucide-react';
+import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { Mail, Lock, LogIn, Loader2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -11,13 +12,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); 
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -25,7 +26,7 @@ export default function LoginPage() {
         alert(toUserMessage(error, "Impossible de vous connecter. Vérifiez vos identifiants."));
       } else {
         router.replace('/dashboard');
-        router.refresh(); 
+        router.refresh();
       }
     } catch (err) {
       alert("Une erreur inattendue est survenue.");
@@ -34,74 +35,97 @@ export default function LoginPage() {
     }
   };
 
+  const inputStyle = {
+    width: '100%',
+    background: C.white,
+    border: `1px solid ${C.line}`,
+    padding: '14px 16px 14px 44px',
+    borderRadius: 10,
+    outline: 'none',
+    fontFamily: bodyFont,
+    fontWeight: 600,
+    fontSize: 14,
+    color: C.ink,
+  };
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-[family-name:var(--font-lexend)] flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="flex items-center gap-3 text-2xl font-black tracking-tighter text-[#00D9FF] mb-12 justify-center">
-          <LayoutDashboard size={32} />
-          <span>Comptoir Luxe</span>
-        </div>
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, flexShrink: 0 }} />
+          <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', color: C.ink }}>Comptoir</span>
+        </Link>
 
-        <div className="bg-[#0a0a0a] border border-white/5 p-10 rounded-[45px] shadow-2xl relative overflow-hidden">
-          
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#00D9FF]/10 blur-[100px] rounded-full"></div>
+        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
+          <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Bon retour</h1>
+          <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Accédez à votre console de gestion</p>
 
-          <h2 className="text-3xl font-black italic tracking-tighter mb-2 relative z-10 text-left">BON RETOUR</h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 mb-8 font-bold text-[#00D9FF] relative z-10 text-left">Accédez à votre console de gestion</p>
-
-          <form onSubmit={handleLogin} className="space-y-6 relative z-10">
-            {/* EMAIL */}
-            <div className="text-left">
-              <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest text-left block">Email</label>
-              <div className="relative mt-2">
-                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                <input 
-                  required 
-                  type="email" 
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Email</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                <input
+                  required
+                  type="email"
                   placeholder="manager@votre-resto.com"
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
-                  className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = C.accent)}
+                  onBlur={e => (e.target.style.borderColor = C.line)}
                 />
               </div>
             </div>
 
-            {/* MOT DE PASSE */}
-            <div className="text-left">
-              <div className="flex justify-between items-center ml-4">
-                <label className="text-[9px] uppercase font-black opacity-30 tracking-widest block">Mot de passe</label>
-                <Link 
-                  href="/auth/reset-password" 
-                  className="text-[9px] font-black uppercase text-[#00D9FF]/50 hover:text-[#00D9FF] transition-colors no-underline"
-                >
-                  Oublié ?
-                </Link>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>Mot de passe</label>
+                <Link href="/auth/reset-password" style={{ fontSize: 13, fontWeight: 600, color: C.accent }}>Oublié ?</Link>
               </div>
-              <div className="relative mt-2">
-                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                <input 
-                  required 
-                  type={showPassword ? "text" : "password"} 
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: 44 }}
+                  onFocus={e => (e.target.style.borderColor = C.accent)}
+                  onBlur={e => (e.target.style.borderColor = C.line)}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#00D9FF] transition-colors bg-transparent border-none p-0 cursor-pointer"
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            {/* BOUTON SUBMIT */}
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 border-none cursor-pointer"
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                background: C.accent,
+                color: '#fff',
+                fontFamily: bodyFont,
+                fontWeight: 700,
+                fontSize: 15,
+                padding: '14px 0',
+                borderRadius: 10,
+                border: 'none',
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                marginTop: 8,
+              }}
             >
               {loading ? (
                 <>
@@ -110,15 +134,16 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <span>OUVRIR LA SESSION</span>
+                  <span>Ouvrir la session</span>
                   <LogIn size={16} />
                 </>
               )}
             </button>
           </form>
 
-          <p className="mt-8 text-center text-[10px] font-bold opacity-30 relative z-10">
-            PAS ENCORE DE COMPTE ? <Link href="/auth/signup" className="text-[#00D9FF] hover:underline hover:text-cyan-300 transition-colors no-underline">CRÉER MON RESTAURANT</Link>
+          <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
+            Pas encore de compte ?{' '}
+            <Link href="/auth/signup" style={{ color: C.accent, fontWeight: 700 }}>Créer mon restaurant</Link>
           </p>
         </div>
       </div>
