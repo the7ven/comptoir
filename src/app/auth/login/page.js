@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 import { LayoutDashboard, Mail, Lock, LogIn, Loader2, Eye, EyeOff, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -21,7 +22,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        alert("Erreur de connexion : " + error.message);
+        alert(toUserMessage(error, "Impossible de vous connecter. Vérifiez vos identifiants."));
       } else {
         router.replace('/dashboard');
         router.refresh(); 

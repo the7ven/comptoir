@@ -7,6 +7,7 @@ import {
   ArrowDownCircle, Loader2, X 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 
 export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfile }) {
   const [expenses, setExpenses] = useState([]);
@@ -68,11 +69,17 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
     try {
       if (!userProfile) throw new Error("Profil utilisateur non chargé");
 
+      const amount = Number(formData.get('amount'));
+      if (!Number.isFinite(amount) || amount < 0) {
+        alert("Le montant doit être un nombre positif.");
+        return;
+      }
+
       const { error } = await supabase.from('expenses').insert([{
         restaurant_id: userProfile.id,
         owner_email: userProfile.owner_email,
-        label: formData.get('label'), 
-        amount: Number(formData.get('amount')),
+        label: formData.get('label'),
+        amount,
         category: formData.get('category'),
         created_at: new Date().toISOString()
       }]);
@@ -83,7 +90,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
       fetchExpenses();
     } catch (err) {
       console.error("Détails de l'erreur :", err);
-      alert("Erreur : " + (err.message || "Problème d'enregistrement"));
+      alert(toUserMessage(err, "Impossible d'enregistrer cette dépense."));
     }
   };
 

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { printViaBluetooth } from "@/lib/bluetoothPrint";
+import { toUserMessage } from "@/lib/errors";
 
 export default function TablesTabContent({
   isDarkMode,
@@ -139,17 +140,21 @@ export default function TablesTabContent({
       setSelectedOrderForBill(null);
       fetchData();
     } catch (err) {
-      alert(err.message);
+      alert(toUserMessage(err, "Impossible de finaliser l'addition de cette table."));
     }
   };
 
  const handleAddTable = async (e) => {
   e.preventDefault();
   let rawName = e.target.tableName.value.trim();
-  const capacity = parseInt(e.target.capacity.value);
+  const capacity = parseInt(e.target.capacity.value, 10);
 
   // Sécurité : Empêcher de valider un champ vide
   if (!rawName) return;
+  if (!Number.isFinite(capacity) || capacity <= 0) {
+    alert("La capacité doit être un nombre positif.");
+    return;
+  }
 
   let tableName = rawName.toUpperCase();
   // Vérifie si c'est un chiffre ET que ce n'est pas une chaîne vide
@@ -178,8 +183,7 @@ export default function TablesTabContent({
   ]);
 
   if (error) {
-    
-    alert("Erreur lors de l'enregistrement : " + error.message);
+    alert(toUserMessage(error, "Impossible d'enregistrer cette table."));
   } else {
     setIsAddTableModalOpen(false);
     fetchData();

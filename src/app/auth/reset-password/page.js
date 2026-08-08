@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 // Utilisation de Send et CheckCircle qui existent réellement dans lucide-react
 import { LayoutDashboard, Mail, ArrowLeft, Loader2, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -21,7 +22,7 @@ export default function ResetPasswordPage() {
       });
 
       if (error) {
-        alert("Erreur : " + error.message);
+        alert(toUserMessage(error, "Impossible d'envoyer le lien de réinitialisation pour le moment."));
       } else {
         setSubmitted(true);
       }

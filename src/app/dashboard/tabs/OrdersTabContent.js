@@ -6,7 +6,8 @@ import {
   Search, Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Loader2, Send, Beer, Bluetooth, Banknote, Smartphone, CreditCard
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { printViaBluetooth } from '@/lib/bluetoothPrint'; 
+import { printViaBluetooth } from '@/lib/bluetoothPrint';
+import { toUserMessage } from '@/lib/errors';
 
 export default function OrdersTabContent({
   isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
@@ -77,7 +78,7 @@ export default function OrdersTabContent({
       const nextStatus = order.status === "En cours" ? "Prêt" : "Servi";
       await supabase.from("orders").update({ status: nextStatus }).eq("id", order.id);
       fetchOrders();
-    } catch (err) { alert(err.message); }
+    } catch (err) { alert(toUserMessage(err, "Impossible de mettre à jour le statut de la commande.")); }
   };
 
   const handleFinalizeOrder = async (method) => {
@@ -95,7 +96,7 @@ export default function OrdersTabContent({
       setSelectedOrderForBill(null);
       setShowPaymentSelector(false);
       fetchOrders();
-    } catch (err) { alert(err.message); }
+    } catch (err) { alert(toUserMessage(err, "Impossible de finaliser cette commande.")); }
   };
 
   const handleDeleteOrder = async () => {

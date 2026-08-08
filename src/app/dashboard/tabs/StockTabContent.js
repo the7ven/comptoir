@@ -36,12 +36,19 @@ export default function StockTabContent({ isDarkMode }) {
     e.preventDefault();
     const formData = new FormData(e.target);
     try {
+      const quantity = parseInt(formData.get('quantity'), 10);
+      const minThreshold = parseInt(formData.get('threshold'), 10);
+      if (!Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(minThreshold) || minThreshold < 0) {
+        alert("La quantité et le seuil doivent être des nombres positifs.");
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from('inventory').insert([{
-        restaurant_id: user.id, // INJECTION ID
+        restaurant_id: user.id,
         name: formData.get('name'),
-        quantity: parseInt(formData.get('quantity')),
-        min_threshold: parseInt(formData.get('threshold')),
+        quantity,
+        min_threshold: minThreshold,
         unit: formData.get('unit')
       }]);
 
@@ -49,7 +56,8 @@ export default function StockTabContent({ isDarkMode }) {
       setIsModalOpen(false);
       fetchStock();
     } catch (err) {
-      alert("Erreur stock");
+      console.error(err);
+      alert("Impossible d'enregistrer cet article de stock.");
     }
   };
 

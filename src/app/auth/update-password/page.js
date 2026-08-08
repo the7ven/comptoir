@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 import { LayoutDashboard, Lock, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -22,7 +23,7 @@ export default function UpdatePasswordPage() {
       });
 
       if (error) {
-        alert("Erreur : " + error.message);
+        alert(toUserMessage(error, "Impossible de mettre à jour le mot de passe. Le lien a peut-être expiré."));
       } else {
         setIsSuccess(true);
         setTimeout(() => {
