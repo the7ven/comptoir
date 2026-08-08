@@ -181,9 +181,9 @@ export default function MenuTabContent({
     );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, textAlign: "left" }} className="dash-row-lg">
+    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 24, textAlign: "left" }} className="dash-row-lg">
       {/* --- GRILLE MENU --- */}
-      <section style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+      <section style={{ flex: "1 1 420px", textAlign: "left", minWidth: 0 }}>
         <header style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, marginBottom: 24 }}>
           <div>
             <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: "0 0 14px" }}>La Carte</h3>
@@ -251,7 +251,7 @@ export default function MenuTabContent({
       </section>
 
       {/* --- PANIER --- */}
-      <aside style={{ ...card(T), width: "100%", flexShrink: 0, display: "flex", flexDirection: "column", height: "fit-content", maxHeight: "calc(100vh - 140px)", position: "sticky", top: 20 }} className="dash-cart-aside">
+      <aside style={{ ...card(T), width: 260, flexShrink: 0, display: "flex", flexDirection: "column", height: "fit-content", maxHeight: "calc(100vh - 140px)", position: "sticky", top: 20 }} className="dash-cart-aside">
         <div style={{ padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.line}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <ShoppingBag color={T.accent} size={16} />
@@ -416,10 +416,12 @@ export default function MenuTabContent({
 
       <style jsx global>{`
         .dash-dish-card:hover .dash-dish-overlay { opacity: 1; }
-        @media (min-width: 860px) {
-          .dash-row-lg { flex-direction: row; align-items: flex-start; }
-          .dash-cart-aside { width: 260px; }
-          .dash-toolbar-actions { width: auto; }
+        /* Le panier reste à droite du menu par défaut (dash-row-lg est en
+           row dès le départ). En dessous de 560px, il n'y a plus la place
+           pour deux colonnes : le panier repasse en pleine largeur et
+           redevient un bloc sticky en haut de la page plutôt qu'à droite. */
+        @media (max-width: 559px) {
+          .dash-cart-aside { width: 100% !important; position: static !important; max-height: none !important; }
         }
       `}</style>
     </div>
