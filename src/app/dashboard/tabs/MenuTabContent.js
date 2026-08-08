@@ -148,27 +148,41 @@ export default function MenuTabContent({
       (acc, curr) => acc + curr.price * curr.quantity,
       0,
     );
+    const orderFields = {
+      table_number: orderType === "Emporter" ? "Emporter" : `Table ${tableNum}`,
+      items_summary: cart
+        .map((item) => `${item.quantity}x ${item.name}`)
+        .join(", "),
+      items_details: cart,
+      total_amount: total,
+    };
     try {
-      const { error } = await supabase.from("orders").insert([
-        {
-          restaurant_id: userProfile.id,
-          owner_email: userProfile.owner_email,
-          table_number:
-            orderType === "Emporter" ? "Emporter" : `Table ${tableNum}`,
-          items_summary: cart
-            .map((item) => `${item.quantity}x ${item.name}`)
-            .join(", "),
-          items_details: cart,
-          total_amount: total,
-          status: "En cours",
-        },
-      ]);
-      if (error) throw error;
+      if (pendingOrder?.id) {
+        // Modification d'une commande existante : on met à jour la ligne en
+        // place plutôt que d'en insérer une nouvelle, sinon on se retrouve
+        // avec un doublon sur la même table en plus de la commande d'origine.
+        const { error } = await supabase
+          .from("orders")
+          .update(orderFields)
+          .eq("id", pendingOrder.id)
+          .eq("owner_email", userProfile.owner_email);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("orders").insert([
+          {
+            restaurant_id: userProfile.id,
+            owner_email: userProfile.owner_email,
+            status: "En cours",
+            ...orderFields,
+          },
+        ]);
+        if (error) throw error;
+      }
       setCart([]);
       setPendingOrder(null);
       setActiveTab("orders");
     } catch (error) {
-      alert(toUserMessage(error, "Impossible d'envoyer la commande en cuisine."));
+      alert(toUserMessage(error, pendingOrder?.id ? "Impossible de modifier cette commande." : "Impossible d'envoyer la commande en cuisine."));
     }
   };
 
@@ -264,6 +278,20 @@ export default function MenuTabContent({
           )}
         </div>
 
+        {pendingOrder?.id && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 16px", background: T.accentWash, borderBottom: `1px solid ${T.line}` }}>
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: T.accent }}>
+              Modification · {pendingOrder.table_number}
+            </span>
+            <button
+              onClick={() => { setPendingOrder(null); setCart([]); }}
+              style={{ fontSize: 10, fontWeight: 700, color: T.faint, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+
         <div style={{ overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
           {cart.length === 0 ? (
             <div style={{ padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: .3 }}>
@@ -319,7 +347,7 @@ export default function MenuTabContent({
               </p>
             </div>
             <button onClick={finalizeOrder} style={btnSolid(T, { width: "100%", padding: "11px 0", fontSize: 12 })}>
-              Envoyer en cuisine
+              {pendingOrder?.id ? "Mettre à jour la commande" : "Envoyer en cuisine"}
             </button>
           </div>
         )}
