@@ -39,7 +39,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 text-2xl font-black tracking-tighter text-[#00D9FF] mb-12 justify-center">
           <LayoutDashboard size={32} />
-          <span>RestoPay Luxe</span>
+          <span>Comptoir Luxe</span>
         </div>
 
         <div className="bg-[#0a0a0a] border border-white/5 p-10 rounded-[45px] shadow-2xl relative overflow-hidden">

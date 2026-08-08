@@ -23,7 +23,7 @@ export const printViaBluetooth = async (cart, tableNum, orderType) => {
     const DOUBLE_SIZE = '\x1D\x21\x11'; // Texte plus gros pour le titre
     const NORMAL_SIZE = '\x1D\x21\x00';
 
-    let cmds = INIT + CENTER + BOLD_ON + DOUBLE_SIZE + "RESTOPAY\n" + NORMAL_SIZE;
+    let cmds = INIT + CENTER + BOLD_ON + DOUBLE_SIZE + "COMPTOIR\n" + NORMAL_SIZE;
     cmds += "NOTE PROVISOIRE\n";
     cmds += `Table: ${tableNum || 'Comptoir'}\n`;
     cmds += "--------------------------------\n" + LEFT + BOLD_OFF;

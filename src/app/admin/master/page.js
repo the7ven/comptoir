@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   ShieldCheck, Store, TrendingUp,
   Loader2, CheckCircle2, AlertCircle, Search,
-  PieChart, DollarSign, Sun, Moon, Eye, Ban, RotateCcw
+  Sun, Moon, Eye, Ban, RotateCcw, ChevronsUpDown
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, 
-  Tooltip
-} from 'recharts';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from "@/context/ThemeContext";
@@ -20,23 +16,13 @@ export default function MasterAdminPage() {
   const [mounted, setMounted] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [stats, setStats] = useState({ totalRestos: 0, totalSales: 0, saasRevenue: 0 });
   const [restaurants, setRestaurants] = useState([]);
   const [systemHealth, setSystemHealth] = useState({ status: 'checking', latency: 0 });
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', dir: 'desc' });
 
   const router = useRouter();
-
-  const [saasData] = useState([
-    { name: 'Jan', total: 0 }, { name: 'Fév', total: 0 }, { name: 'Mar', total: 0 }
-  ]);
-  
-  const [paymentMethods] = useState([
-    { name: 'Orange', value: 400, color: '#ff6b00' },
-    { name: 'Wave', value: 300, color: '#00d9ff' },
-    { name: 'MTN', value: 200, color: '#ffcc00' },
-    { name: 'Visa/MC', value: 150, color: '#1a1f71' }, 
-    { name: 'Espèces', value: 50, color: '#22c55e' }   
-  ]);
+  const portfolioRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
@@ -92,20 +78,18 @@ export default function MasterAdminPage() {
   const fetchData = async () => {
     const { data: restos, error } = await supabase
       .from('restaurants')
-      .select('*') 
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) return;
 
     const { data: transData } = await supabase.from('transactions').select('amount, restaurant_id');
-    
+
     const salesByResto = transData?.reduce((acc, curr) => {
       const id = curr.restaurant_id;
       acc[id] = (acc[id] || 0) + (Number(curr.amount) || 0);
       return acc;
     }, {}) || {};
-
-    const totalCA = transData?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
 
     const restosWithSales = restos.map(r => ({
       ...r,
@@ -113,11 +97,6 @@ export default function MasterAdminPage() {
     }));
 
     setRestaurants(restosWithSales);
-    setStats(prev => ({
-      ...prev,
-      totalRestos: restos?.length || 0,
-      totalSales: totalCA
-    }));
   };
 
   const toggleStatus = async (restoId, currentStatus) => {
@@ -145,6 +124,20 @@ export default function MasterAdminPage() {
     });
   };
 
+  const timeAgo = (iso) => {
+    if (!iso) return '';
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "à l'instant";
+    if (diffMin < 60) return `il y a ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `il y a ${diffH} h`;
+    const diffJ = Math.floor(diffH / 24);
+    if (diffJ < 30) return `il y a ${diffJ} j`;
+    const diffMonth = Math.floor(diffJ / 30);
+    return `il y a ${diffMonth} mois`;
+  };
+
   // --- LOGIQUE IMPERSONNATE ---
   const handleImpersonate = (restoId) => {
     // On stocke l'ID du restaurant cible
@@ -153,8 +146,19 @@ export default function MasterAdminPage() {
     router.push('/dashboard');
   };
 
-  const filteredRestos = restaurants.filter(r => 
-    r.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const goToPortfolio = (filter) => {
+    setStatusFilter(filter);
+    portfolioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const toggleSort = (key) => {
+    setSortConfig(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'asc' });
+  };
+
+  const filteredRestos = restaurants.filter(r =>
+    r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.owner_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -163,6 +167,45 @@ export default function MasterAdminPage() {
   const pendingRestos = filteredRestos.filter(r => !r.is_active && !r.approved_at);
   const suspendedRestos = filteredRestos.filter(r => !r.is_active && r.approved_at);
   const activeRestos = filteredRestos.filter(r => r.is_active);
+
+  const activeCA = activeRestos.reduce((acc, r) => acc + (r.total_sales || 0), 0);
+  const alertsCount = pendingRestos.length + suspendedRestos.length;
+
+  const tabs = [
+    { key: 'all', label: 'Tous', count: filteredRestos.length },
+    { key: 'pending', label: 'En attente', count: pendingRestos.length },
+    { key: 'active', label: 'Actifs', count: activeRestos.length },
+    { key: 'suspended', label: 'Suspendus', count: suspendedRestos.length },
+  ];
+
+  const portfolioRestos = statusFilter === 'all' ? filteredRestos
+    : statusFilter === 'pending' ? pendingRestos
+    : statusFilter === 'active' ? activeRestos
+    : suspendedRestos;
+
+  const sortedPortfolio = [...portfolioRestos].sort((a, b) => {
+    let av, bv;
+    if (sortConfig.key === 'ca') { av = a.total_sales || 0; bv = b.total_sales || 0; }
+    else if (sortConfig.key === 'name') { av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); }
+    else { av = a.created_at || ''; bv = b.created_at || ''; }
+    if (av < bv) return sortConfig.dir === 'asc' ? -1 : 1;
+    if (av > bv) return sortConfig.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Fil d'activité : fusionne created_at / approved_at / suspended_at de tous
+  // les restaurants en une chronologie unique — la traçabilité qu'on a
+  // construite au fil des dernières migrations, enfin visible d'un coup d'œil.
+  const activityFeed = restaurants
+    .flatMap(r => {
+      const events = [{ type: 'new', name: r.name, when: r.created_at }];
+      if (r.approved_at) events.push({ type: 'approved', name: r.name, when: r.approved_at });
+      if (r.suspended_at) events.push({ type: 'suspended', name: r.name, when: r.suspended_at });
+      return events;
+    })
+    .filter(e => e.when)
+    .sort((a, b) => new Date(b.when) - new Date(a.when))
+    .slice(0, 6);
 
   if (!mounted) return null;
   if (authLoading) return (
@@ -173,18 +216,18 @@ export default function MasterAdminPage() {
 
   return (
     <div className={`min-h-screen font-[family-name:var(--font-lexend)] p-4 lg:p-8 pb-20 transition-colors duration-500 ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-[#F9FAFB] text-gray-900'}`}>
-      
+
       {/* HEADER */}
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div className="text-left">
           <div className="flex items-center gap-3 text-[#00D9FF] mb-2 font-black uppercase tracking-widest text-[10px]">
             <ShieldCheck size={20} /> Master Control System
           </div>
           <h1 className={`text-4xl font-black italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Gestion du SaaS</h1>
-          
+
           <div className={`mt-4 inline-flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${
-            systemHealth.status === 'online' 
-              ? (isDarkMode ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-green-50 border-green-200 text-green-600') 
+            systemHealth.status === 'online'
+              ? (isDarkMode ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-green-50 border-green-200 text-green-600')
               : 'bg-red-500/10 border-red-500/20 text-red-500 animate-pulse'
           }`}>
             <div className={`w-2 h-2 rounded-full ${systemHealth.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
@@ -197,8 +240,8 @@ export default function MasterAdminPage() {
         <div className="flex gap-4 w-full md:w-auto">
             <div className="relative flex-1">
                 <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'opacity-30' : 'opacity-50 text-gray-400'}`} size={18} />
-                <input 
-                    placeholder="Rechercher..." 
+                <input
+                    placeholder="Rechercher..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={`w-full pl-12 pr-6 py-4 border rounded-2xl text-xs outline-none focus:border-[#00D9FF] transition-all ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900 shadow-sm'}`}
@@ -213,169 +256,100 @@ export default function MasterAdminPage() {
         </div>
       </div>
 
-      {/* --- SECTION ANALYTIQUE --- */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <div className={`lg:col-span-2 border p-8 rounded-[45px] ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <div className="flex justify-between items-center mb-8 text-left">
-                <h3 className={`text-lg font-black italic uppercase tracking-tighter flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                    <TrendingUp size={20} className="text-[#00D9FF]" /> Revenus SaaS
-                </h3>
-            </div>
-            <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={saasData}>
-                        <defs>
-                            <linearGradient id="colorSaas" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={isDarkMode ? 0.05 : 0.1} />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: isDarkMode ? '#666' : '#888', fontSize: 10}} />
-                        <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#111' : '#fff', borderRadius: '15px', border: 'none', color: isDarkMode ? '#fff' : '#000' }} />
-                        <Area type="monotone" dataKey="total" stroke="#22c55e" strokeWidth={4} fill="url(#colorSaas)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
+      {/* BANDEAU D'ATTENTION — renvoie directement vers le tableau filtré */}
+      {alertsCount > 0 && (
+        <div className={`max-w-7xl mx-auto mb-8 flex flex-wrap items-center gap-3 p-5 rounded-[30px] border border-dashed ${isDarkMode ? 'border-white/10 bg-white/[0.02]' : 'border-gray-200 bg-white'}`}>
+          <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+            Nécessite votre attention :
+          </span>
+          {pendingRestos.length > 0 && (
+            <button onClick={() => goToPortfolio('pending')} className="flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all cursor-pointer">
+              <AlertCircle size={12} /> {pendingRestos.length} en attente
+            </button>
+          )}
+          {suspendedRestos.length > 0 && (
+            <button onClick={() => goToPortfolio('suspended')} className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all cursor-pointer">
+              <Ban size={12} /> {suspendedRestos.length} suspendu{suspendedRestos.length > 1 ? 's' : ''}
+            </button>
+          )}
         </div>
+      )}
 
-        <div className={`border p-8 rounded-[45px] flex flex-col justify-between ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <h3 className={`text-lg font-black italic uppercase tracking-tighter mb-8 flex items-center gap-3 text-left ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                <PieChart size={20} className="text-purple-500" /> Répartition des Flux
-            </h3>
-            <div className="space-y-3 overflow-y-auto max-h-[300px] no-scrollbar">
-                {paymentMethods.map(m => (
-                    <div key={m.name} className={`flex items-center justify-between p-3 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-gray-50 border border-gray-100'}`}>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>{m.name}</span>
-                        </div>
-                        <span className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{m.value} tx</span>
-                    </div>
-                ))}
-            </div>
-        </div>
+      {/* STATS RAPIDES — uniquement des chiffres réels */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <StatCard isDarkMode={isDarkMode} label="Total Restos" value={restaurants.length} icon={<Store size={18}/>} />
+        <StatCard isDarkMode={isDarkMode} label="CA (comptes actifs)" value={`${activeCA.toLocaleString()} F`} icon={<TrendingUp size={18}/>} color="text-[#00D9FF]" />
+        <StatCard isDarkMode={isDarkMode} label="Alertes ouvertes" value={alertsCount} icon={<AlertCircle size={18}/>} highlight={alertsCount > 0} />
       </div>
 
-      {/* STATS RAPIDES */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-        <StatCard isDarkMode={isDarkMode} label="Total Restos" value={stats.totalRestos} icon={<Store size={18}/>} />
-        <StatCard isDarkMode={isDarkMode} label="CA Clients" value={`${stats.totalSales.toLocaleString()} F`} icon={<TrendingUp size={18}/>} color="text-[#00D9FF]" />
-        <StatCard isDarkMode={isDarkMode} label="Abonnements" value="0 F" icon={<DollarSign size={18}/>} color="text-green-500" />
-        <StatCard isDarkMode={isDarkMode} label="Alertes" value={pendingRestos.length} icon={<AlertCircle size={18}/>} highlight={pendingRestos.length > 0} />
-      </div>
-
-      {/* ALERTES ATTENTE */}
-      {pendingRestos.length > 0 && (
-        <div className="max-w-7xl mx-auto mb-10">
-          <h3 className="flex items-center gap-3 text-orange-500 font-black italic uppercase tracking-tighter mb-6 ml-4 text-left">
-            <AlertCircle size={22} /> Inscriptions à valider
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingRestos.map(resto => (
-              <div key={resto.id} className={`border p-6 rounded-[35px] flex justify-between items-center transition-all ${isDarkMode ? 'bg-orange-500/5 border-orange-500/20' : 'bg-orange-50 border-orange-200'}`}>
-                <div className="text-left">
-                  <p className={`font-black uppercase text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name}</p>
-                  <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{resto.owner_email}</p>
-                  <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>
-                    Inscrit le {formatDateTime(resto.created_at) || 'N/A'}
-                  </p>
-                </div>
-                <button onClick={() => toggleStatus(resto.id, false)} className="bg-orange-500 text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
-                  Activer
-                </button>
+      {/* ACTIVITÉ RÉCENTE — fusion de created_at / approved_at / suspended_at */}
+      {activityFeed.length > 0 && (
+        <div className={`max-w-7xl mx-auto mb-8 border p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <h3 className={`text-sm font-black uppercase tracking-widest mb-5 text-left ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Activité récente</h3>
+          <div>
+            {activityFeed.map((evt, i) => (
+              <div key={i} className={`flex items-center gap-3 py-3 text-left ${i > 0 ? (isDarkMode ? 'border-t border-white/5' : 'border-t border-gray-100') : ''}`}>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${evt.type === 'new' ? 'bg-orange-500' : evt.type === 'approved' ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className={`text-xs font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{evt.name}</span>
+                <span className={`text-xs ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+                  {evt.type === 'new' ? '— inscription reçue' : evt.type === 'approved' ? '— approuvé' : '— suspendu'}
+                </span>
+                <span className={`ml-auto text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>{timeAgo(evt.when)}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* COMPTES SUSPENDUS — distincts des inscriptions en attente : ceux-ci
-          ont déjà été actifs un jour (approved_at rempli) avant d'être suspendus. */}
-      {suspendedRestos.length > 0 && (
-        <div className="max-w-7xl mx-auto mb-10">
-          <h3 className={`flex items-center gap-3 font-black italic uppercase tracking-tighter mb-6 ml-4 text-left ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-            <Ban size={22} /> Comptes suspendus
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {suspendedRestos.map(resto => (
-              <div key={resto.id} className={`border p-6 rounded-[35px] flex justify-between items-center transition-all ${isDarkMode ? 'bg-red-500/5 border-red-500/20' : 'bg-red-50 border-red-200'}`}>
-                <div className="text-left">
-                  <p className={`font-black uppercase text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name}</p>
-                  <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{resto.owner_email}</p>
-                  <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>
-                    Approuvé le {formatDateTime(resto.approved_at) || 'N/A'} • Suspendu le {formatDateTime(resto.suspended_at) || 'N/A'}
-                  </p>
-                </div>
-                <button onClick={() => toggleStatus(resto.id, false)} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all ${isDarkMode ? 'bg-white/10 text-white' : 'bg-white text-gray-900 border border-gray-200'}`}>
-                  <RotateCcw size={14} /> Réactiver
-                </button>
-              </div>
+      {/* PORTEFEUILLE — un seul tableau, filtré par statut au lieu de trois blocs distincts */}
+      <div ref={portfolioRef} className={`max-w-7xl mx-auto border rounded-[45px] overflow-hidden scroll-mt-8 ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className="p-8 border-b border-white/5 flex flex-wrap justify-between items-center gap-4 bg-white/[0.01]">
+          <h3 className={`text-xl font-black italic uppercase tracking-tighter text-left ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Portefeuille</h3>
+          <div className={`flex flex-wrap p-1 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-100"}`}>
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setStatusFilter(t.key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer
+                  ${statusFilter === t.key ? "bg-[#00D9FF] text-black shadow-lg" : "text-gray-500 hover:text-white bg-transparent"}`}
+              >
+                {t.label}
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] tabular-nums ${statusFilter === t.key ? 'bg-black/10' : isDarkMode ? 'bg-white/10' : 'bg-gray-200'}`}>{t.count}</span>
+              </button>
             ))}
           </div>
         </div>
-      )}
 
-      {/* TABLEAU PRINCIPAL */}
-      <div className={`max-w-7xl mx-auto border rounded-[45px] overflow-hidden ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
-          <h3 className={`text-xl font-black italic uppercase tracking-tighter text-left ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Portefeuille Clients</h3>
-          <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className={`text-[9px] font-bold uppercase tracking-widest ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>Mise à jour Live</span>
-          </div>
-        </div>
-        
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className={isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50'}>
-                <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Restaurant</th>
+                <SortableTh label="Restaurant" sortKey="name" sortConfig={sortConfig} onSort={toggleSort} isDarkMode={isDarkMode} />
                 <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Propriétaire</th>
-                <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Dates</th>
-                <th className={`px-8 py-5 text-[10px] uppercase font-black text-center ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>CA (Client)</th>
-                <th className={`px-8 py-5 text-[10px] uppercase font-black text-right ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Action</th>
+                <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Statut</th>
+                <SortableTh label="Dates" sortKey="created_at" sortConfig={sortConfig} onSort={toggleSort} isDarkMode={isDarkMode} />
+                <SortableTh label="CA" sortKey="ca" sortConfig={sortConfig} onSort={toggleSort} isDarkMode={isDarkMode} align="text-right" />
+                <th className={`px-8 py-5 text-[10px] uppercase font-black text-right ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Actions</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDarkMode ? 'divide-white/[0.02]' : 'divide-gray-100'}`}>
-              {activeRestos.map((resto) => (
-                <tr key={resto.id} className={`group transition-colors ${isDarkMode ? 'hover:bg-white/[0.01]' : 'hover:bg-gray-50'}`}>
-                  <td className="px-8 py-6 text-left">
-                    <p className={`font-black text-sm uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name || "N/A"}</p>
-                    <p className={`text-[10px] ${isDarkMode ? 'opacity-40' : 'text-gray-500'}`}>{resto.location || "Non défini"}</p>
-                  </td>
-                  <td className="px-8 py-6 text-left">
-                    <p className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{resto.owner_email}</p>
-                    <span className="text-[9px] font-black text-green-500 uppercase flex items-center gap-1"><CheckCircle2 size={10} /> Actif</span>
-                  </td>
-                  <td className="px-8 py-6 text-left">
-                    <p className={`text-[10px] font-bold ${isDarkMode ? 'text-white/70' : 'text-gray-600'}`}>
-                      Créé : {formatDateTime(resto.created_at) || 'N/A'}
-                    </p>
-                    <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
-                      Approuvé : {formatDateTime(resto.approved_at) || '—'}
-                    </p>
-                  </td>
-                  <td className="px-8 py-6 text-center">
-                    <p className="font-black text-sm text-[#00D9FF]">{resto.total_sales.toLocaleString()} F</p>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex justify-end gap-3">
-                        <button 
-                            onClick={() => handleImpersonate(resto.id)}
-                            className={`p-3 rounded-xl border flex items-center gap-2 transition-all ${isDarkMode ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'}`}
-                            title="Voir en tant que"
-                        >
-                            <Eye size={16} />
-                            <span className="text-[9px] font-black uppercase hidden sm:block">Aperçu</span>
-                        </button>
-                        <button onClick={() => toggleStatus(resto.id, true)} className="text-red-500 bg-red-500/10 border border-red-500/20 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
-                            Suspendre
-                        </button>
-                    </div>
+              {sortedPortfolio.map((resto) => (
+                <PortfolioRow
+                  key={resto.id}
+                  resto={resto}
+                  isDarkMode={isDarkMode}
+                  formatDateTime={formatDateTime}
+                  toggleStatus={toggleStatus}
+                  handleImpersonate={handleImpersonate}
+                />
+              ))}
+              {sortedPortfolio.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-8 py-16 text-center opacity-30 italic text-sm">
+                    Aucun restaurant ne correspond à ce filtre.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -392,7 +366,118 @@ function StatCard({ isDarkMode, label, value, color, icon, highlight = false }) 
         {icon}
         <p className="text-[9px] uppercase font-black tracking-widest">{label}</p>
       </div>
-      <p className={`text-2xl font-black italic tracking-tighter ${valueColor}`}>{value}</p>
+      <p className={`text-2xl font-black italic tracking-tighter tabular-nums ${valueColor}`}>{value}</p>
     </div>
+  );
+}
+
+function SortableTh({ label, sortKey, sortConfig, onSort, isDarkMode, align = '' }) {
+  const active = sortConfig.key === sortKey;
+  return (
+    <th className={`px-8 py-5 text-[10px] uppercase font-black ${align} ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+      <button
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 uppercase text-[10px] font-black tracking-widest text-inherit"
+      >
+        {label}
+        <ChevronsUpDown size={11} className={active ? 'opacity-100 text-[#00D9FF]' : 'opacity-40'} />
+      </button>
+    </th>
+  );
+}
+
+function PortfolioRow({ resto, isDarkMode, formatDateTime, toggleStatus, handleImpersonate }) {
+  const isPending = !resto.is_active && !resto.approved_at;
+  const isSuspended = !resto.is_active && resto.approved_at;
+  const isActive = resto.is_active;
+
+  return (
+    <tr className={`group transition-colors ${isDarkMode ? 'hover:bg-white/[0.01]' : 'hover:bg-gray-50'}`}>
+      <td className="px-8 py-6 text-left">
+        <p className={`font-black text-sm uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name || "N/A"}</p>
+        <p className={`text-[10px] ${isDarkMode ? 'opacity-40' : 'text-gray-500'}`}>{resto.location || "Non défini"}</p>
+      </td>
+      <td className="px-8 py-6 text-left">
+        <p className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{resto.owner_email}</p>
+      </td>
+      <td className="px-8 py-6 text-left">
+        {isActive && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[9px] font-black uppercase tracking-widest">
+            <CheckCircle2 size={10} /> Actif
+          </span>
+        )}
+        {isPending && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[9px] font-black uppercase tracking-widest">
+            <AlertCircle size={10} /> En attente
+          </span>
+        )}
+        {isSuspended && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-black uppercase tracking-widest">
+            <Ban size={10} /> Suspendu
+          </span>
+        )}
+      </td>
+      <td className="px-8 py-6 text-left">
+        {isPending && (
+          <p className={`text-[10px] font-bold ${isDarkMode ? 'text-white/70' : 'text-gray-600'}`}>
+            Inscrit : {formatDateTime(resto.created_at) || 'N/A'}
+          </p>
+        )}
+        {isActive && (
+          <>
+            <p className={`text-[10px] font-bold ${isDarkMode ? 'text-white/70' : 'text-gray-600'}`}>
+              Créé : {formatDateTime(resto.created_at) || 'N/A'}
+            </p>
+            <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+              Approuvé : {formatDateTime(resto.approved_at) || '—'}
+            </p>
+          </>
+        )}
+        {isSuspended && (
+          <>
+            <p className={`text-[10px] font-bold ${isDarkMode ? 'text-white/70' : 'text-gray-600'}`}>
+              Approuvé : {formatDateTime(resto.approved_at) || 'N/A'}
+            </p>
+            <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+              Suspendu : {formatDateTime(resto.suspended_at) || '—'}
+            </p>
+          </>
+        )}
+      </td>
+      <td className="px-8 py-6 text-right">
+        <p className="font-black text-sm text-[#00D9FF] tabular-nums">
+          {isPending ? '—' : `${(resto.total_sales || 0).toLocaleString()} F`}
+        </p>
+      </td>
+      <td className="px-8 py-6 text-right">
+        <div className="flex justify-end gap-3">
+          {isActive && (
+            <>
+              <button
+                onClick={() => handleImpersonate(resto.id)}
+                className={`p-3 rounded-xl border flex items-center gap-2 transition-all ${isDarkMode ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'}`}
+                title="Voir en tant que"
+              >
+                <Eye size={16} />
+                <span className="text-[9px] font-black uppercase hidden sm:block">Aperçu</span>
+              </button>
+              <button onClick={() => toggleStatus(resto.id, true)} className="text-red-500 bg-red-500/10 border border-red-500/20 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">
+                Suspendre
+              </button>
+            </>
+          )}
+          {isPending && (
+            <button onClick={() => toggleStatus(resto.id, false)} className="bg-orange-500 text-black px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
+              Activer
+            </button>
+          )}
+          {isSuspended && (
+            <button onClick={() => toggleStatus(resto.id, false)} className="bg-[#00D9FF] text-black px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+              <RotateCcw size={12} /> Réactiver
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
