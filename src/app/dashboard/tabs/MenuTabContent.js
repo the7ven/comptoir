@@ -252,38 +252,38 @@ export default function MenuTabContent({
 
       {/* --- PANIER --- */}
       <aside style={{ ...card(T), width: "100%", flexShrink: 0, display: "flex", flexDirection: "column", height: "fit-content", maxHeight: "calc(100vh - 140px)", position: "sticky", top: 20 }} className="dash-cart-aside">
-        <div style={{ padding: 20, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.line}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ShoppingBag color={T.accent} size={18} />
-            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 15, margin: 0 }}>Panier</h3>
+        <div style={{ padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.line}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <ShoppingBag color={T.accent} size={16} />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 13.5, margin: 0 }}>Panier</h3>
           </div>
           {cart.length > 0 && (
-            <button onClick={() => setCart([])} style={{ padding: 8, color: T.bad, background: "none", border: "none", cursor: "pointer", opacity: .6 }}>
-              <RotateCcw size={16} />
+            <button onClick={() => setCart([])} style={{ padding: 6, color: T.bad, background: "none", border: "none", cursor: "pointer", opacity: .6 }}>
+              <RotateCcw size={14} />
             </button>
           )}
         </div>
 
-        <div style={{ overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        <div style={{ overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
           {cart.length === 0 ? (
-            <div style={{ padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: .3 }}>
-              <Utensils size={26} style={{ marginBottom: 8, color: T.faint }} />
-              <p style={{ fontSize: 11, fontWeight: 700, color: T.faint }}>Vide</p>
+            <div style={{ padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: .3 }}>
+              <Utensils size={22} style={{ marginBottom: 6, color: T.faint }} />
+              <p style={{ fontSize: 10, fontWeight: 700, color: T.faint }}>Vide</p>
             </div>
           ) : (
             cart.map((item) => (
-              <div key={item.id} style={{ padding: 12, borderRadius: radiusSm, background: T.surface2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{item.name}</p>
-                  <p className="num" style={{ fontSize: 11, fontWeight: 700, color: T.accent, margin: "2px 0 0" }}>{item.price.toLocaleString()} F</p>
+              <div key={item.id} style={{ padding: 10, borderRadius: radiusSm, background: T.surface2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</p>
+                  <p className="num" style={{ fontSize: 10.5, fontWeight: 700, color: T.accent, margin: "2px 0 0" }}>{item.price.toLocaleString()} F</p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHover, borderRadius: 8, padding: "4px 8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, background: T.surfaceHover, borderRadius: 8, padding: "3px 6px", flexShrink: 0 }}>
                   <button onClick={() => updateQuantity(item.id, -1)} style={{ border: "none", background: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
-                    <Minus size={12} />
+                    <Minus size={11} />
                   </button>
-                  <span className="num" style={{ fontSize: 12, fontWeight: 800, width: 16, textAlign: "center" }}>{item.quantity}</span>
+                  <span className="num" style={{ fontSize: 11, fontWeight: 800, width: 14, textAlign: "center" }}>{item.quantity}</span>
                   <button onClick={() => updateQuantity(item.id, 1)} style={{ border: "none", background: "none", color: T.accent, cursor: "pointer", display: "flex" }}>
-                    <Plus size={12} />
+                    <Plus size={11} />
                   </button>
                 </div>
               </div>
@@ -292,12 +292,12 @@ export default function MenuTabContent({
         </div>
 
         {cart.length > 0 && (
-          <div style={{ padding: 20, borderTop: `1px solid ${T.line}`, display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ padding: 16, borderTop: `1px solid ${T.line}`, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               <select
                 value={orderType}
                 onChange={(e) => setOrderType(e.target.value)}
-                style={{ ...inputStyle(T), padding: "10px 12px", fontSize: 12, cursor: "pointer" }}
+                style={{ ...inputStyle(T), padding: "8px 10px", fontSize: 11, cursor: "pointer" }}
               >
                 <option value="Sur place">Sur place</option>
                 <option value="Emporter">Emporter</option>
@@ -308,17 +308,17 @@ export default function MenuTabContent({
                   placeholder="Table"
                   value={tableNum}
                   onChange={(e) => setTableNum(e.target.value)}
-                  style={{ ...inputStyle(T), padding: "10px 12px", fontSize: 12 }}
+                  style={{ ...inputStyle(T), padding: "8px 10px", fontSize: 11 }}
                 />
               )}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: T.faint, margin: 0 }}>Total</p>
-              <p className="num" style={{ fontSize: 19, fontWeight: 800, color: T.accent, margin: 0 }}>
+              <p style={{ fontSize: 10.5, fontWeight: 700, color: T.faint, margin: 0 }}>Total</p>
+              <p className="num" style={{ fontSize: 17, fontWeight: 800, color: T.accent, margin: 0 }}>
                 {cart.reduce((a, b) => a + b.price * b.quantity, 0).toLocaleString()} F
               </p>
             </div>
-            <button onClick={finalizeOrder} style={btnSolid(T, { width: "100%", padding: "13px 0" })}>
+            <button onClick={finalizeOrder} style={btnSolid(T, { width: "100%", padding: "11px 0", fontSize: 12 })}>
               Envoyer en cuisine
             </button>
           </div>
@@ -416,9 +416,9 @@ export default function MenuTabContent({
 
       <style jsx global>{`
         .dash-dish-card:hover .dash-dish-overlay { opacity: 1; }
-        @media (min-width: 1024px) {
+        @media (min-width: 860px) {
           .dash-row-lg { flex-direction: row; align-items: flex-start; }
-          .dash-cart-aside { width: 300px; }
+          .dash-cart-aside { width: 260px; }
           .dash-toolbar-actions { width: auto; }
         }
       `}</style>
