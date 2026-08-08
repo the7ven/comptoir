@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 // qu'empêcher un visiteur non authentifié d'atteindre ces routes.
 const PROTECTED_PATHS = ['/dashboard', '/admin'];
 
-export async function middleware(request) {
+export async function proxy(request) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
