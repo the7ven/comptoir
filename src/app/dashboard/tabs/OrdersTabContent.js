@@ -55,21 +55,14 @@ export default function OrdersTabContent({
   };
 
   // --- LOGIQUE IMPRESSION BLUETOOTH ---
+  // printViaBluetooth(cart, tableNum, orderType) attend un tableau d'articles
+  // {name, price, quantity} — exactement la forme de kitchenItems/barItems,
+  // pas l'objet {title, items:[{name, qty}], footer} construit précédemment.
   const sendToPrinter = async (items, target, table) => {
     if (items.length === 0) return alert("Rien à imprimer pour cette section.");
     setIsPrinting(true);
     try {
-      const ticketData = {
-        title: target === "KITCHEN" ? "BON CUISINE" : "BON BAR",
-        table: table,
-        date: new Date().toLocaleTimeString("fr-FR"),
-        items: items.map(item => ({
-          name: item.name.toUpperCase(),
-          qty: item.quantity
-        })),
-        footer: target === "KITCHEN" ? "*** SECTION CUISINE ***" : "*** SECTION BAR ***"
-      };
-      await printViaBluetooth(ticketData);
+      await printViaBluetooth(items, table, target);
       alert("Impression lancée !");
     } catch (error) { alert("Erreur Bluetooth."); }
     finally { setIsPrinting(false); }

@@ -124,6 +124,23 @@ export default function MenuTabContent({
     );
   };
 
+  const handleDeleteDish = async () => {
+    if (!itemToDelete) return;
+    try {
+      const { error } = await supabase
+        .from("dishes")
+        .delete()
+        .eq("id", itemToDelete.id)
+        .eq("owner_email", userProfile.owner_email);
+      if (error) throw error;
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
+      fetchDishes();
+    } catch (error) {
+      alert(toUserMessage(error, "Impossible de supprimer cet article."));
+    }
+  };
+
   const finalizeOrder = async () => {
     if (orderType === "Sur place" && !tableNum)
       return alert("Précisez la table.");
@@ -377,6 +394,23 @@ export default function MenuTabContent({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* --- MODALE SUPPRESSION --- */}
+      {isOwner && isDeleteModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.6)", backdropFilter: "blur(4px)", textAlign: "center" }}>
+          <div style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 380, padding: 30, boxShadow: T.shadow }}>
+            <Trash2 size={30} color={T.bad} style={{ margin: "0 auto 16px" }} />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18, margin: "0 0 8px" }}>Supprimer cet article ?</h3>
+            <p style={{ fontSize: 12.5, color: T.faint, margin: "0 0 22px" }}>
+              « {itemToDelete?.name} » sera retiré définitivement de la carte.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setIsDeleteModalOpen(false); setItemToDelete(null); }} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 700, fontSize: 11.5, textTransform: "uppercase", background: T.surface2, border: `1px solid ${T.line}`, color: T.ink, cursor: "pointer" }}>Annuler</button>
+              <button onClick={handleDeleteDish} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 800, fontSize: 11.5, textTransform: "uppercase", background: T.bad, border: "none", color: "#fff", cursor: "pointer" }}>Supprimer</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -242,6 +242,17 @@ export default function HistoryTabContent({ isDarkMode, selectedDate, userProfil
             </tbody>
           </table>
         </div>
+
+        {monthlyData.length > 8 && (
+          <div style={{ padding: "16px 26px", borderTop: `1px solid ${T.line}`, textAlign: "center" }}>
+            <button
+              onClick={() => setShowAllDays((v) => !v)}
+              style={{ padding: "9px 20px", borderRadius: 999, background: T.surface2, color: T.muted, border: `1px solid ${T.line}`, fontSize: 11, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}
+            >
+              {showAllDays ? "Voir moins" : `Voir tout (${monthlyData.length})`}
+            </button>
+          </div>
+        )}
       </div>
 
       <style jsx global>{`
