@@ -8,6 +8,7 @@ import {
   ArrowDownCircle, Utensils, GlassWater, Flame, Beer
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 
 export default function CashierTabContent({ isDarkMode, selectedDate, userProfile }) {
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,10 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
   const handleRegisterClosing = async () => {
     if (!closingData.cashInHand) return alert("Saisissez le montant réel.");
+    const realAmount = Number(closingData.cashInHand);
+    if (!Number.isFinite(realAmount) || realAmount < 0) {
+      return alert("Le montant réel doit être un nombre positif.");
+    }
     setIsClosing(true);
     try {
       const { error } = await supabase.from('daily_closings').insert([{
@@ -124,7 +129,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         owner_email: userProfile.owner_email,
         date: selectedDate,
         theoretical_amount: expectedBalance,
-        real_amount: Number(closingData.cashInHand),
+        real_amount: realAmount,
         difference: difference,
         notes: closingData.notes,
         closed_by: userProfile.name
@@ -132,7 +137,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
       if (error) throw error;
       alert("Clôture réussie !");
       setClosingData({ cashInHand: "", notes: "" });
-    } catch (err) { alert(err.message); } finally { setIsClosing(false); }
+    } catch (err) { alert(toUserMessage(err, "Impossible d'enregistrer la clôture de caisse.")); } finally { setIsClosing(false); }
   };
 
   if (loading) return (

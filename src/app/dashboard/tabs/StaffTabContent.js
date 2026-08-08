@@ -5,6 +5,7 @@ import {
   Users, UserPlus, ShieldCheck, CheckCircle2, X, Loader2, Trash2, Mail, Phone
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 
 export default function StaffTabContent({ isDarkMode, userProfile }) {
   const [staff, setStaff] = useState([]);
@@ -46,37 +47,24 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name,
-            role: 'cashier'
-          }
-        }
+      // La création se fait via une route API serveur (service_role) plutôt
+      // que supabase.auth.signUp() côté client : signUp() ferait basculer la
+      // session du navigateur vers le nouveau compte caissier et déconnecterait
+      // le owner en plein milieu de l'opération.
+      const res = await fetch('/api/staff/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
-
-      if (authError) throw authError;
-
-      const { error: profileError } = await supabase
-        .from('restaurants')
-        .insert([{
-          id: authData.user.id,
-          name: formData.name,
-          owner_email: userProfile.owner_email, 
-          role: 'cashier',
-          location: userProfile.location,
-          is_active: true
-        }]);
-
-      if (profileError) throw profileError;
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Erreur');
 
       alert("Compte caissier créé !");
       setShowAddModal(false);
+      setFormData({ name: '', email: '', password: '', phone: '' });
       fetchStaff();
     } catch (error) {
-      alert("Erreur: " + error.message);
+      alert(toUserMessage(error, "Impossible de créer ce compte caissier."));
     } finally {
       setIsSubmitting(false);
     }

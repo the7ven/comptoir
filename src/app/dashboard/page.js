@@ -74,6 +74,15 @@ export default function AdminDashboard() {
           return;
         }
 
+        // SÉCURITÉ : impersonate_resto_id n'est qu'un hint UI côté client — il
+        // n'accorde rien par lui-même. Le SELECT ci-dessous n'aboutit que
+        // grâce à la policy RLS "Master_Admin_Full_Access" (is_master_admin()),
+        // vérifiée côté base à partir de realProfile.is_super_admin qui vient
+        // lui-même d'une lecture RLS verrouillée sur auth.uid() = id. Un
+        // utilisateur non-admin qui poserait cette clé en localStorage
+        // n'obtiendrait donc jamais targetProfile (0 ligne renvoyée par RLS).
+        // Ne jamais faire confiance à impersonateId sans repasser par une
+        // requête filtrée par RLS comme ici.
         const impersonateId = localStorage.getItem('impersonate_resto_id');
         let profileToUse = realProfile;
 

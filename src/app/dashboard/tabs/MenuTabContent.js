@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toUserMessage } from "@/lib/errors";
 
 export default function MenuTabContent({
   isDarkMode,
@@ -40,6 +41,12 @@ export default function MenuTabContent({
     pendingOrder?.order_type || "Sur place",
   );
   const [tableNum, setTableNum] = useState(pendingOrder?.table_number || "");
+
+  // Un caissier peut vendre depuis le menu, mais seul le owner peut créer/
+  // modifier/supprimer des plats et fixer les prix. Ceci ne remplace pas
+  // une policy RLS côté serveur (indispensable), mais évite déjà d'exposer
+  // ces actions dans l'UI d'un compte caissier.
+  const isOwner = userProfile?.role === "owner";
 
   useEffect(() => {
     if (userProfile) fetchDishes();
@@ -143,7 +150,7 @@ export default function MenuTabContent({
       setPendingOrder(null);
       setActiveTab("orders");
     } catch (error) {
-      alert("Erreur: " + error.message);
+      alert(toUserMessage(error, "Impossible d'envoyer la commande en cuisine."));
     }
   };
 
@@ -309,15 +316,17 @@ export default function MenuTabContent({
                 className="bg-transparent border-none outline-none text-xs font-bold w-full"
               />
             </div>
-            <button
-              onClick={() => {
-                setEditingItem(null);
-                setIsModalOpen(true);
-              }}
-              className="bg-[#00D9FF] text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 shadow-md hover:scale-105 transition-all border-none cursor-pointer"
-            >
-              <Plus size={16} strokeWidth={3} /> Nouveau
-            </button>
+            {isOwner && (
+              <button
+                onClick={() => {
+                  setEditingItem(null);
+                  setIsModalOpen(true);
+                }}
+                className="bg-[#00D9FF] text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 shadow-md hover:scale-105 transition-all border-none cursor-pointer"
+              >
+                <Plus size={16} strokeWidth={3} /> Nouveau
+              </button>
+            )}
           </div>
         </header>
 
@@ -343,26 +352,28 @@ export default function MenuTabContent({
                   >
                     <Plus size={20} strokeWidth={3} />
                   </button>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => {
-                        setEditingItem(item);
-                        setIsModalOpen(true);
-                      }}
-                      className="p-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-black transition-all border-none cursor-pointer"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setItemToDelete(item);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="p-2 rounded-lg bg-white/10 text-white hover:bg-red-500 transition-all border-none cursor-pointer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  {isOwner && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingItem(item);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-black transition-all border-none cursor-pointer"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setItemToDelete(item);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="p-2 rounded-lg bg-white/10 text-white hover:bg-red-500 transition-all border-none cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="p-4 text-left">
@@ -384,17 +395,22 @@ export default function MenuTabContent({
       </section>
 
       {/* --- MODALE COMPACTE --- */}
-      {isModalOpen && (
+      {isOwner && isModalOpen && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.target);
+              const rawPrice = parseInt(formData.get("price"), 10);
+              if (!Number.isFinite(rawPrice) || rawPrice < 0) {
+                alert("Le prix doit être un nombre positif.");
+                return;
+              }
               const dishData = {
                 restaurant_id: userProfile.id,
                 owner_email: userProfile.owner_email,
                 name: formData.get("name"),
-                price: parseInt(formData.get("price")),
+                price: rawPrice,
                 category: formData.get("category"),
                 image_url: formData.get("image"),
                 status: "Disponible",

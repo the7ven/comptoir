@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toUserMessage } from '@/lib/errors';
 import { LayoutDashboard, Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -27,14 +28,17 @@ const handleSignup = async (e) => {
 
     if (data?.user) {
       // 2. Création/Mise à jour sécurisée du profil (UPSERT au lieu de INSERT)
+      // SÉCURITÉ : on n'envoie jamais is_active / is_super_admin depuis le
+      // client. Ces colonnes doivent avoir un DEFAULT false côté base et ne
+      // doivent être modifiables que par un service_role (ex: validation
+      // manuelle par le Master Admin) — sinon n'importe quel appel API
+      // pourrait s'auto-activer ou s'auto-promouvoir super admin.
       const { error: dbError } = await supabase
         .from('restaurants')
-        .upsert({ 
-          id: data.user.id, 
+        .upsert({
+          id: data.user.id,
           name: formData.restoName,
           owner_email: formData.email,
-          is_active: true, // On l'active par défaut pour tes tests
-          is_super_admin: false 
         }, { onConflict: 'id' }); // Si l'ID existe déjà, on met à jour la ligne
 
       if (dbError) throw dbError;
@@ -58,7 +62,7 @@ const handleSignup = async (e) => {
       router.replace('/dashboard');
     }
   } catch (err) {
-    alert("Erreur : " + err.message);
+    alert(toUserMessage(err, "Impossible de créer votre compte pour le moment."));
   } finally {
     setLoading(false);
   }
