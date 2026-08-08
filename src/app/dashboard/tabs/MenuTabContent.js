@@ -182,6 +182,74 @@ export default function MenuTabContent({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, textAlign: "left" }} className="dash-row-lg">
+      {/* --- GRILLE MENU --- */}
+      <section style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+        <header style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, marginBottom: 24 }}>
+          <div>
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: "0 0 14px" }}>La Carte</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <CategoryButton T={T} label="Tous" active={activeCategory === "Tous"} onClick={() => setActiveCategory("Tous")} icon={<List size={13} />} />
+              <CategoryButton T={T} label="Cuisine" active={activeCategory === "Plats"} onClick={() => setActiveCategory("Plats")} icon={<Utensils size={13} />} />
+              <CategoryButton T={T} label="Bar" active={activeCategory === "Boissons"} onClick={() => setActiveCategory("Boissons")} icon={<Beer size={13} />} />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, width: "100%" }} className="dash-toolbar-actions">
+            <div style={{ ...card(T, { borderRadius: radiusSm }), display: "flex", alignItems: "center", padding: "10px 14px", flex: 1 }}>
+              <Search size={16} color={T.faint} style={{ marginRight: 8 }} />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ background: "none", border: "none", outline: "none", fontSize: 13, fontWeight: 600, width: "100%", color: T.ink, fontFamily: "inherit" }}
+              />
+            </div>
+            {isOwner && (
+              <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} style={btnSolid(T, { padding: "10px 20px", whiteSpace: "nowrap" })}>
+                <Plus size={16} strokeWidth={3} /> Nouveau
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 16, paddingBottom: 20 }}>
+          {filteredItems.map((item) => (
+            <div key={item.id} style={{ ...card(T), overflow: "hidden", position: "relative" }} className="dash-dish-card">
+              <div style={{ height: 120, position: "relative", overflow: "hidden" }}>
+                <img
+                  src={item.image_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=300"}
+                  alt={item.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div className="dash-dish-overlay" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity .2s" }}>
+                  <button onClick={() => addToCart(item)} style={{ width: 38, height: 38, background: T.accent, color: T.accentInk, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer" }}>
+                    <Plus size={18} strokeWidth={3} />
+                  </button>
+                  {isOwner && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
+                        <Edit3 size={14} />
+                      </button>
+                      <button onClick={() => { setItemToDelete(item); setIsDeleteModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ padding: 14 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</h4>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <p className="num" style={{ color: T.accent, fontWeight: 800, fontSize: 14, margin: 0 }}>{item.price?.toLocaleString()} F</p>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: T.faint, margin: 0, textTransform: "uppercase" }}>{item.category}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* --- PANIER --- */}
       <aside style={{ ...card(T), width: "100%", flexShrink: 0, display: "flex", flexDirection: "column", height: "fit-content", maxHeight: "calc(100vh - 140px)", position: "sticky", top: 20 }} className="dash-cart-aside">
         <div style={{ padding: 20, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.line}` }}>
@@ -256,74 +324,6 @@ export default function MenuTabContent({
           </div>
         )}
       </aside>
-
-      {/* --- GRILLE MENU --- */}
-      <section style={{ flex: 1, textAlign: "left" }}>
-        <header style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, marginBottom: 24 }}>
-          <div>
-            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: "0 0 14px" }}>La Carte</h3>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <CategoryButton T={T} label="Tous" active={activeCategory === "Tous"} onClick={() => setActiveCategory("Tous")} icon={<List size={13} />} />
-              <CategoryButton T={T} label="Cuisine" active={activeCategory === "Plats"} onClick={() => setActiveCategory("Plats")} icon={<Utensils size={13} />} />
-              <CategoryButton T={T} label="Bar" active={activeCategory === "Boissons"} onClick={() => setActiveCategory("Boissons")} icon={<Beer size={13} />} />
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, width: "100%" }} className="dash-toolbar-actions">
-            <div style={{ ...card(T, { borderRadius: radiusSm }), display: "flex", alignItems: "center", padding: "10px 14px", flex: 1 }}>
-              <Search size={16} color={T.faint} style={{ marginRight: 8 }} />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ background: "none", border: "none", outline: "none", fontSize: 13, fontWeight: 600, width: "100%", color: T.ink, fontFamily: "inherit" }}
-              />
-            </div>
-            {isOwner && (
-              <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} style={btnSolid(T, { padding: "10px 20px", whiteSpace: "nowrap" })}>
-                <Plus size={16} strokeWidth={3} /> Nouveau
-              </button>
-            )}
-          </div>
-        </header>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 16, paddingBottom: 20 }}>
-          {filteredItems.map((item) => (
-            <div key={item.id} style={{ ...card(T), overflow: "hidden", position: "relative" }} className="dash-dish-card">
-              <div style={{ height: 120, position: "relative", overflow: "hidden" }}>
-                <img
-                  src={item.image_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=300"}
-                  alt={item.name}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-                <div className="dash-dish-overlay" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity .2s" }}>
-                  <button onClick={() => addToCart(item)} style={{ width: 38, height: 38, background: T.accent, color: T.accentInk, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer" }}>
-                    <Plus size={18} strokeWidth={3} />
-                  </button>
-                  {isOwner && (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
-                        <Edit3 size={14} />
-                      </button>
-                      <button onClick={() => { setItemToDelete(item); setIsDeleteModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ padding: 14 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</h4>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <p className="num" style={{ color: T.accent, fontWeight: 800, fontSize: 14, margin: 0 }}>{item.price?.toLocaleString()} F</p>
-                  <p style={{ fontSize: 9, fontWeight: 700, color: T.faint, margin: 0, textTransform: "uppercase" }}>{item.category}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* --- MODALE COMPACTE --- */}
       {isOwner && isModalOpen && (
