@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { LayoutDashboard, Lock, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { Lock, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function UpdatePasswordPage() {
@@ -16,7 +17,7 @@ export default function UpdatePasswordPage() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const { error } = await supabase.auth.updateUser({
         password: password
@@ -38,52 +39,66 @@ export default function UpdatePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-[family-name:var(--font-lexend)] flex items-center justify-center p-6 text-left">
-      <div className="w-full max-w-md">
-        
-        <div className="bg-[#0a0a0a] border border-white/5 p-10 rounded-[45px] shadow-2xl relative overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#00D9FF]/10 blur-[100px] rounded-full"></div>
-
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
           {!isSuccess ? (
             <>
-              <h2 className="text-3xl font-black italic tracking-tighter mb-2 relative z-10 uppercase text-left">Nouveau Code</h2>
-              <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 mb-8 font-bold text-[#00D9FF] relative z-10 text-left">
-                Définissez votre nouveau mot de passe sécurisé
-              </p>
+              <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Nouveau mot de passe</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Définissez votre nouveau mot de passe sécurisé</p>
 
-              <form onSubmit={handleUpdate} className="space-y-6 relative z-10">
-                <div className="text-left">
-                  <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest block text-left">Nouveau Mot de passe</label>
-                  <div className="relative mt-2">
-                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                    <input 
-                      required 
-                      type={showPassword ? "text" : "password"} 
+              <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Nouveau mot de passe</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                    <input
+                      required
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      value={password} 
-                      onChange={e => setPassword(e.target.value)} 
-                      className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      style={{ width: '100%', background: C.white, border: `1px solid ${C.line}`, padding: '14px 44px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
+                      onFocus={e => (e.target.style.borderColor = C.accent)}
+                      onBlur={e => (e.target.style.borderColor = C.line)}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-5 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#00D9FF] transition-colors bg-transparent border-none p-0 cursor-pointer"
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
 
-                <button 
-                  type="submit" 
-                  disabled={loading || password.length < 6} 
-                  className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 border-none cursor-pointer mt-4"
+                <button
+                  type="submit"
+                  disabled={loading || password.length < 6}
+                  style={{
+                    width: '100%',
+                    background: C.accent,
+                    color: '#fff',
+                    fontFamily: bodyFont,
+                    fontWeight: 700,
+                    fontSize: 15,
+                    padding: '14px 0',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: (loading || password.length < 6) ? 'default' : 'pointer',
+                    opacity: (loading || password.length < 6) ? 0.5 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    marginTop: 8,
+                  }}
                 >
                   {loading ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
                     <>
-                      <span>METTRE À JOUR</span>
+                      <span>Mettre à jour</span>
                       <CheckCircle2 size={16} />
                     </>
                   )}
@@ -91,15 +106,15 @@ export default function UpdatePasswordPage() {
               </form>
             </>
           ) : (
-            <div className="text-center py-10 relative z-10">
-              <div className="w-20 h-20 bg-[#00D9FF]/10 text-[#00D9FF] rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 size={40} />
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{ width: 64, height: 64, background: C.wash, color: C.accentDark, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <CheckCircle2 size={32} />
               </div>
-              <h2 className="text-2xl font-black italic mb-4 uppercase text-left text-white">Succès !</h2>
-              <p className="text-sm opacity-40 font-medium leading-relaxed mb-4 text-left">
+              <h2 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: '0 0 12px' }}>Succès !</h2>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, margin: '0 0 12px' }}>
                 Votre mot de passe a été réinitialisé avec succès.
               </p>
-              <p className="text-[10px] font-black text-[#00D9FF] uppercase tracking-widest animate-pulse text-left">
+              <p style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>
                 Redirection vers la connexion...
               </p>
             </div>

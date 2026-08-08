@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-// Utilisation de Send et CheckCircle qui existent réellement dans lucide-react
-import { LayoutDashboard, Mail, ArrowLeft, Loader2, Send, CheckCircle } from 'lucide-react';
+import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { Mail, ArrowLeft, Loader2, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ResetPasswordPage() {
@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
   const handleReset = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
@@ -34,50 +34,63 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-[family-name:var(--font-lexend)] flex items-center justify-center p-6 text-left">
-      <div className="w-full max-w-md text-left">
-        
-        <Link href="/auth/login" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#00D9FF] mb-8 hover:opacity-70 transition-all no-underline">
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <Link href="/auth/login" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 24 }}>
           <ArrowLeft size={14} /> Retour à la connexion
         </Link>
 
-        <div className="bg-[#0a0a0a] border border-white/5 p-10 rounded-[45px] shadow-2xl relative overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#00D9FF]/10 blur-[100px] rounded-full"></div>
-
+        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
           {!submitted ? (
             <>
-              <h2 className="text-3xl font-black italic tracking-tighter mb-2 relative z-10 uppercase text-left">Récupération</h2>
-              <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 mb-8 font-bold text-[#00D9FF] relative z-10 text-left">
-                Saisissez votre email pour réinitialiser votre accès
-              </p>
+              <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Récupération</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Saisissez votre email pour réinitialiser votre accès</p>
 
-              <form onSubmit={handleReset} className="space-y-6 relative z-10">
-                <div className="text-left">
-                  <label className="text-[9px] uppercase font-black opacity-30 ml-4 tracking-widest block text-left">Votre Email</label>
-                  <div className="relative mt-2">
-                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                    <input 
-                      required 
-                      type="email" 
+              <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Votre email</label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                    <input
+                      required
+                      type="email"
                       placeholder="manager@votre-resto.com"
-                      value={email} 
-                      onChange={e => setEmail(e.target.value)} 
-                      className="w-full bg-white/5 border border-white/10 px-12 py-4 rounded-2xl outline-none focus:border-[#00D9FF] transition-all font-bold placeholder:text-white/10 text-sm" 
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      style={{ width: '100%', background: C.white, border: `1px solid ${C.line}`, padding: '14px 16px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
+                      onFocus={e => (e.target.style.borderColor = C.accent)}
+                      onBlur={e => (e.target.style.borderColor = C.line)}
                     />
                   </div>
                 </div>
 
-                <button 
-                  type="submit" 
-                  disabled={loading} 
-                  className="w-full py-5 bg-[#00D9FF] text-black font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 border-none cursor-pointer mt-4"
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    background: C.accent,
+                    color: '#fff',
+                    fontFamily: bodyFont,
+                    fontWeight: 700,
+                    fontSize: 15,
+                    padding: '14px 0',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: loading ? 'default' : 'pointer',
+                    opacity: loading ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    marginTop: 8,
+                  }}
                 >
                   {loading ? (
                     <Loader2 className="animate-spin" size={18} />
                   ) : (
                     <>
-                      <span>ENVOYER LE LIEN</span>
-                      {/* CORRIGÉ ICI */}
+                      <span>Envoyer le lien</span>
                       <Send size={16} />
                     </>
                   )}
@@ -85,17 +98,16 @@ export default function ResetPasswordPage() {
               </form>
             </>
           ) : (
-            <div className="text-center py-10 relative z-10">
-              <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                {/* CORRIGÉ ICI AUSSI */}
-                <CheckCircle size={40} />
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{ width: 64, height: 64, background: C.wash, color: C.accentDark, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <CheckCircle size={32} />
               </div>
-              <h2 className="text-2xl font-black italic mb-4 uppercase text-left">Email Envoyé !</h2>
-              <p className="text-sm opacity-40 font-medium leading-relaxed mb-8 text-left">
-                Consultez votre boîte de réception. Un lien de réinitialisation vous a été envoyé à <strong>{email}</strong>.
+              <h2 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: '0 0 12px' }}>Email envoyé !</h2>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, margin: '0 0 24px' }}>
+                Consultez votre boîte de réception. Un lien de réinitialisation vous a été envoyé à <strong style={{ color: C.ink }}>{email}</strong>.
               </p>
-              <Link href="/auth/login" className="text-[#00D9FF] text-[10px] font-black uppercase tracking-widest hover:underline no-underline">
-                Revenir à l'accueil
+              <Link href="/auth/login" style={{ color: C.accent, fontSize: 13, fontWeight: 700 }}>
+                Revenir à la connexion
               </Link>
             </div>
           )}
