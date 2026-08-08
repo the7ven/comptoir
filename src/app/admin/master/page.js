@@ -122,9 +122,24 @@ export default function MasterAdminPage() {
 
   const toggleStatus = async (restoId, currentStatus) => {
     try {
-      const { error } = await supabase.from('restaurants').update({ is_active: !currentStatus }).eq('id', restoId);
-      if (!error) fetchData(); 
+      const activating = !currentStatus;
+      const payload = { is_active: activating };
+      // On horodate l'approbation uniquement au moment de l'activation —
+      // une suspension ultérieure ne l'efface pas, pour garder l'historique
+      // de la première (ou dernière) date de validation par le Master Admin.
+      if (activating) payload.approved_at = new Date().toISOString();
+
+      const { error } = await supabase.from('restaurants').update(payload).eq('id', restoId);
+      if (!error) fetchData();
     } catch (err) { alert("Erreur technique"); }
+  };
+
+  const formatDateTime = (iso) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
   };
 
   // --- LOGIQUE IMPERSONNATE ---
@@ -256,6 +271,9 @@ export default function MasterAdminPage() {
                 <div className="text-left">
                   <p className={`font-black uppercase text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{resto.name}</p>
                   <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>{resto.owner_email}</p>
+                  <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? 'opacity-30' : 'text-gray-400'}`}>
+                    Inscrit le {formatDateTime(resto.created_at) || 'N/A'}
+                  </p>
                 </div>
                 <button onClick={() => toggleStatus(resto.id, false)} className="bg-orange-500 text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
                   Activer
@@ -282,6 +300,7 @@ export default function MasterAdminPage() {
               <tr className={isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50'}>
                 <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Restaurant</th>
                 <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Propriétaire</th>
+                <th className={`px-8 py-5 text-[10px] uppercase font-black ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Dates</th>
                 <th className={`px-8 py-5 text-[10px] uppercase font-black text-center ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>CA (Client)</th>
                 <th className={`px-8 py-5 text-[10px] uppercase font-black text-right ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>Action</th>
               </tr>
@@ -296,6 +315,14 @@ export default function MasterAdminPage() {
                   <td className="px-8 py-6 text-left">
                     <p className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{resto.owner_email}</p>
                     <span className="text-[9px] font-black text-green-500 uppercase flex items-center gap-1"><CheckCircle2 size={10} /> Actif</span>
+                  </td>
+                  <td className="px-8 py-6 text-left">
+                    <p className={`text-[10px] font-bold ${isDarkMode ? 'text-white/70' : 'text-gray-600'}`}>
+                      Créé : {formatDateTime(resto.created_at) || 'N/A'}
+                    </p>
+                    <p className={`text-[10px] font-bold ${isDarkMode ? 'opacity-40' : 'text-gray-400'}`}>
+                      Approuvé : {formatDateTime(resto.approved_at) || '—'}
+                    </p>
                   </td>
                   <td className="px-8 py-6 text-center">
                     <p className="font-black text-sm text-[#00D9FF]">{resto.total_sales.toLocaleString()} F</p>
