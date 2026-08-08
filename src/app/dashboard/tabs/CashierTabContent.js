@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Wallet, Banknote, Smartphone, CreditCard, 
-  ArrowRight, CheckCircle2, AlertTriangle, 
-  History, Printer, Loader2, Save, Receipt, 
-  ArrowDownCircle, Utensils, GlassWater, Flame, Beer
+import {
+  Banknote, Smartphone, CreditCard,
+  ArrowRight,
+  Loader2, Utensils, GlassWater, Flame, Beer
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
+import { getDashTokens, card, btnSolid, inputStyle, pill, eyebrow, headFont, radius, radiusSm } from '@/lib/dashTheme';
 
 export default function CashierTabContent({ isDarkMode, selectedDate, userProfile }) {
+  const T = getDashTokens(isDarkMode);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("day"); // Nouvel état pour la période
   const [transactions, setTransactions] = useState([]);
@@ -18,7 +19,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
     total: 0,
     byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 }
   });
-  
+
   const [sectionData, setSectionData] = useState({
     repas: 0,
     cocktails: 0,
@@ -45,7 +46,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         start = `${selectedDate}T00:00:00.000Z`;
         end = `${selectedDate}T23:59:59.999Z`;
       } else if (period === "week") {
-        const first = date.getDate() - date.getDay(); 
+        const first = date.getDate() - date.getDay();
         const last = first + 6;
         start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
         end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
@@ -80,7 +81,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         t.items?.forEach(item => {
           const cat = item.category;
           const price = Number(item.price) * (item.quantity || 1);
-          
+
           if (cat === "Plats" || cat === "Accompagnements") {
             repas += price;
           } else if (cat === "Cocktails") {
@@ -141,33 +142,42 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   };
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center h-64 opacity-50">
-      <Loader2 className="animate-spin text-[#00D9FF] mb-2" />
-      <p className="text-[10px] font-black uppercase tracking-widest">Calcul du solde net...</p>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 256, opacity: .5 }}>
+      <Loader2 className="animate-spin" color={T.accent} style={{ marginBottom: 8 }} />
+      <p style={{ fontSize: 11, fontWeight: 700, color: T.muted }}>Calcul du solde net...</p>
     </div>
   );
 
+  const periods = [
+    { id: "day", label: "Jour" },
+    { id: "week", label: "Semaine" },
+    { id: "month", label: "Mois" },
+    { id: "year", label: "Année" },
+  ];
+
+  const methodColors = {
+    "Espèces": { bg: T.goodWash, fg: T.good },
+    "Orange Money": { bg: "oklch(0.7 0.16 55 / .15)", fg: "oklch(0.55 0.16 55)" },
+    "Wave": { bg: T.accentWash, fg: T.accent },
+    "MTN Money": { bg: T.warnWash, fg: T.warn },
+    "Visa": { bg: "oklch(0.55 0.1 290 / .15)", fg: "oklch(0.5 0.12 290)" },
+  };
+
   return (
-    <div className="fade-in space-y-8 pb-10 text-left">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h3 className="text-3xl font-black italic tracking-tighter uppercase">Session de Caisse</h3>
-        
-        {/* SÉLECTEUR DE PÉRIODE : UNIQUEMENT POUR OWNER */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 20, textAlign: "left" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+        <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 24, margin: 0 }}>Session de Caisse</h3>
+
         {userProfile?.role === "owner" && (
-          <div className={`flex p-1 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-100"}`}>
-            {[
-              { id: "day", label: "Jour" },
-              { id: "week", label: "Semaine" },
-              { id: "month", label: "Mois" },
-              { id: "year", label: "Année" }
-            ].map((p) => (
+          <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
+            {periods.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setPeriod(p.id)}
-                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border-none cursor-pointer
-                  ${period === p.id 
-                    ? "bg-[#00D9FF] text-black shadow-lg" 
-                    : "text-gray-500 hover:text-white bg-transparent"}`}
+                style={{
+                  padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                  background: period === p.id ? T.accent : "none", color: period === p.id ? T.accentInk : T.muted,
+                }}
               >
                 {p.label}
               </button>
@@ -176,145 +186,142 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2 space-y-6">
-          
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }} className="dash-grid-collapse">
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
           {/* --- VENTILATION PAR CATÉGORIES --- */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className={`p-6 rounded-[35px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white shadow-lg'}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-orange-500/10 text-orange-500 rounded-xl"><Utensils size={20}/></div>
-                <h4 className="text-sm font-black uppercase italic">Section Repas</h4>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="dash-grid-collapse-sm">
+            <div style={card(T, { padding: 22 })}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <div style={{ padding: 9, background: "oklch(0.7 0.16 55 / .12)", color: "oklch(0.55 0.16 55)", borderRadius: radiusSm }}><Utensils size={18} /></div>
+                <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Section Repas</h4>
               </div>
-              <p className="text-2xl font-black text-orange-500">{sectionData.repas.toLocaleString()} F</p>
-              <p className="text-[9px] uppercase font-bold opacity-30 mt-1">Plats & Accompagnements</p>
+              <p className="num" style={{ fontSize: 22, fontWeight: 800, color: "oklch(0.55 0.16 55)", margin: 0 }}>{sectionData.repas.toLocaleString()} F</p>
+              <p style={{ fontSize: 10.5, fontWeight: 700, color: T.faint, margin: "4px 0 0" }}>Plats & Accompagnements</p>
             </div>
 
-           {/* SECTION BOISSONS */}
-<div className={`p-6 rounded-[35px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white shadow-lg'}`}>
-  <div className="flex items-center justify-between mb-4">
-    <div className="flex items-center gap-3">
-      <div className="p-2 bg-[#00D9FF]/10 text-[#00D9FF] rounded-xl"><GlassWater size={20}/></div>
-      <h4 className="text-sm font-black uppercase italic">Section Boissons</h4>
-    </div>
-    {/* Affichage du Total Global Bar */}
-    <div className="text-right">
-      <p className="text-2xl font-black text-[#00D9FF]">
-        {(sectionData.cocktails + sectionData.jusNaturel + sectionData.barGlobal).toLocaleString()} F
-      </p>
-    </div>
-  </div>
-
-  {/* Barre de séparation discrète */}
-  <div className="h-[1px] w-full bg-white/5 mb-4"></div>
-
-  <div className="space-y-3">
-    <MiniRow label="Cocktails" value={sectionData.cocktails} icon={<Flame size={12} className="text-pink-500"/>} isDarkMode={isDarkMode} />
-    <MiniRow label="Jus Naturels" value={sectionData.jusNaturel} icon={<ArrowRight size={12} className="text-green-500"/>} isDarkMode={isDarkMode} />
-    <MiniRow label="Bar (Bière, Whisky, Vin...)" value={sectionData.barGlobal} icon={<Beer size={12} className="text-yellow-500"/>} isDarkMode={isDarkMode} />
-  </div>
-</div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
-              <p className="text-[#00D9FF] text-[10px] font-black uppercase tracking-widest mb-2">Total Recettes ({period})</p>
-              <h2 className="text-4xl font-black">{salesData.total.toLocaleString()} F</h2>
-            </div>
-            <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
-              <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mb-2">Total Dépenses ({period})</p>
-              <h2 className="text-4xl font-black text-red-500">-{totalExpenses.toLocaleString()} F</h2>
+            <div style={card(T, { padding: 22 })}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ padding: 9, background: T.accentWash, color: T.accent, borderRadius: radiusSm }}><GlassWater size={18} /></div>
+                  <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Section Boissons</h4>
+                </div>
+                <p className="num" style={{ fontSize: 20, fontWeight: 800, color: T.accent, margin: 0 }}>
+                  {(sectionData.cocktails + sectionData.jusNaturel + sectionData.barGlobal).toLocaleString()} F
+                </p>
+              </div>
+              <div style={{ height: 1, width: "100%", background: T.line, marginBottom: 14 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <MiniRow T={T} label="Cocktails" value={sectionData.cocktails} icon={<Flame size={12} color="#ec4899" />} />
+                <MiniRow T={T} label="Jus Naturels" value={sectionData.jusNaturel} icon={<ArrowRight size={12} color={T.good} />} />
+                <MiniRow T={T} label="Bar (Bière, Whisky, Vin...)" value={sectionData.barGlobal} icon={<Beer size={12} color={T.warn} />} />
+              </div>
             </div>
           </div>
 
-          <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
-             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <MethodStat label="Espèces" value={salesData.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
-                <MethodStat label="Orange" value={salesData.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
-                <MethodStat label="Wave" value={salesData.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
-                <MethodStat label="MTN" value={salesData.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
-                <MethodStat label="Visa" value={salesData.byMethod["Visa"]} icon={<CreditCard size={16}/>} color="indigo" />
-             </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="dash-grid-collapse-sm">
+            <div style={card(T, { padding: 26 })}>
+              <p style={eyebrow(T, { marginBottom: 8 })}>Total Recettes ({period})</p>
+              <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, margin: 0 }}>{salesData.total.toLocaleString()} F</h2>
+            </div>
+            <div style={card(T, { padding: 26 })}>
+              <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: T.bad, margin: "0 0 8px" }}>Total Dépenses ({period})</p>
+              <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, color: T.bad, margin: 0 }}>-{totalExpenses.toLocaleString()} F</h2>
+            </div>
           </div>
 
-          <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
-            <h4 className="font-black uppercase italic text-sm mb-6">Journal des flux</h4>
-            <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar text-left">
+          <div style={card(T, { padding: 26 })}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 16 }}>
+              <MethodStat T={T} label="Espèces" value={salesData.byMethod["Espèces"]} icon={<Banknote size={16} />} colors={methodColors["Espèces"]} />
+              <MethodStat T={T} label="Orange" value={salesData.byMethod["Orange Money"]} icon={<Smartphone size={16} />} colors={methodColors["Orange Money"]} />
+              <MethodStat T={T} label="Wave" value={salesData.byMethod["Wave"]} icon={<CreditCard size={16} />} colors={methodColors["Wave"]} />
+              <MethodStat T={T} label="MTN" value={salesData.byMethod["MTN Money"]} icon={<Smartphone size={16} />} colors={methodColors["MTN Money"]} />
+              <MethodStat T={T} label="Visa" value={salesData.byMethod["Visa"]} icon={<CreditCard size={16} />} colors={methodColors["Visa"]} />
+            </div>
+          </div>
+
+          <div style={card(T, { padding: 26 })}>
+            <h4 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 16px" }}>Journal des flux</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 240, overflowY: "auto" }}>
               {transactions.map((t, i) => (
-                <div key={i} className="flex justify-between items-center p-4 rounded-2xl bg-white/5 text-left">
-                  <div className="text-left">
-                    <span className="text-xs font-black uppercase block">{t.payment_method}</span>
-                    <span className="text-[8px] opacity-30 uppercase font-bold">{new Date(t.created_at).toLocaleTimeString()}</span>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: radiusSm, background: T.surface2 }}>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 700, display: "block" }}>{t.payment_method}</span>
+                    <span style={{ fontSize: 10, color: T.faint, fontWeight: 600 }}>{new Date(t.created_at).toLocaleTimeString()}</span>
                   </div>
-                  <span className="font-black text-sm">{t.amount.toLocaleString()} F</span>
+                  <span className="num" style={{ fontWeight: 800, fontSize: 13 }}>{t.amount.toLocaleString()} F</span>
                 </div>
               ))}
-              {transactions.length === 0 && <p className="opacity-20 italic p-4">Aucun flux enregistré pour cette période.</p>}
+              {transactions.length === 0 && <p style={{ opacity: .4, fontStyle: "italic", padding: 14, fontSize: 13 }}>Aucun flux enregistré pour cette période.</p>}
             </div>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className={`p-10 rounded-[40px] ${isDarkMode ? 'bg-[#00D9FF] text-black' : 'bg-black text-white'}`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-60">Solde Attendu (Net)</p>
-            <h2 className="text-4xl font-black italic">{expectedBalance.toLocaleString()} F</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={card(T, { padding: 28, background: T.accent, border: "none" })}>
+            <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: T.accentInk, opacity: .75, margin: "0 0 8px" }}>Solde Attendu (Net)</p>
+            <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, color: T.accentInk, margin: 0 }}>{expectedBalance.toLocaleString()} F</h2>
           </div>
 
-          <div className={`p-8 rounded-[40px] ${isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'}`}>
-            <h4 className="font-black uppercase italic text-sm mb-6">Vérification de Caisse</h4>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase opacity-40 ml-2">Montant physique réel</p>
-                <input 
-                  type="number" 
+          <div style={card(T, { padding: 24 })}>
+            <h4 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 18px" }}>Vérification de Caisse</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, margin: "0 0 6px" }}>Montant physique réel</p>
+                <input
+                  type="number"
                   value={closingData.cashInHand}
-                  onChange={(e) => setClosingData({...closingData, cashInHand: e.target.value})}
-                  className={`w-full px-6 py-5 rounded-[25px] outline-none border-none font-black text-xl ${isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100'}`}
+                  onChange={(e) => setClosingData({ ...closingData, cashInHand: e.target.value })}
+                  style={{ ...inputStyle(T), padding: "14px 16px", fontSize: 18, fontWeight: 800 }}
                   placeholder="0"
                 />
               </div>
 
               {closingData.cashInHand && (
-                <div className={`p-5 rounded-2xl ${difference === 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                  <p className="text-[9px] font-black uppercase opacity-50">Écart de caisse</p>
-                  <p className="text-xl font-black">{difference.toLocaleString()} F</p>
+                <div style={{ ...pill(T, difference === 0 ? "good" : "bad"), display: "block", padding: 16, borderRadius: radiusSm }}>
+                  <p style={{ fontSize: 10, opacity: .7, margin: "0 0 4px", textTransform: "none", letterSpacing: 0 }}>Écart de caisse</p>
+                  <p className="num" style={{ fontSize: 18, fontWeight: 800, margin: 0, textTransform: "none" }}>{difference.toLocaleString()} F</p>
                 </div>
               )}
 
-              <button 
-                onClick={handleRegisterClosing}
-                disabled={isClosing}
-                className="w-full py-5 bg-[#00D9FF] text-black rounded-[25px] font-black text-xs uppercase shadow-xl border-none cursor-pointer hover:brightness-110 active:scale-95 transition-all"
-              >
+              <button onClick={handleRegisterClosing} disabled={isClosing} style={btnSolid(T, { width: "100%", padding: "14px 0", opacity: isClosing ? .6 : 1 })}>
                 {isClosing ? "Traitement..." : "Valider la clôture"}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 900px) {
+          .dash-grid-collapse { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 640px) {
+          .dash-grid-collapse-sm { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
 
-function MiniRow({ label, value, icon, isDarkMode }) {
+function MiniRow({ T, label, value, icon }) {
   return (
-    <div className={`flex items-center justify-between p-3 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
-      <div className="flex items-center gap-2">
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: radiusSm, background: T.surface2 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {icon}
-        <span className="text-[10px] font-black uppercase opacity-60 tracking-tight">{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: T.muted }}>{label}</span>
       </div>
-      <span className="text-xs font-black">{value.toLocaleString()} F</span>
+      <span className="num" style={{ fontSize: 12, fontWeight: 800 }}>{value.toLocaleString()} F</span>
     </div>
   );
 }
 
-function MethodStat({ label, value, icon, color }) {
-  const colors = { green: "text-green-500 bg-green-500/10", orange: "text-orange-500 bg-orange-500/10", blue: "text-blue-500 bg-blue-500/10", yellow: "text-yellow-500 bg-yellow-500/10", indigo: "text-indigo-500 bg-indigo-500/10" };
+function MethodStat({ T, label, value, icon, colors }) {
   return (
-    <div className="text-left">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${colors[color]}`}>{icon}</div>
-      <p className="text-[8px] font-black uppercase opacity-40 leading-none mb-1">{label}</p>
-      <p className="text-[11px] font-black truncate">{value.toLocaleString()} F</p>
+    <div>
+      <div style={{ width: 38, height: 38, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8, background: colors.bg, color: colors.fg }}>{icon}</div>
+      <p style={{ fontSize: 9.5, fontWeight: 700, color: T.faint, margin: "0 0 2px", textTransform: "uppercase" }}>{label}</p>
+      <p className="num" style={{ fontSize: 12, fontWeight: 800, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value.toLocaleString()} F</p>
     </div>
   );
 }

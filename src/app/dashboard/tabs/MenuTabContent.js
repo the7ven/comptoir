@@ -5,7 +5,6 @@ import {
   Plus,
   Edit3,
   Trash2,
-  AlertCircle,
   X,
   ShoppingBag,
   Minus,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toUserMessage } from "@/lib/errors";
+import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from "@/lib/dashTheme";
 
 export default function MenuTabContent({
   isDarkMode,
@@ -28,6 +28,7 @@ export default function MenuTabContent({
   setPendingOrder,
   userProfile,
 }) {
+  const T = getDashTokens(isDarkMode);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("Tous");
@@ -123,6 +124,23 @@ export default function MenuTabContent({
     );
   };
 
+  const handleDeleteDish = async () => {
+    if (!itemToDelete) return;
+    try {
+      const { error } = await supabase
+        .from("dishes")
+        .delete()
+        .eq("id", itemToDelete.id)
+        .eq("owner_email", userProfile.owner_email);
+      if (error) throw error;
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
+      fetchDishes();
+    } catch (error) {
+      alert(toUserMessage(error, "Impossible de supprimer cet article."));
+    }
+  };
+
   const finalizeOrder = async () => {
     if (orderType === "Sur place" && !tableNum)
       return alert("Précisez la table.");
@@ -156,71 +174,47 @@ export default function MenuTabContent({
 
   if (loading)
     return (
-      <div className="flex flex-col items-center justify-center h-64 opacity-50">
-        <Loader2 className="animate-spin text-[#00D9FF] mb-2" />
-        <p className="text-[10px] font-black uppercase tracking-widest">
-          Chargement...
-        </p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 256, opacity: .5 }}>
+        <Loader2 className="animate-spin" color={T.accent} style={{ marginBottom: 8 }} />
+        <p style={{ fontSize: 11, fontWeight: 700, color: T.muted }}>Chargement...</p>
       </div>
     );
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 no-print min-h-screen text-left">
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, textAlign: "left" }} className="dash-row-lg">
       {/* --- PANIER --- */}
-      <aside
-        className={`w-full lg:w-80 flex flex-col rounded-3xl shrink-0 lg:sticky lg:top-8 h-fit max-h-[calc(100vh-40px)] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl border border-gray-100"}`}
-      >
-        <div className="p-6 flex items-center justify-between border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="text-[#00D9FF]" size={18} />
-            <h3 className="font-black italic text-lg uppercase tracking-tight">
-              Panier
-            </h3>
+      <aside style={{ ...card(T), width: "100%", flexShrink: 0, display: "flex", flexDirection: "column", height: "fit-content", maxHeight: "calc(100vh - 140px)", position: "sticky", top: 20 }} className="dash-cart-aside">
+        <div style={{ padding: 20, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.line}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ShoppingBag color={T.accent} size={18} />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 15, margin: 0 }}>Panier</h3>
           </div>
           {cart.length > 0 && (
-            <button
-              onClick={() => setCart([])}
-              className="p-2 text-red-500/50 hover:text-red-500 transition-all border-none bg-transparent cursor-pointer"
-            >
+            <button onClick={() => setCart([])} style={{ padding: 8, color: T.bad, background: "none", border: "none", cursor: "pointer", opacity: .6 }}>
               <RotateCcw size={16} />
             </button>
           )}
         </div>
 
-        <div className="overflow-y-auto p-4 space-y-3 flex-1 custom-scrollbar">
+        <div style={{ overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
           {cart.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center opacity-10 italic text-[10px]">
-              <Utensils size={30} className="mb-2" />
-              <p className="uppercase font-black tracking-widest">Vide</p>
+            <div style={{ padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: .3 }}>
+              <Utensils size={26} style={{ marginBottom: 8, color: T.faint }} />
+              <p style={{ fontSize: 11, fontWeight: 700, color: T.faint }}>Vide</p>
             </div>
           ) : (
             cart.map((item) => (
-              <div
-                key={item.id}
-                className={`p-3 rounded-2xl flex items-center justify-between ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}
-              >
-                <div className="text-left flex-1">
-                  <p className="text-[11px] font-black uppercase leading-tight">
-                    {item.name}
-                  </p>
-                  <p className="text-[10px] font-bold text-[#00D9FF]">
-                    {item.price.toLocaleString()} F
-                  </p>
+              <div key={item.id} style={{ padding: 12, borderRadius: radiusSm, background: T.surface2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{item.name}</p>
+                  <p className="num" style={{ fontSize: 11, fontWeight: 700, color: T.accent, margin: "2px 0 0" }}>{item.price.toLocaleString()} F</p>
                 </div>
-                <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1">
-                  <button
-                    onClick={() => updateQuantity(item.id, -1)}
-                    className="hover:text-red-500 border-none bg-transparent text-white cursor-pointer"
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.surfaceHover, borderRadius: 8, padding: "4px 8px" }}>
+                  <button onClick={() => updateQuantity(item.id, -1)} style={{ border: "none", background: "none", color: T.muted, cursor: "pointer", display: "flex" }}>
                     <Minus size={12} />
                   </button>
-                  <span className="text-xs font-black w-4 text-center">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() => updateQuantity(item.id, 1)}
-                    className="hover:text-[#00D9FF] border-none bg-transparent text-white cursor-pointer"
-                  >
+                  <span className="num" style={{ fontSize: 12, fontWeight: 800, width: 16, textAlign: "center" }}>{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.id, 1)} style={{ border: "none", background: "none", color: T.accent, cursor: "pointer", display: "flex" }}>
                     <Plus size={12} />
                   </button>
                 </div>
@@ -230,12 +224,12 @@ export default function MenuTabContent({
         </div>
 
         {cart.length > 0 && (
-          <div className="p-6 border-t border-white/5 space-y-4">
-            <div className="grid grid-cols-2 gap-2">
+          <div style={{ padding: 20, borderTop: `1px solid ${T.line}`, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <select
                 value={orderType}
                 onChange={(e) => setOrderType(e.target.value)}
-                className={`p-3 rounded-xl text-[10px] font-black uppercase outline-none border-none cursor-pointer ${isDarkMode ? "bg-white/10 text-white" : "bg-gray-100 text-gray-700"}`}
+                style={{ ...inputStyle(T), padding: "10px 12px", fontSize: 12, cursor: "pointer" }}
               >
                 <option value="Sur place">Sur place</option>
                 <option value="Emporter">Emporter</option>
@@ -246,25 +240,17 @@ export default function MenuTabContent({
                   placeholder="Table"
                   value={tableNum}
                   onChange={(e) => setTableNum(e.target.value)}
-                  className={`p-3 rounded-xl text-[10px] font-black uppercase outline-none border-none ${isDarkMode ? "bg-white/10 text-white" : "bg-gray-100"}`}
+                  style={{ ...inputStyle(T), padding: "10px 12px", fontSize: 12 }}
                 />
               )}
             </div>
-            <div className="flex justify-between items-center">
-              <p className="text-[10px] font-black opacity-30 uppercase">
-                Total
-              </p>
-              <p className="text-xl font-black text-[#00D9FF]">
-                {cart
-                  .reduce((a, b) => a + b.price * b.quantity, 0)
-                  .toLocaleString()}{" "}
-                F
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: T.faint, margin: 0 }}>Total</p>
+              <p className="num" style={{ fontSize: 19, fontWeight: 800, color: T.accent, margin: 0 }}>
+                {cart.reduce((a, b) => a + b.price * b.quantity, 0).toLocaleString()} F
               </p>
             </div>
-            <button
-              onClick={finalizeOrder}
-              className="w-full py-4 bg-[#00D9FF] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg border-none cursor-pointer"
-            >
+            <button onClick={finalizeOrder} style={btnSolid(T, { width: "100%", padding: "13px 0" })}>
               Envoyer en cuisine
             </button>
           </div>
@@ -272,121 +258,66 @@ export default function MenuTabContent({
       </aside>
 
       {/* --- GRILLE MENU --- */}
-      <section className="flex-1 text-left">
-        <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6">
-          <div className="text-left">
-            <h3 className="text-2xl font-black italic tracking-tighter uppercase mb-4">
-              La Carte
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              <CategoryButton
-                label="Tous"
-                active={activeCategory === "Tous"}
-                onClick={() => setActiveCategory("Tous")}
-                icon={<List size={12} />}
-                isDarkMode={isDarkMode}
-              />
-              <CategoryButton
-                label="Cuisine"
-                active={activeCategory === "Plats"}
-                onClick={() => setActiveCategory("Plats")}
-                icon={<Utensils size={12} />}
-                isDarkMode={isDarkMode}
-              />
-              <CategoryButton
-                label="Bar"
-                active={activeCategory === "Boissons"}
-                onClick={() => setActiveCategory("Boissons")}
-                icon={<Beer size={12} />}
-                isDarkMode={isDarkMode}
-              />
+      <section style={{ flex: 1, textAlign: "left" }}>
+        <header style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, marginBottom: 24 }}>
+          <div>
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: "0 0 14px" }}>La Carte</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <CategoryButton T={T} label="Tous" active={activeCategory === "Tous"} onClick={() => setActiveCategory("Tous")} icon={<List size={13} />} />
+              <CategoryButton T={T} label="Cuisine" active={activeCategory === "Plats"} onClick={() => setActiveCategory("Plats")} icon={<Utensils size={13} />} />
+              <CategoryButton T={T} label="Bar" active={activeCategory === "Boissons"} onClick={() => setActiveCategory("Boissons")} icon={<Beer size={13} />} />
             </div>
           </div>
 
-          <div className="flex gap-3 w-full xl:w-auto">
-            <div
-              className={`flex items-center px-4 py-3 rounded-2xl flex-1 xl:w-64 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-sm border border-gray-100"}`}
-            >
-              <Search size={16} className="opacity-20 mr-2" />
+          <div style={{ display: "flex", gap: 10, width: "100%" }} className="dash-toolbar-actions">
+            <div style={{ ...card(T, { borderRadius: radiusSm }), display: "flex", alignItems: "center", padding: "10px 14px", flex: 1 }}>
+              <Search size={16} color={T.faint} style={{ marginRight: 8 }} />
               <input
                 type="text"
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-xs font-bold w-full"
+                style={{ background: "none", border: "none", outline: "none", fontSize: 13, fontWeight: 600, width: "100%", color: T.ink, fontFamily: "inherit" }}
               />
             </div>
             {isOwner && (
-              <button
-                onClick={() => {
-                  setEditingItem(null);
-                  setIsModalOpen(true);
-                }}
-                className="bg-[#00D9FF] text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 shadow-md hover:scale-105 transition-all border-none cursor-pointer"
-              >
+              <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} style={btnSolid(T, { padding: "10px 20px", whiteSpace: "nowrap" })}>
                 <Plus size={16} strokeWidth={3} /> Nouveau
               </button>
             )}
           </div>
         </header>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 pb-20">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 16, paddingBottom: 20 }}>
           {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className={`group relative rounded-2xl overflow-hidden transition-all border ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}
-            >
-              <div className="h-32 relative overflow-hidden">
+            <div key={item.id} style={{ ...card(T), overflow: "hidden", position: "relative" }} className="dash-dish-card">
+              <div style={{ height: 120, position: "relative", overflow: "hidden" }}>
                 <img
-                  src={
-                    item.image_url ||
-                    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=300"
-                  }
+                  src={item.image_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=300"}
                   alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-2 backdrop-blur-[1px]">
-                  <button
-                    onClick={() => addToCart(item)}
-                    className="w-10 h-10 bg-[#00D9FF] text-black rounded-xl flex items-center justify-center shadow-lg hover:scale-110 transition-transform border-none cursor-pointer"
-                  >
-                    <Plus size={20} strokeWidth={3} />
+                <div className="dash-dish-overlay" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity .2s" }}>
+                  <button onClick={() => addToCart(item)} style={{ width: 38, height: 38, background: T.accent, color: T.accentInk, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer" }}>
+                    <Plus size={18} strokeWidth={3} />
                   </button>
                   {isOwner && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsModalOpen(true);
-                        }}
-                        className="p-2 rounded-lg bg-white/10 text-white hover:bg-white hover:text-black transition-all border-none cursor-pointer"
-                      >
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
                         <Edit3 size={14} />
                       </button>
-                      <button
-                        onClick={() => {
-                          setItemToDelete(item);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="p-2 rounded-lg bg-white/10 text-white hover:bg-red-500 transition-all border-none cursor-pointer"
-                      >
+                      <button onClick={() => { setItemToDelete(item); setIsDeleteModalOpen(true); }} style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "none", cursor: "pointer", display: "flex" }}>
                         <Trash2 size={14} />
                       </button>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="p-4 text-left">
-                <h4 className="text-[12px] font-black uppercase tracking-tight mb-1 truncate">
-                  {item.name}
-                </h4>
-                <div className="flex justify-between items-center">
-                  <p className="text-[#00D9FF] font-black text-sm italic">
-                    {item.price?.toLocaleString()} F
-                  </p>
-                  <p className="text-[8px] font-black uppercase opacity-20">
-                    {item.category}
-                  </p>
+              <div style={{ padding: 14 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</h4>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <p className="num" style={{ color: T.accent, fontWeight: 800, fontSize: 14, margin: 0 }}>{item.price?.toLocaleString()} F</p>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: T.faint, margin: 0, textTransform: "uppercase" }}>{item.category}</p>
                 </div>
               </div>
             </div>
@@ -396,7 +327,7 @@ export default function MenuTabContent({
 
       {/* --- MODALE COMPACTE --- */}
       {isOwner && isModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div style={{ position: "fixed", inset: 0, zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)" }}>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -416,196 +347,98 @@ export default function MenuTabContent({
                 status: "Disponible",
               };
               if (editingItem?.id)
-                await supabase
-                  .from("dishes")
-                  .update(dishData)
-                  .eq("id", editingItem.id);
+                await supabase.from("dishes").update(dishData).eq("id", editingItem.id);
               else await supabase.from("dishes").insert([dishData]);
               setIsModalOpen(false);
               fetchDishes();
             }}
-            className={`w-full max-w-md rounded-3xl p-8 relative ${isDarkMode ? "bg-[#0a0a0a] border border-white/10 text-white" : "bg-white shadow-2xl"}`}
+            style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 420, padding: 32, position: "relative", boxShadow: T.shadow }}
           >
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 opacity-30 hover:opacity-100 border-none bg-transparent cursor-pointer text-current"
-            >
+            <button type="button" onClick={() => setIsModalOpen(false)} style={{ position: "absolute", top: 20, right: 20, opacity: .5, border: "none", background: "none", cursor: "pointer", color: T.ink, display: "flex" }}>
               <X size={20} />
             </button>
-            <h3 className="text-xl font-black mb-6 italic uppercase">
-              {editingItem?.id ? "Modifier" : "Ajouter"}
-            </h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase opacity-40 ml-2">
-                  Nom du plat / boisson
-                </p>
-                <input
-                  name="name"
-                  required
-                  defaultValue={editingItem?.name}
-                  className={`w-full px-4 py-3 rounded-xl outline-none border-none ${isDarkMode ? "bg-white/5 text-white" : "bg-gray-100"}`}
-                />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 19, margin: "0 0 20px" }}>{editingItem?.id ? "Modifier" : "Ajouter"}</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, margin: "0 0 6px" }}>Nom du plat / boisson</p>
+                <input name="name" required defaultValue={editingItem?.name} style={inputStyle(T)} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-black uppercase opacity-40 ml-2">
-                    Prix (F)
-                  </p>
-                  <input
-                    name="price"
-                    type="number"
-                    required
-                    defaultValue={editingItem?.price}
-                    className={`w-full px-4 py-3 rounded-xl outline-none border-none ${isDarkMode ? "bg-white/5 text-white" : "bg-gray-100"}`}
-                  />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, margin: "0 0 6px" }}>Prix (F)</p>
+                  <input name="price" type="number" required defaultValue={editingItem?.price} style={inputStyle(T)} />
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[9px] font-black uppercase opacity-40 ml-2">
-                    Catégorie
-                  </p>
-                  <select
-                    name="category"
-                    defaultValue={editingItem?.category || "Plats"}
-                    className={`w-full px-4 py-3 rounded-xl outline-none border-none cursor-pointer ${
-                      isDarkMode
-                        ? "bg-white/10 text-white"
-                        : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    <optgroup
-                      label="Cuisine"
-                      className={
-                        isDarkMode
-                          ? "bg-[#0a0a0a] text-white"
-                          : "bg-white text-gray-900"
-                      }
-                    >
-                      <option
-                        value="Plats"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Plat / Accompagnement
-                      </option>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, margin: "0 0 6px" }}>Catégorie</p>
+                  <select name="category" defaultValue={editingItem?.category || "Plats"} style={{ ...inputStyle(T), cursor: "pointer" }}>
+                    <optgroup label="Cuisine">
+                      <option value="Plats">Plat / Accompagnement</option>
                     </optgroup>
-                    <optgroup
-                      label="Bar (Boissons)"
-                      className={
-                        isDarkMode
-                          ? "bg-[#0a0a0a] text-white"
-                          : "bg-white text-gray-900"
-                      }
-                    >
-                      <option
-                        value="Cocktails"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Cocktail
-                      </option>
-                      <option
-                        value="Jus Naturel"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Jus Naturel
-                      </option>
-                      <option
-                        value="Bière"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Bière
-                      </option>
-                      <option
-                        value="Whisky"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Whisky
-                      </option>
-                      <option
-                        value="Vin"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Vin
-                      </option>
-                      <option
-                        value="Jus Brasserie"
-                        className={
-                          isDarkMode
-                            ? "bg-[#0a0a0a] text-white"
-                            : "bg-white text-gray-900"
-                        }
-                      >
-                        Jus Brasserie (Soda)
-                      </option>
+                    <optgroup label="Bar (Boissons)">
+                      <option value="Cocktails">Cocktail</option>
+                      <option value="Jus Naturel">Jus Naturel</option>
+                      <option value="Bière">Bière</option>
+                      <option value="Whisky">Whisky</option>
+                      <option value="Vin">Vin</option>
+                      <option value="Jus Brasserie">Jus Brasserie (Soda)</option>
                     </optgroup>
                   </select>
                 </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase opacity-40 ml-2">
-                  URL Image
-                </p>
-                <input
-                  name="image"
-                  type="text"
-                  defaultValue={editingItem?.image_url}
-                  className={`w-full px-4 py-3 rounded-xl outline-none border-none ${isDarkMode ? "bg-white/5 text-white" : "bg-gray-100"}`}
-                />
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, margin: "0 0 6px" }}>URL Image</p>
+                <input name="image" type="text" defaultValue={editingItem?.image_url} style={inputStyle(T)} />
               </div>
-              <button
-                type="submit"
-                className="w-full py-4 rounded-xl font-black bg-[#00D9FF] text-black uppercase text-[10px] tracking-widest mt-4 border-none cursor-pointer"
-              >
+              <button type="submit" style={btnSolid(T, { width: "100%", padding: "13px 0", marginTop: 6 })}>
                 Enregistrer
               </button>
             </div>
           </form>
         </div>
       )}
+
+      {/* --- MODALE SUPPRESSION --- */}
+      {isOwner && isDeleteModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.6)", backdropFilter: "blur(4px)", textAlign: "center" }}>
+          <div style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 380, padding: 30, boxShadow: T.shadow }}>
+            <Trash2 size={30} color={T.bad} style={{ margin: "0 auto 16px" }} />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18, margin: "0 0 8px" }}>Supprimer cet article ?</h3>
+            <p style={{ fontSize: 12.5, color: T.faint, margin: "0 0 22px" }}>
+              « {itemToDelete?.name} » sera retiré définitivement de la carte.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setIsDeleteModalOpen(false); setItemToDelete(null); }} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 700, fontSize: 11.5, textTransform: "uppercase", background: T.surface2, border: `1px solid ${T.line}`, color: T.ink, cursor: "pointer" }}>Annuler</button>
+              <button onClick={handleDeleteDish} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 800, fontSize: 11.5, textTransform: "uppercase", background: T.bad, border: "none", color: "#fff", cursor: "pointer" }}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        .dash-dish-card:hover .dash-dish-overlay { opacity: 1; }
+        @media (min-width: 1024px) {
+          .dash-row-lg { flex-direction: row; align-items: flex-start; }
+          .dash-cart-aside { width: 300px; }
+          .dash-toolbar-actions { width: auto; }
+        }
+      `}</style>
     </div>
   );
 }
 
-function CategoryButton({ label, active, onClick, icon, isDarkMode }) {
+function CategoryButton({ T, label, active, onClick, icon }) {
   return (
     <button
-    onClick={onClick}
-    className={`
-      flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-[10px] uppercase transition-all border-none cursor-pointer
-      ${active 
-        ? "bg-[#00D9FF] text-black shadow-lg" 
-        : isDarkMode 
-          ? "bg-[#1a1a1a] text-white hover:bg-[#252525]" 
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200" 
-      }
-    `}
-  >
-    {icon}
-    {label}
-  </button>
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999,
+        fontWeight: 700, fontSize: 12, border: "none", cursor: "pointer",
+        background: active ? T.accent : T.surface2,
+        color: active ? T.accentInk : T.muted,
+      }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

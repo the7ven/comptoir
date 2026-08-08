@@ -2,22 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  ShoppingBag, Clock, CheckCircle2, Plus, Flame, Utensils,
-  Search, Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Loader2, Send, Beer, Bluetooth, Banknote, Smartphone, CreditCard
+  Clock, CheckCircle2, Plus, Flame, Utensils,
+  Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Beer,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { printViaBluetooth } from '@/lib/bluetoothPrint';
 import { toUserMessage } from '@/lib/errors';
+import { getDashTokens, card, btnSolid, headFont, radius, radiusSm } from '@/lib/dashTheme';
 
 export default function OrdersTabContent({
   isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
 }) {
+  const T = getDashTokens(isDarkMode);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [selectedOrderForBill, setSelectedOrderForBill] = useState(null);
-  const [previewOrder, setPreviewOrder] = useState(null); 
+  const [previewOrder, setPreviewOrder] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
 
@@ -41,35 +43,28 @@ export default function OrdersTabContent({
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("owner_email", userProfile.owner_email) 
+        .eq("owner_email", userProfile.owner_email)
         .gte("created_at", startOfDay)
         .lte("created_at", endOfDay)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setOrders(data || []);
-    } catch (error) { console.error("Erreur:", error.message); } 
+    } catch (error) { console.error("Erreur:", error.message); }
     finally { setLoading(false); }
   };
 
   // --- LOGIQUE IMPRESSION BLUETOOTH ---
+  // printViaBluetooth(cart, tableNum, orderType) attend un tableau d'articles
+  // {name, price, quantity} — exactement la forme de kitchenItems/barItems,
+  // pas l'objet {title, items:[{name, qty}], footer} construit précédemment.
   const sendToPrinter = async (items, target, table) => {
     if (items.length === 0) return alert("Rien à imprimer pour cette section.");
     setIsPrinting(true);
     try {
-      const ticketData = {
-        title: target === "KITCHEN" ? "BON CUISINE" : "BON BAR",
-        table: table,
-        date: new Date().toLocaleTimeString("fr-FR"),
-        items: items.map(item => ({
-          name: item.name.toUpperCase(),
-          qty: item.quantity
-        })),
-        footer: target === "KITCHEN" ? "*** SECTION CUISINE ***" : "*** SECTION BAR ***"
-      };
-      await printViaBluetooth(ticketData); 
+      await printViaBluetooth(items, table, target);
       alert("Impression lancée !");
-    } catch (error) { alert("Erreur Bluetooth."); } 
+    } catch (error) { alert("Erreur Bluetooth."); }
     finally { setIsPrinting(false); }
   };
 
@@ -110,103 +105,104 @@ export default function OrdersTabContent({
   const barItems = previewOrder?.items_details.filter(i => !["Plats", "Accompagnements"].includes(i.category)) || [];
 
   return (
-    <div className="fade-in text-left pb-20">
+    <div style={{ textAlign: "left", paddingBottom: 40 }}>
       {/* HEADER & QUICK STATS */}
-      <div className="flex justify-between items-center mb-8 no-print">
-        <div className="text-left">
-          <h3 className="text-2xl font-black italic tracking-tighter uppercase">Commandes</h3>
-          <p className="opacity-40 text-[9px] font-black uppercase tracking-widest text-left">Flux temps réel</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: 0 }}>Commandes</h3>
+          <p style={{ fontSize: 10.5, fontWeight: 700, color: T.faint, margin: "4px 0 0" }}>Flux temps réel</p>
         </div>
-        <button onClick={() => setActiveTab("menu")} className="bg-[#00D9FF] text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all border-none cursor-pointer flex items-center gap-2">
+        <button onClick={() => setActiveTab("menu")} style={btnSolid(T, { padding: "11px 20px" })}>
           <Plus size={16} strokeWidth={3} /> Nouveau
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 no-print text-left">
-        <QuickStat isDarkMode={isDarkMode} label="En attente" value={orders.filter((o) => o.status === "En cours").length} icon={<Flame size={18} className="text-orange-500" />} />
-        <QuickStat isDarkMode={isDarkMode} label="Prêts" value={orders.filter((o) => o.status === "Prêt").length} icon={<Utensils size={18} className="text-green-500" />} />
-        <QuickStat isDarkMode={isDarkMode} label="Finalisés" value={orders.filter((o) => o.status === "Servi").length} icon={<CheckCircle2 size={18} className="text-[#00D9FF]" />} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
+        <QuickStat T={T} label="En attente" value={orders.filter((o) => o.status === "En cours").length} icon={<Flame size={18} color="oklch(0.6 0.16 55)" />} />
+        <QuickStat T={T} label="Prêts" value={orders.filter((o) => o.status === "Prêt").length} icon={<Utensils size={18} color={T.good} />} />
+        <QuickStat T={T} label="Finalisés" value={orders.filter((o) => o.status === "Servi").length} icon={<CheckCircle2 size={18} color={T.accent} />} />
       </div>
 
       {/* LISTE DES COMMANDES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 no-print text-left">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
         {orders.map((order) => (
-          <div key={order.id} className={`p-5 rounded-3xl border transition-all flex flex-col justify-between ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-            <div className="flex justify-between items-start mb-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${order.status === "En cours" ? "bg-[#00D9FF] text-black" : "bg-white/5 text-white/20"}`}>
+          <div key={order.id} style={{ ...card(T, { padding: 18 }), display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+                background: order.status === "En cours" ? T.accent : T.surface2, color: order.status === "En cours" ? T.accentInk : T.faint,
+              }}>
                 {order.table_number?.replace("Table ", "T.")}
               </div>
-              <button onClick={() => setPreviewOrder(order)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition-all border-none cursor-pointer">
-                <Printer size={14} /> <span className="text-[8px] font-black uppercase">Tickets</span>
+              <button onClick={() => setPreviewOrder(order)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 999, background: "oklch(0.7 0.16 55 / .12)", color: "oklch(0.55 0.16 55)", border: "none", cursor: "pointer" }}>
+                <Printer size={13} /> <span style={{ fontSize: 9.5, fontWeight: 800, textTransform: "uppercase" }}>Tickets</span>
               </button>
             </div>
 
-            <div className="flex-1 mb-4 text-left">
-              <p className={`text-sm font-black leading-tight mb-2 ${isDarkMode ? "text-white" : "text-gray-800"}`}>{order.items_summary}</p>
-              <div className="flex items-center gap-2 opacity-30 text-left">
+            <div style={{ flex: 1, marginBottom: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.35, margin: "0 0 8px" }}>{order.items_summary}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .5 }}>
                 <Clock size={10} />
-                <span className="text-[9px] font-bold uppercase">{new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
+                <span style={{ fontSize: 10, fontWeight: 700 }}>{new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
 
-            <div className={`pt-4 border-t ${isDarkMode ? "border-white/5" : "border-gray-100"} flex items-center justify-between`}>
-              <p className="font-black text-[#00D9FF] text-base">{order.total_amount?.toLocaleString()} F</p>
-              <div className="flex gap-1">
-                <ActionBtn onClick={() => { setCart(order.items_details); setPendingOrder(order); setActiveTab("menu"); }} icon={<Edit3 size={14}/>} isDarkMode={isDarkMode} />
-                <ActionBtn onClick={() => handleUpdateStatus(order)} icon={<Check size={14}/>} isDarkMode={isDarkMode} />
-                <ActionBtn onClick={() => setSelectedOrderForBill(order)} icon={<Receipt size={14}/>} isDarkMode={isDarkMode} />
-                <ActionBtn onClick={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }} icon={<Trash2 size={14}/>} isDarkMode={isDarkMode} />
+            <div style={{ paddingTop: 14, borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p className="num" style={{ fontWeight: 800, color: T.accent, fontSize: 14, margin: 0 }}>{order.total_amount?.toLocaleString()} F</p>
+              <div style={{ display: "flex", gap: 4 }}>
+                <ActionBtn T={T} onClick={() => { setCart(order.items_details); setPendingOrder(order); setActiveTab("menu"); }} icon={<Edit3 size={13} />} />
+                <ActionBtn T={T} onClick={() => handleUpdateStatus(order)} icon={<Check size={13} />} />
+                <ActionBtn T={T} onClick={() => setSelectedOrderForBill(order)} icon={<Receipt size={13} />} />
+                <ActionBtn T={T} onClick={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }} icon={<Trash2 size={13} />} />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* --- MODALE FACTURE CLIENT (DÉTAILLÉE) --- */}
+      {/* --- MODALE FACTURE CLIENT (DÉTAILLÉE) — reste blanc/noir/mono, aperçu papier --- */}
       {selectedOrderForBill && (
-        <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 backdrop-blur-md bg-black/60 text-left">
-          <div className="w-full max-w-sm">
-            <div className="bg-white text-black p-6 rounded-sm shadow-2xl font-mono text-[11px] leading-tight border-t-8 border-black">
-              <div className="text-center border-b-2 border-black pb-4 mb-4">
-                <h4 className="text-lg font-black uppercase tracking-tighter italic">FACTURE CLIENT</h4>
-                <p className="text-[9px] font-bold uppercase">Table: {selectedOrderForBill.table_number}</p>
+        <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(4px)", background: "rgba(0,0,0,.6)", textAlign: "left" }}>
+          <div style={{ width: "100%", maxWidth: 380 }}>
+            <div style={{ background: "#fff", color: "#000", padding: 24, borderRadius: 4, boxShadow: "0 20px 50px -10px rgba(0,0,0,.5)", fontFamily: "monospace", fontSize: 11, lineHeight: 1.4, borderTop: "8px solid #000" }}>
+              <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: 16, marginBottom: 16 }}>
+                <h4 style={{ fontSize: 17, fontWeight: 800, textTransform: "uppercase", fontStyle: "italic", margin: 0 }}>FACTURE CLIENT</h4>
+                <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", margin: "4px 0 0" }}>Table: {selectedOrderForBill.table_number}</p>
               </div>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between border-b border-black/10 pb-1 text-[9px] font-black">
-                  <span className="w-1/2">ARTICLE</span>
-                  <span className="w-1/6 text-center">QTÉ</span>
-                  <span className="w-1/3 text-right">TOTAL</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,.1)", paddingBottom: 4, fontSize: 9, fontWeight: 800 }}>
+                  <span style={{ width: "50%" }}>ARTICLE</span>
+                  <span style={{ width: "17%", textAlign: "center" }}>QTÉ</span>
+                  <span style={{ width: "33%", textAlign: "right" }}>TOTAL</span>
                 </div>
                 {selectedOrderForBill.items_details?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-start">
-                    <div className="w-1/2">
-                      <p className="font-bold uppercase text-[10px]">{item.name}</p>
-                      <p className="text-[8px] opacity-60">{item.price?.toLocaleString()} F</p>
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ width: "50%" }}>
+                      <p style={{ fontWeight: 700, textTransform: "uppercase", fontSize: 10, margin: 0 }}>{item.name}</p>
+                      <p style={{ fontSize: 8, opacity: .6, margin: 0 }}>{item.price?.toLocaleString()} F</p>
                     </div>
-                    <span className="w-1/6 text-center font-black">x{item.quantity}</span>
-                    <span className="w-1/3 text-right font-black">{(item.price * item.quantity).toLocaleString()}</span>
+                    <span style={{ width: "17%", textAlign: "center", fontWeight: 800 }}>x{item.quantity}</span>
+                    <span style={{ width: "33%", textAlign: "right", fontWeight: 800 }}>{(item.price * item.quantity).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t-4 border-black pt-3 flex justify-between items-center font-black">
-                <span className="text-[12px] uppercase italic">TOTAL NET</span>
-                <span className="text-xl">{selectedOrderForBill.total_amount?.toLocaleString()} F</span>
+              <div style={{ borderTop: "4px solid #000", paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 }}>
+                <span style={{ fontSize: 12, textTransform: "uppercase", fontStyle: "italic" }}>TOTAL NET</span>
+                <span style={{ fontSize: 19 }}>{selectedOrderForBill.total_amount?.toLocaleString()} F</span>
               </div>
             </div>
 
             {!showPaymentSelector ? (
-              <div className="mt-6 flex flex-col gap-3">
-                <button onClick={() => setShowPaymentSelector(true)} className="w-full h-14 bg-green-500 text-white rounded-2xl font-black uppercase text-[11px] shadow-lg border-none cursor-pointer">Confirmer le règlement</button>
-                <div className="flex gap-2">
-                  <button onClick={() => setSelectedOrderForBill(null)} className="flex-1 h-14 bg-white/10 text-white rounded-2xl font-black uppercase text-[10px] border-none cursor-pointer">Fermer</button>
-                </div>
+              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                <button onClick={() => setShowPaymentSelector(true)} style={{ width: "100%", height: 52, background: T.good, color: "#fff", borderRadius: radiusSm, fontWeight: 800, fontSize: 12, textTransform: "uppercase", border: "none", cursor: "pointer" }}>Confirmer le règlement</button>
+                <button onClick={() => setSelectedOrderForBill(null)} style={{ width: "100%", height: 52, background: T.surface2, color: T.ink, borderRadius: radiusSm, fontWeight: 800, fontSize: 11, textTransform: "uppercase", border: `1px solid ${T.line}`, cursor: "pointer" }}>Fermer</button>
               </div>
             ) : (
-              <div className="mt-6 p-6 bg-[#0a0a0a] border border-white/10 rounded-[35px] grid grid-cols-2 gap-2 shadow-2xl">
+              <div style={{ ...card(T, { borderRadius: radius }), marginTop: 20, padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, boxShadow: T.shadow }}>
                 {["Espèces", "Orange Money", "Wave", "Visa"].map(m => (
-                  <button key={m} onClick={() => handleFinalizeOrder(m)} className="p-4 rounded-xl bg-white/5 text-white font-black uppercase text-[9px] hover:bg-[#00D9FF] hover:text-black border-none cursor-pointer transition-all">{m}</button>
+                  <button key={m} onClick={() => handleFinalizeOrder(m)} style={{ padding: 14, borderRadius: radiusSm, background: T.surface2, color: T.ink, fontWeight: 800, textTransform: "uppercase", fontSize: 10.5, border: `1px solid ${T.line}`, cursor: "pointer" }}>{m}</button>
                 ))}
-                <button onClick={() => setShowPaymentSelector(false)} className="col-span-2 py-3 text-[9px] text-white/30 uppercase font-black border-none bg-transparent cursor-pointer">Annuler</button>
+                <button onClick={() => setShowPaymentSelector(false)} style={{ gridColumn: "1 / -1", padding: "10px 0", fontSize: 10.5, color: T.faint, textTransform: "uppercase", fontWeight: 800, border: "none", background: "none", cursor: "pointer" }}>Annuler</button>
               </div>
             )}
           </div>
@@ -214,56 +210,55 @@ export default function OrdersTabContent({
       )}
 
       {/* --- DOUBLE APERÇU DISPATCH (CUISINE & BAR) --- */}
-      
       {previewOrder && (
-        <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={() => setPreviewOrder(null)}>
-          <div className="w-full max-w-4xl flex flex-col md:flex-row gap-6 p-4 relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreviewOrder(null)} className="absolute -top-10 right-4 text-white/50 hover:text-white transition-all border-none bg-transparent cursor-pointer flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest">Fermer</span>
-              <X size={24} />
+        <div style={{ position: "fixed", inset: 0, zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.85)", backdropFilter: "blur(4px)", overflowY: "auto" }} onClick={() => setPreviewOrder(null)}>
+          <div style={{ width: "100%", maxWidth: 880, display: "flex", flexWrap: "wrap", gap: 20, padding: 16, position: "relative" }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewOrder(null)} style={{ position: "absolute", top: -44, right: 16, color: "rgba(255,255,255,.6)", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Fermer</span>
+              <X size={22} />
             </button>
 
             {/* TICKET CUISINE */}
-            <div className="flex-1 bg-white text-black p-6 rounded-xl shadow-2xl font-mono border-t-8 border-orange-600">
-              <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
-                <span className="font-black text-[12px] uppercase">BON CUISINE</span>
-                <Utensils size={18} className="text-orange-600" />
+            <div style={{ flex: 1, minWidth: 260, background: "#fff", color: "#000", padding: 22, borderRadius: 12, boxShadow: "0 20px 50px -10px rgba(0,0,0,.5)", fontFamily: "monospace", borderTop: "8px solid #ea580c" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, borderBottom: "1px solid #000", paddingBottom: 8 }}>
+                <span style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase" }}>BON CUISINE</span>
+                <Utensils size={17} color="#ea580c" />
               </div>
-              <div className="mb-4 text-center py-2 border-b-2 border-black">
-                <p className="text-2xl font-black">{previewOrder.table_number}</p>
-                <p className="text-[10px] font-bold opacity-60 uppercase">Heure: {new Date().toLocaleTimeString()}</p>
+              <div style={{ marginBottom: 14, textAlign: "center", padding: "8px 0", borderBottom: "2px solid #000" }}>
+                <p style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{previewOrder.table_number}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, opacity: .6, textTransform: "uppercase", margin: 0 }}>Heure: {new Date().toLocaleTimeString()}</p>
               </div>
-              <div className="min-h-[150px] space-y-2 mb-6">
+              <div style={{ minHeight: 140, display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
                 {kitchenItems.length > 0 ? kitchenItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-[14px] font-black border-b border-gray-100 py-1 text-left">
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, borderBottom: "1px solid #f3f4f6", padding: "4px 0" }}>
                     <span>{item.quantity} x {item.name.toUpperCase()}</span>
                   </div>
-                )) : <p className="text-center opacity-20 italic text-[10px] py-10">Aucun plat</p>}
+                )) : <p style={{ textAlign: "center", opacity: .3, fontStyle: "italic", fontSize: 10, padding: "36px 0" }}>Aucun plat</p>}
               </div>
-              <button onClick={() => sendToPrinter(kitchenItems, "KITCHEN", previewOrder.table_number)} disabled={isPrinting || kitchenItems.length === 0} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-none cursor-pointer shadow-lg transition-all ${kitchenItems.length > 0 ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-gray-100 text-gray-400 opacity-50'}`}>
-                <Printer size={16} /> Imprimer Cuisine
+              <button onClick={() => sendToPrinter(kitchenItems, "KITCHEN", previewOrder.table_number)} disabled={isPrinting || kitchenItems.length === 0} style={{ width: "100%", padding: "13px 0", borderRadius: 10, fontWeight: 800, fontSize: 10.5, textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", cursor: kitchenItems.length > 0 ? "pointer" : "default", background: kitchenItems.length > 0 ? "#ea580c" : "#f3f4f6", color: kitchenItems.length > 0 ? "#fff" : "#9ca3af" }}>
+                <Printer size={15} /> Imprimer Cuisine
               </button>
             </div>
 
             {/* TICKET BAR */}
-            <div className="flex-1 bg-white text-black p-6 rounded-xl shadow-2xl font-mono border-t-8 border-blue-600">
-              <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
-                <span className="font-black text-[12px] uppercase">BON BAR</span>
-                <Beer size={18} className="text-blue-600" />
+            <div style={{ flex: 1, minWidth: 260, background: "#fff", color: "#000", padding: 22, borderRadius: 12, boxShadow: "0 20px 50px -10px rgba(0,0,0,.5)", fontFamily: "monospace", borderTop: "8px solid #2563eb" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, borderBottom: "1px solid #000", paddingBottom: 8 }}>
+                <span style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase" }}>BON BAR</span>
+                <Beer size={17} color="#2563eb" />
               </div>
-              <div className="mb-4 text-center py-2 border-b-2 border-black">
-                <p className="text-2xl font-black">{previewOrder.table_number}</p>
-                <p className="text-[10px] font-bold opacity-60 uppercase">Heure: {new Date().toLocaleTimeString()}</p>
+              <div style={{ marginBottom: 14, textAlign: "center", padding: "8px 0", borderBottom: "2px solid #000" }}>
+                <p style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{previewOrder.table_number}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, opacity: .6, textTransform: "uppercase", margin: 0 }}>Heure: {new Date().toLocaleTimeString()}</p>
               </div>
-              <div className="min-h-[150px] space-y-2 mb-6">
+              <div style={{ minHeight: 140, display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
                 {barItems.length > 0 ? barItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-[14px] font-black border-b border-gray-100 py-1 text-left">
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, borderBottom: "1px solid #f3f4f6", padding: "4px 0" }}>
                     <span>{item.quantity} x {item.name.toUpperCase()}</span>
                   </div>
-                )) : <p className="text-center opacity-20 italic text-[10px] py-10">Aucune boisson</p>}
+                )) : <p style={{ textAlign: "center", opacity: .3, fontStyle: "italic", fontSize: 10, padding: "36px 0" }}>Aucune boisson</p>}
               </div>
-              <button onClick={() => sendToPrinter(barItems, "BAR", previewOrder.table_number)} disabled={isPrinting || barItems.length === 0} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-none cursor-pointer shadow-lg transition-all ${barItems.length > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 opacity-50'}`}>
-                <Printer size={16} /> Imprimer Bar
+              <button onClick={() => sendToPrinter(barItems, "BAR", previewOrder.table_number)} disabled={isPrinting || barItems.length === 0} style={{ width: "100%", padding: "13px 0", borderRadius: 10, fontWeight: 800, fontSize: 10.5, textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", cursor: barItems.length > 0 ? "pointer" : "default", background: barItems.length > 0 ? "#2563eb" : "#f3f4f6", color: barItems.length > 0 ? "#fff" : "#9ca3af" }}>
+                <Printer size={15} /> Imprimer Bar
               </button>
             </div>
           </div>
@@ -272,13 +267,13 @@ export default function OrdersTabContent({
 
       {/* MODALE SUPPRESSION */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-center">
-          <div className={`w-full max-w-sm rounded-[32px] p-10 ${isDarkMode ? "bg-[#0a0a0a] border border-white/5 text-white" : "bg-white shadow-2xl"}`}>
-            <AlertCircle size={40} className="text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black uppercase italic mb-2">Annuler ?</h3>
-            <div className="flex gap-3">
-              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-4 rounded-xl font-bold bg-white/5 border-none text-current cursor-pointer uppercase text-[10px]">Retour</button>
-              <button onClick={handleDeleteOrder} className="flex-1 py-4 rounded-xl font-black bg-red-500 text-white border-none cursor-pointer uppercase text-[10px]">Confirmer</button>
+        <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.5)", backdropFilter: "blur(4px)", textAlign: "center" }}>
+          <div style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 380, padding: 30, boxShadow: T.shadow }}>
+            <AlertCircle size={32} color={T.bad} style={{ margin: "0 auto 16px" }} />
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18, margin: "0 0 22px" }}>Annuler ?</h3>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setIsDeleteModalOpen(false)} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 700, fontSize: 11.5, textTransform: "uppercase", background: T.surface2, border: `1px solid ${T.line}`, color: T.ink, cursor: "pointer" }}>Retour</button>
+              <button onClick={handleDeleteOrder} style={{ flex: 1, padding: "13px 0", borderRadius: radiusSm, fontWeight: 800, fontSize: 11.5, textTransform: "uppercase", background: T.bad, border: "none", color: "#fff", cursor: "pointer" }}>Confirmer</button>
             </div>
           </div>
         </div>
@@ -287,21 +282,21 @@ export default function OrdersTabContent({
   );
 }
 
-function QuickStat({ isDarkMode, label, value, icon }) {
+function QuickStat({ T, label, value, icon }) {
   return (
-    <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-      <div className={`p-2 rounded-lg ${isDarkMode ? "bg-white/5" : "bg-gray-50"}`}>{icon}</div>
-      <div className="text-left">
-        <p className="text-[8px] uppercase tracking-widest opacity-40 font-black text-left">{label}</p>
-        <p className="text-lg font-black italic text-left">{value}</p>
+    <div style={{ ...card(T, { padding: 16 }), display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: 9, borderRadius: 10, background: T.surface2 }}>{icon}</div>
+      <div>
+        <p style={{ fontSize: 9.5, fontWeight: 700, color: T.faint, textTransform: "uppercase", margin: 0 }}>{label}</p>
+        <p className="num" style={{ fontSize: 18, fontWeight: 800, margin: "2px 0 0" }}>{value}</p>
       </div>
     </div>
   );
 }
 
-function ActionBtn({ onClick, icon, isDarkMode }) {
+function ActionBtn({ T, onClick, icon }) {
   return (
-    <button onClick={onClick} className={`p-2 rounded-lg transition-all border-none cursor-pointer ${isDarkMode ? "bg-white/5 text-white/30 hover:text-[#00D9FF]" : "bg-gray-50 text-gray-400 hover:text-[#00D9FF]"}`}>
+    <button onClick={onClick} style={{ padding: 8, borderRadius: 8, background: T.surface2, color: T.faint, border: "none", cursor: "pointer", display: "flex" }}>
       {icon}
     </button>
   );

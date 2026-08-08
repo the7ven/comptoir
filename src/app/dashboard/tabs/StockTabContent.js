@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, AlertTriangle, ArrowRight, Trash2, Edit } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getDashTokens, card, btnSolid, inputStyle, headFont, radius } from '@/lib/dashTheme';
 
 export default function StockTabContent({ isDarkMode }) {
+  const T = getDashTokens(isDarkMode);
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,42 +64,45 @@ export default function StockTabContent({ isDarkMode }) {
   };
 
   return (
-    <div className="fade-in text-left pb-10">
-      <div className="flex justify-between items-center mb-10">
-        <h3 className="text-3xl font-black italic tracking-tighter uppercase">Inventaire & Stocks</h3>
-        <button onClick={() => setIsModalOpen(true)} className="bg-[#00D9FF] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg">
+    <div style={{ textAlign: "left", paddingBottom: 20 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 26 }}>
+        <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: 0 }}>Inventaire & Stocks</h3>
+        <button onClick={() => setIsModalOpen(true)} style={btnSolid(T, { padding: "13px 24px" })}>
           Ajouter un article
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {inventory.map((item) => (
-          <div key={item.id} className={`p-8 rounded-[40px] border relative overflow-hidden ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-sm'}`}>
-            {item.quantity <= item.min_threshold && (
-              <div className="absolute top-0 right-0 p-4"><AlertTriangle className="text-orange-500 animate-bounce" size={20}/></div>
-            )}
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-1">{item.unit}</p>
-            <h4 className="text-xl font-black italic tracking-tighter mb-4">{item.name}</h4>
-            <div className="flex items-end gap-2">
-              <span className={`text-3xl font-black ${item.quantity <= item.min_threshold ? 'text-orange-500' : 'text-[#00D9FF]'}`}>{item.quantity}</span>
-              <span className="text-[10px] font-bold opacity-30 mb-2 uppercase">En stock</span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+        {inventory.map((item) => {
+          const low = item.quantity <= item.min_threshold;
+          return (
+            <div key={item.id} style={{ ...card(T, { padding: 22 }), position: "relative" }}>
+              {low && (
+                <div style={{ position: "absolute", top: 14, right: 14 }}><AlertTriangle color={T.warn} size={18} /></div>
+              )}
+              <p style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: T.faint, margin: "0 0 4px" }}>{item.unit}</p>
+              <h4 style={{ fontFamily: headFont, fontSize: 17, fontWeight: 800, margin: "0 0 14px" }}>{item.name}</h4>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                <span className="num" style={{ fontSize: 28, fontWeight: 800, color: low ? T.warn : T.accent }}>{item.quantity}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: T.faint, marginBottom: 4, textTransform: "uppercase" }}>En stock</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
-          <form onSubmit={handleAddStock} className={`w-full max-w-sm p-10 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-100 shadow-2xl'}`}>
-            <h3 className="text-xl font-black mb-8 italic uppercase tracking-tighter">Nouvel Article</h3>
-            <div className="space-y-6">
-              <input name="name" required placeholder="Nom (ex: Huile de palme)" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
-              <div className="grid grid-cols-2 gap-4">
-                <input name="quantity" type="number" required placeholder="Qté initiale" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
-                <input name="threshold" type="number" required placeholder="Seuil alerte" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
+        <div style={{ position: "fixed", inset: 0, zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(4px)", background: "rgba(0,0,0,.6)" }}>
+          <form onSubmit={handleAddStock} style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 380, padding: 32, boxShadow: T.shadow }}>
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 19, margin: "0 0 22px" }}>Nouvel Article</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <input name="name" required placeholder="Nom (ex: Huile de palme)" style={inputStyle(T)} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <input name="quantity" type="number" required placeholder="Qté initiale" style={inputStyle(T)} />
+                <input name="threshold" type="number" required placeholder="Seuil alerte" style={inputStyle(T)} />
               </div>
-              <input name="unit" required placeholder="Unité (Litre, Kg, Carton)" className={`w-full px-6 py-4 rounded-2xl border outline-none ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`} />
-              <button type="submit" className="w-full py-5 bg-[#00D9FF] text-black rounded-2xl font-black uppercase text-[10px] tracking-widest mt-4">Confirmer</button>
+              <input name="unit" required placeholder="Unité (Litre, Kg, Carton)" style={inputStyle(T)} />
+              <button type="submit" style={btnSolid(T, { width: "100%", padding: "14px 0", marginTop: 6 })}>Confirmer</button>
             </div>
           </form>
         </div>

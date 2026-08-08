@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Search, Filter, Trash2, AlertCircle, 
-  FileText, Calendar as CalendarIcon, Wallet, 
-  ArrowDownCircle, Loader2, X 
+import {
+  Plus, Trash2, Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
+import { getDashTokens, card, inputStyle, headFont, radius, radiusSm } from '@/lib/dashTheme';
 
 export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfile }) {
+  const T = getDashTokens(isDarkMode);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,7 +33,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
         start = `${selectedDate}T00:00:00.000Z`;
         end = `${selectedDate}T23:59:59.999Z`;
       } else if (period === "week") {
-        const first = date.getDate() - date.getDay(); 
+        const first = date.getDate() - date.getDay();
         const last = first + 6;
         start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
         end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
@@ -44,7 +44,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
         start = new Date(date.getFullYear(), 0, 1).toISOString();
         end = new Date(date.getFullYear(), 11, 31, 23, 59, 59).toISOString();
       }
-      
+
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
@@ -85,7 +85,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
       }]);
 
       if (error) throw error;
-      
+
       setIsModalOpen(false);
       fetchExpenses();
     } catch (err) {
@@ -111,33 +111,34 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
     }
   };
 
+  const periods = [
+    { id: "day", label: "Jour" },
+    { id: "week", label: "Semaine" },
+    { id: "month", label: "Mois" },
+    { id: "year", label: "Année" },
+  ];
+
   return (
-    <div className="fade-in text-left pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+    <div style={{ textAlign: "left", paddingBottom: 20 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 26 }}>
         <div>
-          <h3 className="text-3xl font-black italic tracking-tighter uppercase">Gestion des Dépenses</h3>
-          <p className="opacity-50 text-[10px] font-black uppercase tracking-widest italic text-[#00D9FF]">
+          <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: 0 }}>Gestion des Dépenses</h3>
+          <p className="num" style={{ fontSize: 11, fontWeight: 700, color: T.bad, margin: "4px 0 0" }}>
             Total {period} : {totalExpenses.toLocaleString()} F
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          {/* SÉLECTEUR DE PÉRIODE : UNIQUEMENT POUR OWNER */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
           {userProfile?.role === "owner" && (
-            <div className={`flex p-1 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-100"}`}>
-              {[
-                { id: "day", label: "Jour" },
-                { id: "week", label: "Semaine" },
-                { id: "month", label: "Mois" },
-                { id: "year", label: "Année" }
-              ].map((p) => (
+            <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
+              {periods.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPeriod(p.id)}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border-none cursor-pointer
-                    ${period === p.id 
-                      ? "bg-[#00D9FF] text-black shadow-lg" 
-                      : "text-gray-500 hover:text-white bg-transparent"}`}
+                  style={{
+                    padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                    background: period === p.id ? T.bad : "none", color: period === p.id ? "#fff" : T.muted,
+                  }}
                 >
                   {p.label}
                 </button>
@@ -145,38 +146,38 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
             </div>
           )}
 
-          <button onClick={() => setIsModalOpen(true)} className="bg-red-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-3 border-none cursor-pointer hover:bg-red-600 transition-all active:scale-95">
+          <button onClick={() => setIsModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 10, background: T.bad, color: "#fff", padding: "13px 24px", borderRadius: 999, fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
             <Plus size={18} /> Enregistrer un achat
           </button>
         </div>
       </div>
 
-      <div className={`rounded-[40px] border overflow-hidden ${isDarkMode ? 'bg-[#0a0a0a] border-white/5' : 'bg-white border-gray-100 shadow-xl'}`}>
-        <table className="w-full text-left border-collapse">
+      <div style={{ ...card(T), overflow: "hidden", overflowX: "auto" }}>
+        <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
           <thead>
-            <tr className={isDarkMode ? "bg-white/[0.02]" : "bg-gray-50"}>
-              <th className="px-8 py-5 text-[10px] uppercase font-black opacity-30">Désignation</th>
-              <th className="px-8 py-5 text-[10px] uppercase font-black opacity-30">Catégorie</th>
-              <th className="px-8 py-5 text-[10px] uppercase font-black opacity-30 text-right">Montant</th>
-              <th className="px-8 py-5 text-[10px] uppercase font-black opacity-30 text-right">Action</th>
+            <tr style={{ background: T.surface2 }}>
+              <th style={{ padding: "16px 22px", fontSize: 10.5, textTransform: "uppercase", fontWeight: 800, color: T.faint }}>Désignation</th>
+              <th style={{ padding: "16px 22px", fontSize: 10.5, textTransform: "uppercase", fontWeight: 800, color: T.faint }}>Catégorie</th>
+              <th style={{ padding: "16px 22px", fontSize: 10.5, textTransform: "uppercase", fontWeight: 800, color: T.faint, textAlign: "right" }}>Montant</th>
+              <th style={{ padding: "16px 22px", fontSize: 10.5, textTransform: "uppercase", fontWeight: 800, color: T.faint, textAlign: "right" }}>Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.02]">
+          <tbody>
             {loading ? (
-               <tr><td colSpan="4" className="px-8 py-20 text-center"><Loader2 className="animate-spin mx-auto opacity-20 text-[#00D9FF]" /></td></tr>
+              <tr><td colSpan="4" style={{ padding: "70px 22px", textAlign: "center" }}><Loader2 className="animate-spin" color={T.accent} style={{ margin: "0 auto", opacity: .5 }} /></td></tr>
             ) : expenses.length === 0 ? (
-              <tr><td colSpan="4" className="px-8 py-20 text-center opacity-20 italic">Aucune dépense pour cette période</td></tr>
+              <tr><td colSpan="4" style={{ padding: "70px 22px", textAlign: "center", opacity: .4, fontStyle: "italic" }}>Aucune dépense pour cette période</td></tr>
             ) : (
               expenses.map((exp) => (
-                <tr key={exp.id} className="group hover:bg-white/[0.01] transition-all">
-                  <td className="px-8 py-6">
-                    <p className="font-bold text-sm mb-1">{exp.label}</p>
-                    <p className="text-[8px] opacity-30 font-black uppercase tracking-tighter">{new Date(exp.created_at).toLocaleDateString()}</p>
+                <tr key={exp.id} className="dash-row-hover" style={{ borderTop: `1px solid ${T.line}` }}>
+                  <td style={{ padding: "16px 22px" }}>
+                    <p style={{ fontWeight: 700, fontSize: 13, margin: "0 0 3px" }}>{exp.label}</p>
+                    <p style={{ fontSize: 9.5, color: T.faint, fontWeight: 700, textTransform: "uppercase" }}>{new Date(exp.created_at).toLocaleDateString()}</p>
                   </td>
-                  <td className="px-8 py-6 opacity-40 text-[10px] font-black uppercase tracking-widest">{exp.category}</td>
-                  <td className="px-8 py-6 text-right font-black text-red-500">{exp.amount.toLocaleString()} F</td>
-                  <td className="px-8 py-6 text-right">
-                    <button onClick={() => deleteExpense(exp.id)} className="p-2 text-red-500 md:opacity-0 group-hover:opacity-100 transition-all border-none bg-transparent cursor-pointer hover:scale-110"><Trash2 size={16}/></button>
+                  <td style={{ padding: "16px 22px", fontSize: 10.5, fontWeight: 700, color: T.faint, textTransform: "uppercase" }}>{exp.category}</td>
+                  <td className="num" style={{ padding: "16px 22px", textAlign: "right", fontWeight: 800, color: T.bad }}>{exp.amount.toLocaleString()} F</td>
+                  <td style={{ padding: "16px 22px", textAlign: "right" }}>
+                    <button onClick={() => deleteExpense(exp.id)} style={{ padding: 8, color: T.bad, border: "none", background: "none", cursor: "pointer", display: "inline-flex" }}><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))
@@ -186,13 +187,13 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
-          <form onSubmit={handleAddExpense} className={`w-full max-w-sm p-10 rounded-[45px] border ${isDarkMode ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-gray-100 shadow-2xl'}`}>
-            <h3 className={`text-xl font-black mb-8 italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Nouvelle Dépense</h3>
-            <div className="space-y-6">
-              <input name="label" required placeholder="Désignation (ex: Sac de riz)" className={`w-full px-6 py-4 rounded-2xl border outline-none font-bold ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-red-500' : 'bg-gray-50 border-gray-100'}`} />
-              <input name="amount" type="number" required placeholder="Montant (F)" className={`w-full px-6 py-4 rounded-2xl border outline-none font-bold ${isDarkMode ? 'bg-white/5 border-white/10 text-white focus:border-red-500' : 'bg-gray-50 border-gray-100'}`} />
-              <select name="category" className={`w-full px-6 py-4 rounded-2xl border outline-none font-black text-[10px] uppercase tracking-widest ${isDarkMode ? 'bg-[#151515] border-white/10 text-white' : 'bg-gray-50 border-gray-100'}`}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(4px)", background: "rgba(0,0,0,.6)" }}>
+          <form onSubmit={handleAddExpense} style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 380, padding: 32, boxShadow: T.shadow }}>
+            <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 19, margin: "0 0 22px" }}>Nouvelle Dépense</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <input name="label" required placeholder="Désignation (ex: Sac de riz)" style={inputStyle(T)} />
+              <input name="amount" type="number" required placeholder="Montant (F)" style={inputStyle(T)} />
+              <select name="category" style={{ ...inputStyle(T), cursor: "pointer" }}>
                 <option>Approvisionnement</option>
                 <option>Loyer & Factures</option>
                 <option>Salaire</option>
@@ -200,14 +201,18 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
                 <option>Entretien</option>
                 <option>Autre</option>
               </select>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className={`flex-1 font-black text-[10px] uppercase tracking-widest border-none bg-transparent cursor-pointer ${isDarkMode ? 'text-white/40' : 'text-gray-400'}`}>Annuler</button>
-                <button type="submit" className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-red-600 transition-colors border-none cursor-pointer shadow-lg shadow-red-500/20">Enregistrer</button>
+              <div style={{ display: "flex", gap: 14, paddingTop: 8 }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, fontWeight: 700, fontSize: 12, textTransform: "uppercase", border: "none", background: "none", cursor: "pointer", color: T.faint }}>Annuler</button>
+                <button type="submit" style={{ flex: 1, padding: "13px 0", background: T.bad, color: "#fff", borderRadius: radiusSm, fontWeight: 700, fontSize: 12, textTransform: "uppercase", border: "none", cursor: "pointer" }}>Enregistrer</button>
               </div>
             </div>
           </form>
         </div>
       )}
+
+      <style jsx global>{`
+        .dash-row-hover:hover { background: ${T.surface2}; }
+      `}</style>
     </div>
   );
 }
