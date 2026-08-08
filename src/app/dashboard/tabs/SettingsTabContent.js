@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Store, Database, Globe, Save, Camera, MapPin, 
-  ChevronRight, Loader2, CheckCircle, Shield
+  Store, Database, Camera, MapPin,
+  Loader2, CheckCircle, Shield
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from 'next/navigation';
+import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from '@/lib/dashTheme';
 
 export default function SettingsTabContent({ isDarkMode }) {
+  const T = getDashTokens(isDarkMode);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,11 +75,11 @@ export default function SettingsTabContent({ isDarkMode }) {
       if (error) throw error;
 
       setSaveSuccess(true);
-      router.refresh(); 
+      router.refresh();
 
       setTimeout(() => {
         setSaveSuccess(false);
-        fetchSettings(); 
+        fetchSettings();
       }, 1500);
 
     } catch (err) {
@@ -127,124 +129,123 @@ export default function SettingsTabContent({ isDarkMode }) {
 
   if (loading) {
     return (
-      <div className="h-96 flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-[#00D9FF] mb-4" size={40} />
-        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 italic">
-          Synchronisation des paramètres...
-        </p>
+      <div style={{ height: 380, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="animate-spin" color={T.accent} size={36} style={{ marginBottom: 14 }} />
+        <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: T.muted }}>Synchronisation des paramètres...</p>
       </div>
     );
   }
 
   return (
-    <div className="fade-in text-left pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-        <div className="text-left">
-          <h3 className="text-3xl font-black italic tracking-tighter uppercase">
-            Paramètres Système
-          </h3>
-          <p className="opacity-50 text-sm font-light uppercase tracking-widest">
-            Configuration globale de votre établissement
-          </p>
+    <div style={{ textAlign: "left", paddingBottom: 30 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 26 }}>
+        <div>
+          <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, margin: 0 }}>Paramètres Système</h3>
+          <p style={{ fontSize: 12, fontWeight: 600, color: T.faint, margin: "4px 0 0" }}>Configuration globale de votre établissement</p>
         </div>
 
         <button
           onClick={handleSave}
           disabled={saving}
-          className={`${saveSuccess ? "bg-green-500" : "bg-[#00D9FF]"} text-black px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg transition-all flex items-center gap-3 active:scale-95`}
+          style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "13px 26px", borderRadius: 999, border: "none", cursor: "pointer",
+            fontWeight: 700, fontSize: 12.5, textTransform: "uppercase", letterSpacing: "0.04em",
+            background: saveSuccess ? T.good : T.accent, color: T.accentInk,
+          }}
         >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : saveSuccess ? <CheckCircle size={16} /> : <Save size={16} />}
+          {saving ? <Loader2 size={16} className="animate-spin" /> : saveSuccess ? <CheckCircle size={16} /> : null}
           {saveSuccess ? "Enregistré !" : "Enregistrer"}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2 space-y-8 text-left">
-          <div className={`p-8 rounded-[45px] border ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-            <h4 className="text-lg font-black flex items-center gap-3 mb-8 uppercase tracking-tighter italic">
-              <Store size={20} className="text-[#00D9FF]" /> Profil de l'Établissement
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }} className="dash-grid-collapse">
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={card(T, { padding: 28 })}>
+            <h4 style={{ fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 10, margin: "0 0 22px" }}>
+              <Store size={19} color={T.accent} /> Profil de l'établissement
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4 text-left">
-                <label className="text-[10px] uppercase tracking-widest font-black opacity-40 ml-4 block">Nom du Restaurant</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }} className="dash-grid-collapse-sm">
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: T.faint, display: "block", marginBottom: 8 }}>Nom du restaurant</label>
                 <input
                   type="text"
                   value={settings.name}
                   onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                  className={`w-full px-6 py-4 rounded-2xl border outline-none transition-all ${isDarkMode ? "bg-white/5 border-white/10 focus:border-[#00D9FF]" : "bg-gray-50 border-gray-100 focus:border-[#00D9FF]"}`}
+                  style={inputStyle(T)}
                 />
               </div>
-              <div className="space-y-4 text-left">
-                <label className="text-[10px] uppercase tracking-widest font-black opacity-40 ml-4 block">Localisation</label>
-                <div className="relative">
-                  <MapPin size={16} className="absolute left-6 top-1/2 -translate-y-1/2 opacity-30" />
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: T.faint, display: "block", marginBottom: 8 }}>Localisation</label>
+                <div style={{ position: "relative" }}>
+                  <MapPin size={16} color={T.faint} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)" }} />
                   <input
                     type="text"
                     value={settings.location}
                     onChange={(e) => setSettings({ ...settings, location: e.target.value })}
                     placeholder="Douala, Cameroun"
-                    className={`w-full pl-14 pr-6 py-4 rounded-2xl border outline-none ${isDarkMode ? "bg-white/5 border-white/10 focus:border-[#00D9FF]" : "bg-gray-50 border-gray-100 focus:border-[#00D9FF]"}`}
+                    style={inputStyle(T, { paddingLeft: 42 })}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 flex items-center gap-6 p-6 rounded-[30px] border border-dashed border-white/10">
-              <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center text-[#00D9FF] overflow-hidden border border-white/10">
+            <div style={{ marginTop: 22, display: "flex", alignItems: "center", gap: 18, padding: 18, borderRadius: radius, border: `1px dashed ${T.line}` }}>
+              <div style={{ width: 70, height: 70, borderRadius: radius, background: T.surface2, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, overflow: "hidden", border: `1px solid ${T.line}`, flexShrink: 0 }}>
                 {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                  <img src={settings.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <Camera size={30} />
+                  <Camera size={26} />
                 )}
               </div>
-              <div className="text-left">
-                <p className="font-black text-sm mb-1">Logo de l'établissement</p>
-                <p className="text-xs opacity-40 font-medium">Format PNG ou JPG. Max 2MB.</p>
-                <label className="mt-3 inline-block text-[#00D9FF] text-[10px] font-black uppercase tracking-widest cursor-pointer hover:underline">
+              <div>
+                <p style={{ fontWeight: 700, fontSize: 13, margin: "0 0 3px" }}>Logo de l'établissement</p>
+                <p style={{ fontSize: 11.5, color: T.faint, fontWeight: 500, margin: "0 0 8px" }}>Format PNG ou JPG. Max 2MB.</p>
+                <label style={{ color: T.accent, fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" }}>
                   {uploading ? "Chargement..." : "Modifier l'image"}
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploading} className="hidden" />
+                  <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploading} style={{ display: "none" }} />
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Section Options (Monnaie, TVA, etc.) */}
-          <div className={`p-8 rounded-[45px] border ${isDarkMode ? "bg-[#0a0a0a] border-white/5" : "bg-white border-gray-100 shadow-sm"}`}>
-             <h4 className="text-lg font-black flex items-center gap-3 mb-8 uppercase tracking-tighter italic">
-              <Database size={20} className="text-[#00D9FF]" /> Configuration Locale
+          <div style={card(T, { padding: 28 })}>
+            <h4 style={{ fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 10, margin: "0 0 22px" }}>
+              <Database size={19} color={T.accent} /> Configuration locale
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SettingToggle label="Devise de la caisse" value={settings.currency} isDarkMode={isDarkMode} />
-              <SettingToggle label="Taux TVA" value={settings.tva} isDarkMode={isDarkMode} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }} className="dash-grid-collapse-sm">
+              <SettingToggle T={T} label="Devise de la caisse" value={settings.currency} />
+              <SettingToggle T={T} label="Taux TVA" value={settings.tva} />
             </div>
           </div>
         </div>
 
-        {/* Section Sécurité/Info */}
-        <div className="space-y-6 text-left">
-           <div className={`p-8 rounded-[40px] border ${isDarkMode ? "bg-[#00D9FF]/5 border-[#00D9FF]/20" : "bg-cyan-50 border-cyan-100"}`}>
-            <Shield size={32} className="text-[#00D9FF] mb-4" />
-            <h4 className="font-black text-sm uppercase mb-2">Protection des données</h4>
-            <p className="text-xs opacity-60 leading-relaxed font-medium">
-              Toutes vos modifications sont chiffrées et isolées. Seul votre établissement a accès à ces configurations via votre jeton sécurisé.
-            </p>
-          </div>
+        <div style={card(T, { padding: 26, background: T.accentWash, border: `1px solid ${T.accent}33` })}>
+          <Shield size={30} color={T.accent} style={{ marginBottom: 14 }} />
+          <h4 style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", margin: "0 0 8px" }}>Protection des données</h4>
+          <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
+            Toutes vos modifications sont chiffrées et isolées. Seul votre établissement a accès à ces configurations via votre jeton sécurisé.
+          </p>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 900px) { .dash-grid-collapse { grid-template-columns: 1fr !important; } }
+        @media (max-width: 640px) { .dash-grid-collapse-sm { grid-template-columns: 1fr !important; } }
+      `}</style>
     </div>
   );
 }
 
-function SettingToggle({ label, value, isDarkMode }) {
+function SettingToggle({ T, label, value }) {
   return (
-    <div className={`flex items-center justify-between p-5 rounded-3xl border ${isDarkMode ? "bg-white/[0.02] border-white/5" : "bg-gray-50 border-gray-100 shadow-sm"}`}>
-      <div className="text-left">
-        <p className="text-[9px] uppercase font-black opacity-40 tracking-widest mb-1">{label}</p>
-        <p className="text-sm font-black">{value}</p>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 18, borderRadius: radiusSm, background: T.surface2 }}>
+      <div>
+        <p style={{ fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: T.faint, margin: "0 0 4px" }}>{label}</p>
+        <p className="num" style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{value}</p>
       </div>
-      <div className="w-10 h-5 bg-[#00D9FF]/20 rounded-full relative cursor-pointer group">
-        <div className="absolute right-1 top-1 w-3 h-3 bg-[#00D9FF] rounded-full shadow-lg shadow-cyan-500/50 group-hover:scale-110 transition-transform"></div>
+      <div style={{ width: 38, height: 20, borderRadius: 999, background: `${T.accent}33`, position: "relative", cursor: "pointer" }}>
+        <div style={{ position: "absolute", right: 3, top: 3, width: 14, height: 14, borderRadius: "50%", background: T.accent, boxShadow: T.shadow }} />
       </div>
     </div>
   );

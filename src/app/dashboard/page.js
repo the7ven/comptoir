@@ -3,23 +3,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, UtensilsCrossed, Users, Settings, LogOut,
-  Wallet, Plus, Grid, Flame, TrendingUp, Clock, CheckCircle2,
-  Menu as MenuIcon, X, ChevronDown, Sun, Moon, Package, FileText,
-  ShoppingBag, History, ArrowRight, Calendar as CalendarIcon, Settings2,
-  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle, UserPlus
+  Wallet, Grid, Flame, TrendingUp, Menu as MenuIcon, X, Sun, Moon,
+  Package, FileText, ShoppingBag, History, Calendar as CalendarIcon,
+  Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle,
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { supabase } from '@/lib/supabase';
+import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
 
 // --- IMPORTS DES ONGLETS ---
 import MenuTabContent from './tabs/MenuTabContent';
-import OrdersTabContent from './tabs/OrdersTabContent'; 
-import TablesTabContent from './tabs/TablesTabContent'; 
+import OrdersTabContent from './tabs/OrdersTabContent';
+import TablesTabContent from './tabs/TablesTabContent';
 import CashierTabContent from './tabs/CashierTabContent';
 import StockTabContent from './tabs/StockTabContent';
 import HistoryTabContent from './tabs/HistoryTabContent';
@@ -31,9 +31,10 @@ import SettingsTabContent from './tabs/SettingsTabContent';
 export default function AdminDashboard() {
   const router = useRouter();
   const { isDarkMode, toggleTheme } = useTheme();
+  const T = getDashTokens(isDarkMode);
   const [mounted, setMounted] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true); 
-  const [userProfile, setUserProfile] = useState(null); 
+  const [authLoading, setAuthLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
   const [restaurantName, setRestaurantName] = useState("Chargement...");
   const [isActive, setIsActive] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -44,18 +45,27 @@ export default function AdminDashboard() {
   const [cart, setCart] = useState([]);
   const [pendingOrder, setPendingOrder] = useState(null);
 
-  const menuConfig = [
-    { id: "overview", label: "Vue d'ensemble", icon: <TrendingUp size={20} />, roles: ["owner", "cashier"] },
-    { id: "orders", label: "Commandes", icon: <ShoppingBag size={20} />, roles: ["owner", "cashier"] },
-    { id: "menu", label: "Menu & Plats", icon: <UtensilsCrossed size={20} />, roles: ["owner", "cashier"] },
-    { id: "tables", label: "Plan de Salle", icon: <Grid size={20} />, roles: ["owner", "cashier"] },
-    { id: "cashier", label: "Caisse", icon: <Wallet size={20} />, roles: ["owner", "cashier"] },
-    { id: "expenses", label: "Dépenses", icon: <FileText size={20} />, roles: ["owner", "cashier"] },
-    { id: "stock", label: "Stocks", icon: <Package size={20} />, roles: ["owner"] },
-    { id: "reports", label: "Rapports", icon: <BarChart size={20} />, roles: ["owner"] },
-    { id: "staff", label: "Staff", icon: <Users size={20} />, roles: ["owner"] },
-    { id: "history", label: "Historique", icon: <History size={20} />, roles: ["owner"] },
-    { id: "settings", label: "Paramètres", icon: <Settings size={20} />, roles: ["owner"] },
+  const menuGroups = [
+    {
+      label: "Opérations",
+      items: [
+        { id: "overview", label: "Vue d'ensemble", icon: <TrendingUp size={18} />, roles: ["owner", "cashier"] },
+        { id: "orders", label: "Commandes", icon: <ShoppingBag size={18} />, roles: ["owner", "cashier"] },
+        { id: "menu", label: "Menu & Plats", icon: <UtensilsCrossed size={18} />, roles: ["owner", "cashier"] },
+        { id: "tables", label: "Plan de Salle", icon: <Grid size={18} />, roles: ["owner", "cashier"] },
+        { id: "cashier", label: "Caisse", icon: <Wallet size={18} />, roles: ["owner", "cashier"] },
+      ],
+    },
+    {
+      label: "Gestion",
+      items: [
+        { id: "expenses", label: "Dépenses", icon: <FileText size={18} />, roles: ["owner", "cashier"] },
+        { id: "stock", label: "Stocks", icon: <Package size={18} />, roles: ["owner"] },
+        { id: "reports", label: "Rapports", icon: <BarChart size={18} />, roles: ["owner"] },
+        { id: "staff", label: "Staff", icon: <Users size={18} />, roles: ["owner"] },
+        { id: "history", label: "Historique", icon: <History size={18} />, roles: ["owner"] },
+      ],
+    },
   ];
 
   useEffect(() => {
@@ -108,7 +118,7 @@ export default function AdminDashboard() {
   }, [selectedDateISO]);
 
   const handleLogout = async () => {
-    localStorage.removeItem('impersonate_resto_id'); 
+    localStorage.removeItem('impersonate_resto_id');
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');
@@ -116,24 +126,23 @@ export default function AdminDashboard() {
 
   if (authLoading || !mounted) {
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-[#00D9FF] mb-4" size={40} />
+      <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 className="animate-spin" color={T.accent} size={40} />
       </div>
     );
   }
 
   if (!isActive && !userProfile?.is_super_admin) {
-    return <AccountInactiveScreen restaurantName={restaurantName} handleLogout={handleLogout} />;
+    return <AccountInactiveScreen T={T} restaurantName={restaurantName} handleLogout={handleLogout} />;
   }
 
- const renderContent = () => {
-    // On ajoute setSelectedDate (le setter de selectedDateISO) aux propriétés communes
-    const commonProps = { 
-      isDarkMode, 
-      setActiveTab, 
-      selectedDate: selectedDateISO, 
-      setSelectedDate: setSelectedDateISO, //pour que les enfants puisse changer de date 
-      userProfile 
+  const renderContent = () => {
+    const commonProps = {
+      isDarkMode,
+      setActiveTab,
+      selectedDate: selectedDateISO,
+      setSelectedDate: setSelectedDateISO,
+      userProfile
     };
 
     switch (activeTab) {
@@ -148,103 +157,141 @@ export default function AdminDashboard() {
       case "expenses": return <ExpensesTabContent {...commonProps} />;
       case "staff": return <StaffTabContent {...commonProps} />;
       case "settings": return <SettingsTabContent {...commonProps} setGlobalRestoName={setRestaurantName} />;
-      default: return <div className="p-20 opacity-20 italic">Module bientôt disponible...</div>;
+      default: return <div style={{ padding: 60, opacity: .3, fontStyle: 'italic' }}>Module bientôt disponible...</div>;
     }
   };
+
   return (
-    <div className={`min-h-screen flex overflow-x-hidden ${isDarkMode ? "bg-[#050505] text-white" : "bg-[#F9FAFB] text-[#1F2937]"}`}>
-      
+    <div style={{ minHeight: '100vh', display: 'flex', overflowX: 'hidden', background: T.bg, color: T.ink, fontFamily: bodyFont }}>
+
       {mounted && localStorage.getItem('impersonate_resto_id') && (
-        <div className="fixed top-0 left-0 right-0 z-[1000] bg-orange-600 text-white py-2 px-4 flex justify-center items-center gap-4 shadow-xl">
-          <span className="text-[10px] font-black uppercase tracking-widest">
-            Attention : Mode Support Actif (Vue sur {restaurantName})
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, background: T.warn, color: T.accentInk, padding: '8px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, boxShadow: T.shadow }}>
+          <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Mode support actif — vue sur {restaurantName}
           </span>
-          <button 
-            onClick={() => {
-              localStorage.removeItem('impersonate_resto_id');
-              window.location.reload();
-            }}
-            className="bg-white text-orange-600 px-3 py-1 rounded-full text-[9px] font-black uppercase hover:bg-orange-100 transition-all border-none cursor-pointer"
+          <button
+            onClick={() => { localStorage.removeItem('impersonate_resto_id'); window.location.reload(); }}
+            style={{ background: '#fff', color: T.accentDark, padding: '5px 12px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}
           >
-            Quitter l'aperçu
+            Quitter l&apos;aperçu
           </button>
         </div>
       )}
 
       {/* SIDEBAR */}
-      
-      <aside className={`fixed inset-y-0 left-0 z-[200] w-72 transition-all lg:static lg:h-screen flex flex-col p-6 ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center gap-3 text-xl font-extrabold tracking-tighter text-[#00D9FF]">
-            <LayoutDashboard size={28} /> <span>Comptoir</span>
+      <aside style={{
+        position: isSidebarOpen ? 'fixed' : undefined,
+        inset: isSidebarOpen ? 0 : undefined,
+        zIndex: 200,
+        width: 252, flex: 'none', background: T.surface, borderRight: `1px solid ${T.line}`,
+        display: isSidebarOpen ? 'flex' : undefined, flexDirection: 'column', padding: '20px 14px', gap: 4,
+        height: '100vh', position: 'sticky', top: 0,
+      }}
+        className="dash-sidebar"
+        data-open={isSidebarOpen ? "true" : "false"}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: T.accent, flex: 'none' }} />
+            <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18 }}>Comptoir</span>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 opacity-50 bg-transparent border-none cursor-pointer">
-            <X size={24} />
+          <button onClick={() => setIsSidebarOpen(false)} className="lg-hidden" style={{ padding: 6, opacity: .5, background: 'none', border: 'none', cursor: 'pointer', color: T.ink }}>
+            <X size={22} />
           </button>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar">
-          {menuConfig.filter(item => item.roles.includes(userProfile?.role)).map((item) => (
-            <NavItem key={item.id} isDarkMode={isDarkMode} icon={item.icon} label={item.label} active={activeTab === item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} />
-          ))}
+
+        <nav style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {menuGroups.map((group) => {
+            const items = group.items.filter(item => item.roles.includes(userProfile?.role));
+            if (items.length === 0) return null;
+            return (
+              <React.Fragment key={group.label}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.faint, padding: '14px 12px 6px' }}>{group.label}</div>
+                {items.map((item) => (
+                  <NavItem key={item.id} T={T} icon={item.icon} label={item.label} active={activeTab === item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} />
+                ))}
+              </React.Fragment>
+            );
+          })}
         </nav>
 
-        {userProfile?.is_super_admin && (
-          <Link 
-            href="/admin/master" 
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest mb-2 transition-all no-underline
-              ${isDarkMode ? "bg-white/5 text-[#00D9FF] hover:bg-[#00D9FF] hover:text-black" : "bg-gray-100 text-[#00D9FF] hover:bg-cyan-50"}`}
-          >
-            <ShieldCheck size={20} /> God Mode
-          </Link>
-        )}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
+          <NavItem T={T} icon={<Settings size={18} />} label="Paramètres" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} />
 
-        <button onClick={handleLogout} className={`mt-2 flex items-center gap-3 px-4 py-3 rounded-xl font-bold w-full text-left bg-transparent border-none cursor-pointer transition-all ${isDarkMode ? "text-red-400 hover:bg-red-400/10" : "text-red-600 hover:bg-red-50"}`}>
-          <LogOut size={20} /> Déconnexion
-        </button>
+          {userProfile?.is_super_admin && (
+            <Link
+              href="/admin/master"
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: radiusSm, fontWeight: 700, fontSize: 13.5, background: T.accentWash, color: T.accent, textDecoration: 'none' }}
+            >
+              <ShieldCheck size={18} /> God Mode
+            </Link>
+          )}
+
+          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: radiusSm, fontWeight: 700, fontSize: 13.5, width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: T.bad }}>
+            <LogOut size={18} /> Déconnexion
+          </button>
+        </div>
       </aside>
 
-      <main className="flex-1 p-4 lg:p-8 w-full max-h-screen overflow-y-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6 text-left">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 rounded-xl bg-white/5 border-none cursor-pointer">
-              <MenuIcon size={24} />
+      <main style={{ flex: 1, width: '100%', maxHeight: '100vh', overflowY: 'auto' }}>
+        <header style={{
+          display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 16,
+          padding: '18px 28px', borderBottom: `1px solid ${T.line}`, background: T.bg, position: 'sticky', top: 0, zIndex: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button onClick={() => setIsSidebarOpen(true)} className="lg-hidden-flex" style={iconBtn(T)}>
+              <MenuIcon size={20} />
             </button>
-            <div className="text-left">
-              <h2 className={`text-xl lg:text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-gray-900"}`}>Bonjour, {restaurantName}</h2>
-              <p className="text-[#888] text-xs font-medium uppercase italic tracking-widest">{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
+            <div>
+              <h2 style={{ fontFamily: headFont, fontSize: 20, fontWeight: 800, margin: 0 }}>Bonjour, {restaurantName}</h2>
+              <p style={{ color: T.faint, fontSize: 12, fontWeight: 600, margin: '2px 0 0' }}>{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div onClick={() => dateInputRef.current?.showPicker()} className={`flex items-center gap-3 px-5 py-3 rounded-2xl cursor-pointer ${isDarkMode ? "bg-white/5 text-white" : "bg-white text-gray-700 shadow-md"}`}>
-              <CalendarIcon size={18} className="text-[#00D9FF]" />
-              <span className="text-sm font-bold">{currentDateDisplay}</span>
-              <input type="date" ref={dateInputRef} value={selectedDateISO} onChange={(e) => setSelectedDateISO(e.target.value)} className="absolute invisible w-0 h-0" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div onClick={() => dateInputRef.current?.showPicker()} style={{ ...chipBtn(T), position: 'relative' }}>
+              <CalendarIcon size={16} color={T.accent} />
+              <span style={{ fontWeight: 700, color: T.ink }}>{currentDateDisplay}</span>
+              <input type="date" ref={dateInputRef} value={selectedDateISO} onChange={(e) => setSelectedDateISO(e.target.value)} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
             </div>
-            <button onClick={toggleTheme} className="p-3 rounded-full bg-white/5 border-none cursor-pointer">
-              {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-indigo-600" />}
+            <button onClick={toggleTheme} style={iconBtn(T)}>
+              {isDarkMode ? <Sun size={18} color="#facc15" /> : <Moon size={18} color={T.accentDark} />}
             </button>
           </div>
         </header>
-        {renderContent()}
+
+        <div style={{ padding: '28px', maxWidth: 1400 }}>
+          {renderContent()}
+        </div>
       </main>
 
-      <a 
+      <a
         href={`https://wa.me/2250757471552?text=${encodeURIComponent(
           `Bonjour Comptoir, je suis ${restaurantName}. J'ai besoin d'assistance sur ma console de gestion.`
         )}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-[999] bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center group no-underline"
+        style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 999, background: '#25D366', color: '#fff',
+          width: 56, height: 56, borderRadius: '50%', boxShadow: T.shadow,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none',
+        }}
+        aria-label="Contacter le support WhatsApp"
       >
-        <div className="flex items-center gap-2">
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-black text-[10px] uppercase tracking-widest whitespace-nowrap">
-            Besoin d'aide ?
-          </span>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-          </svg>
-        </div>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
       </a>
+
+      <style jsx global>{`
+        @media (min-width: 1024px) {
+          .dash-sidebar { position: sticky !important; inset: auto !important; }
+          .lg-hidden { display: none !important; }
+          .lg-hidden-flex { display: none !important; }
+        }
+        @media (max-width: 1023px) {
+          .dash-sidebar[data-open="false"] { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -252,17 +299,18 @@ export default function AdminDashboard() {
 
 // --- VUE D'ENSEMBLE ---
 
-function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfile }) {
+function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
+  const T = getDashTokens(isDarkMode);
   const [period, setPeriod] = useState("day");
-  const [realStats, setRealStats] = useState({ 
-    dayTotal: 0, 
-    dayExpenses: 0, 
+  const [realStats, setRealStats] = useState({
+    dayTotal: 0,
+    dayExpenses: 0,
     netProfit: 0,
-    cuisineTotal: 0, 
-    barTotal: 0,     
-    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 }, 
-    chartData: [], 
-    popularItems: [] 
+    cuisineTotal: 0,
+    barTotal: 0,
+    byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 },
+    chartData: [],
+    popularItems: []
   });
 
   useEffect(() => {
@@ -275,7 +323,7 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         start = `${selectedDate}T00:00:00.000Z`;
         end = `${selectedDate}T23:59:59.999Z`;
       } else if (period === "week") {
-        const first = date.getDate() - date.getDay(); 
+        const first = date.getDate() - date.getDay();
         const last = first + 6;
         start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
         end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
@@ -300,11 +348,11 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
 
       if (transData) {
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
-        const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0; 
-        
+        const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+
         let cuisine = 0;
         let bar = 0;
-        
+
         transData.forEach(t => {
           if (t.items) {
             t.items.forEach(item => {
@@ -325,212 +373,212 @@ function OverviewTabContent({ isDarkMode, setActiveTab, selectedDate, userProfil
         }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 });
 
         const itemCounts = {};
-        transData.forEach(t => { 
-          if (t.items) t.items.forEach(item => { 
-            itemCounts[item.name] = (itemCounts[item.name] || 0) + 1; 
-          }); 
+        transData.forEach(t => {
+          if (t.items) t.items.forEach(item => {
+            itemCounts[item.name] = (itemCounts[item.name] || 0) + 1;
+          });
         });
         const sortedItems = Object.entries(itemCounts)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 3);
-        
+
         let chartData = [];
         if (period === "day") {
-          chartData = [...Array(24)].map((_, h) => ({ 
-              label: `${h}h`, 
-              amount: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0) 
+          chartData = [...Array(24)].map((_, h) => ({
+            label: `${h}h`,
+            amount: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0)
           }));
         } else {
           const grouped = transData.reduce((acc, t) => {
-            const d = new Date(t.created_at).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'});
+            const d = new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
             acc[d] = (acc[d] || 0) + Number(t.amount);
             return acc;
           }, {});
           chartData = Object.entries(grouped).map(([label, amount]) => ({ label, amount }));
         }
 
-        setRealStats({ 
-          dayTotal: total, 
-          dayExpenses: totalExp, 
+        setRealStats({
+          dayTotal: total,
+          dayExpenses: totalExp,
           netProfit: total - totalExp,
           cuisineTotal: cuisine,
           barTotal: bar,
-          byMethod: methods, 
-          chartData: chartData, 
-          popularItems: sortedItems 
+          byMethod: methods,
+          chartData: chartData,
+          popularItems: sortedItems
         });
       }
     };
     fetchRealData();
   }, [selectedDate, userProfile, period]);
 
+  const periods = [
+    { id: "day", label: "Jour" },
+    { id: "week", label: "Semaine" },
+    { id: "month", label: "Mois" },
+    { id: "year", label: "Année" },
+  ];
+
+  const methodConfig = [
+    { key: "Espèces", label: "Espèces", icon: <Banknote size={16} />, bg: T.goodWash, fg: T.good },
+    { key: "Orange Money", label: "Orange Money", icon: <Smartphone size={16} />, bg: "oklch(0.7 0.16 55 / .15)", fg: "oklch(0.55 0.16 55)" },
+    { key: "Wave", label: "Wave", icon: <CreditCard size={16} />, bg: T.accentWash, fg: T.accent },
+    { key: "MTN Money", label: "MTN Money", icon: <Smartphone size={16} />, bg: T.warnWash, fg: T.warn },
+    { key: "Visa", label: "Visa / MC", icon: <CreditCard size={16} />, bg: "oklch(0.55 0.1 290 / .15)", fg: "oklch(0.5 0.12 290)" },
+  ];
+
   return (
-    <div className="fade-in space-y-6 pb-10 text-left">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 20, textAlign: 'left' }}>
       {userProfile?.role === "owner" && (
-        <div className="flex justify-start mb-4">
-          <div className={`flex p-1 rounded-2xl ${isDarkMode ? "bg-white/5" : "bg-gray-100"}`}>
-            {[
-              { id: "day", label: "Jour" },
-              { id: "week", label: "Semaine" },
-              { id: "month", label: "Mois" },
-              { id: "year", label: "Année" }
-            ].map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPeriod(p.id)}
-                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer
-                  ${period === p.id 
-                    ? "bg-[#00D9FF] text-black shadow-lg" 
-                    : "text-gray-500 hover:text-white bg-transparent"}`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'inline-flex', padding: 3, background: T.surface2, borderRadius: 999, gap: 2, width: 'fit-content' }}>
+          {periods.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              style={{
+                padding: '8px 18px', borderRadius: 999, border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                background: period === p.id ? T.accent : 'none', color: period === p.id ? T.accentInk : T.muted,
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
       )}
 
-      <div className={`p-8 lg:p-10 rounded-[40px] relative overflow-hidden ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-2xl"}`}>
-        <div className="relative z-10">
-          <p className="text-[#00D9FF] text-xs font-black uppercase tracking-[0.3em] mb-4">Recettes ({period})</p>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <h2 className="text-5xl lg:text-7xl font-black">
-              {realStats.dayTotal.toLocaleString()} <span className="text-2xl opacity-30 italic font-light">F</span>
-            </h2>
-            <div className="flex gap-8 text-right">
-                <div className="text-left md:text-right">
-                  <p className="text-[10px] uppercase opacity-40 font-black mb-1">Dépenses</p>
-                  <p className="text-xl font-black text-red-500">-{realStats.dayExpenses.toLocaleString()} F</p>
-                </div>
-                <div className="text-left md:text-right">
-                  <p className="text-[10px] uppercase opacity-40 font-black mb-1">Bénéfice Net</p>
-                  <p className={`text-xl font-black ${realStats.netProfit >= 0 ? 'text-[#00D9FF]' : 'text-red-500'}`}>
-                    {realStats.netProfit.toLocaleString()} F
-                  </p>
-                </div>
+      <div style={card(T, { padding: 32 })}>
+        <p style={eyebrow(T, { marginBottom: 10 })}>Recettes ({periods.find(p => p.id === period)?.label.toLowerCase()})</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24 }}>
+          <h2 className="num" style={{ fontFamily: headFont, fontSize: 42, fontWeight: 800, margin: 0 }}>
+            {realStats.dayTotal.toLocaleString()} <span style={{ fontSize: 15, color: T.faint, fontWeight: 600 }}>F CFA</span>
+          </h2>
+          <div style={{ display: 'flex', gap: 28 }}>
+            <div>
+              <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.faint, margin: '0 0 4px' }}>Dépenses</p>
+              <p className="num" style={{ fontSize: 17, fontWeight: 800, color: T.bad, margin: 0 }}>-{realStats.dayExpenses.toLocaleString()} F</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.faint, margin: '0 0 4px' }}>Bénéfice net</p>
+              <p className="num" style={{ fontSize: 17, fontWeight: 800, color: realStats.netProfit >= 0 ? T.good : T.bad, margin: 0 }}>
+                {realStats.netProfit.toLocaleString()} F
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-10 pt-8 border-t border-white/5">
-            <PaymentMiniStat label="Espèces" value={realStats.byMethod["Espèces"]} icon={<Banknote size={16}/>} color="green" />
-            <PaymentMiniStat label="Orange" value={realStats.byMethod["Orange Money"]} icon={<Smartphone size={16}/>} color="orange" />
-            <PaymentMiniStat label="Wave" value={realStats.byMethod["Wave"]} icon={<CreditCard size={16}/>} color="blue" />
-            <PaymentMiniStat label="MTN" value={realStats.byMethod["MTN Money"]} icon={<Smartphone size={16}/>} color="yellow" />
-            <PaymentMiniStat label="Visa/MC" value={realStats.byMethod["Visa"]} icon={<CreditCard size={16}/>} color="indigo" />
-            <PaymentMiniStat label="Dépenses" value={realStats.dayExpenses} icon={<ArrowDownCircle size={16}/>} color="red" />
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 14, marginTop: 26, paddingTop: 22, borderTop: `1px solid ${T.line}` }}>
+          {methodConfig.map((m) => (
+            <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', background: m.bg, color: m.fg }}>{m.icon}</div>
+              <div>
+                <p style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: T.faint, margin: 0 }}>{m.label}</p>
+                <p className="num" style={{ fontSize: 13, fontWeight: 800, margin: 0 }}>{(realStats.byMethod[m.key] || 0).toLocaleString()} F</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className={`p-8 rounded-[35px] flex items-center justify-between transition-all ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-lg border border-gray-50"}`}>
-          <div className="text-left">
-            <div className="flex items-center gap-2 mb-2 text-orange-500">
-               <UtensilsCrossed size={20} />
-               <span className="text-[10px] font-black uppercase tracking-widest">Cuisine</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        <div style={card(T, { padding: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, color: "oklch(0.55 0.16 55)" }}>
+              <UtensilsCrossed size={18} />
+              <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cuisine</span>
             </div>
-            <h3 className="text-3xl font-black italic">{realStats.cuisineTotal.toLocaleString()} <span className="text-sm opacity-40">F</span></h3>
+            <h3 className="num" style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: 0 }}>{realStats.cuisineTotal.toLocaleString()} <span style={{ fontSize: 13, color: T.faint, fontWeight: 600 }}>F</span></h3>
           </div>
-          <div className="opacity-10"><UtensilsCrossed size={60} /></div>
+          <div style={{ width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: "oklch(0.7 0.16 55 / .12)", color: "oklch(0.55 0.16 55)" }}><UtensilsCrossed size={20} /></div>
         </div>
-        <div className={`p-8 rounded-[35px] flex items-center justify-between transition-all ${isDarkMode ? "bg-[#0a0a0a] border border-white/5" : "bg-white shadow-lg border border-gray-50"}`}>
-          <div className="text-left">
-            <div className="flex items-center gap-2 mb-2 text-[#00D9FF]">
-               <Flame size={20} />
-               <span className="text-[10px] font-black uppercase tracking-widest">Bar</span>
+        <div style={card(T, { padding: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, color: T.accent }}>
+              <Flame size={18} />
+              <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bar</span>
             </div>
-            <h3 className="text-3xl font-black italic">{realStats.barTotal.toLocaleString()} <span className="text-sm opacity-40">F</span></h3>
+            <h3 className="num" style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: 0 }}>{realStats.barTotal.toLocaleString()} <span style={{ fontSize: 13, color: T.faint, fontWeight: 600 }}>F</span></h3>
           </div>
-          <div className="opacity-10"><Flame size={60} /></div>
+          <div style={{ width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.accentWash, color: T.accent }}><Flame size={20} /></div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className={`xl:col-span-2 p-8 rounded-[40px] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl"}`}>
-          <h3 className="text-xl font-bold mb-8 italic flex items-center gap-3">
-            <TrendingUp size={20} className="text-[#00D9FF]" /> Analyse des ventes
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }} className="dash-grid-collapse">
+        <div style={card(T, { padding: 24 })}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+            <TrendingUp size={18} color={T.accent} /> Analyse des ventes
           </h3>
-          <div className="h-64 w-full">
+          <div style={{ height: 220, marginTop: 14 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={realStats.chartData}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00D9FF" stopOpacity={0.3} /><stop offset="95%" stopColor="#00D9FF" stopOpacity={0} />
+                    <stop offset="5%" stopColor={T.accent} stopOpacity={0.25} /><stop offset="95%" stopColor={T.accent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#555", fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', backgroundColor: '#000', color: '#fff' }} />
-                <Area type="monotone" dataKey="amount" stroke="#00D9FF" strokeWidth={4} fill="url(#colorSales)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={T.line} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: T.faint, fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: radiusSm, border: `1px solid ${T.line}`, backgroundColor: T.surface, color: T.ink }} labelStyle={{ color: T.ink }} />
+                <Area type="monotone" dataKey="amount" stroke={T.accent} strokeWidth={3} fill="url(#colorSales)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
-        <div className={`p-8 rounded-[40px] ${isDarkMode ? "bg-[#0a0a0a]" : "bg-white shadow-xl"}`}>
-          <h3 className="text-xl font-bold mb-8 italic flex items-center gap-3 uppercase tracking-tighter">
-            <Flame size={20} className="text-orange-500" /> Top Plats
+        <div style={card(T, { padding: 24 })}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+            <Flame size={18} color="oklch(0.55 0.16 55)" /> Top plats
           </h3>
-          <div className="space-y-6 text-left">
+          <div style={{ marginTop: 14 }}>
             {realStats.popularItems.map((item, i) => (
-              <PopularItem key={i} name={item.name} count={`${item.count} commandes`} trend={i === 0 ? "Bestseller" : ""} />
+              <PopularItem key={i} T={T} name={item.name} count={`${item.count} commandes`} trend={i === 0 ? "Bestseller" : ""} />
             ))}
-            {realStats.popularItems.length === 0 && <p className="opacity-20 italic">Aucune donnée.</p>}
+            {realStats.popularItems.length === 0 && <p style={{ opacity: .35, fontStyle: 'italic', fontSize: 13 }}>Aucune donnée.</p>}
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 900px) { .dash-grid-collapse { grid-template-columns: 1fr !important; } }
+      `}</style>
     </div>
   );
 }
 
-function PaymentMiniStat({ label, value, icon, color }) {
-  const colors = { 
-    green: "bg-green-500/10 text-green-500", 
-    orange: "bg-orange-500/10 text-orange-500", 
-    blue: "bg-blue-500/10 text-blue-500",
-    yellow: "bg-yellow-500/10 text-yellow-600", 
-    indigo: "bg-indigo-500/10 text-indigo-500", 
-    red: "bg-red-500/10 text-red-500"
-  };
+function PopularItem({ T, name, count, trend }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className={`p-2.5 rounded-xl ${colors[color]}`}>{icon}</div>
-      <div className="text-left">
-        <p className="text-[9px] uppercase font-black opacity-40 tracking-widest">{label}</p>
-        <p className="text-sm font-black">{value?.toLocaleString() || 0} F</p>
-      </div>
-    </div>
-  );
-}
-
-function PopularItem({ name, count, trend }) {
-  return (
-    <div className="flex justify-between items-center">
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${T.line}` }}>
       <div>
-        <h4 className="font-black text-sm uppercase tracking-tight">{name}</h4>
-        <p className="text-[10px] opacity-40 uppercase">{count}</p>
+        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>{name}</h4>
+        <p style={{ fontSize: 11, color: T.faint, fontWeight: 600, margin: '2px 0 0' }}>{count}</p>
       </div>
-      {trend && <span className="text-[9px] font-black text-orange-500 uppercase italic bg-orange-500/10 px-2 py-0.5 rounded-md">{trend}</span>}
+      {trend && <span style={pill(T, "warn")}>{trend}</span>}
     </div>
   );
 }
 
-function NavItem({ icon, label, active, onClick, isDarkMode }) {
+function NavItem({ T, icon, label, active, onClick }) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-sm border-none cursor-pointer group ${active ? "bg-[#00D9FF] text-black shadow-lg shadow-cyan-500/20" : isDarkMode ? "text-gray-500 hover:bg-white/5 hover:text-white" : "text-gray-500 hover:bg-gray-100 hover:text-[#00D9FF]"}`}>
-      <span className={active ? "text-black" : "text-[#00D9FF]"}>{icon}</span>
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: radiusSm,
+        fontSize: 13.5, fontWeight: active ? 700 : 600, width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+        background: active ? T.accentWash : 'none', color: active ? T.accent : T.muted,
+      }}
+    >
+      <span style={{ display: 'flex', opacity: active ? 1 : .8 }}>{icon}</span>
       <span>{label}</span>
     </button>
   );
 }
 
-function AccountInactiveScreen({ restaurantName, handleLogout }) {
+function AccountInactiveScreen({ T, restaurantName, handleLogout }) {
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-8"><ShieldCheck size={40} /></div>
-      <h2 className="text-3xl font-black text-white mb-4 uppercase italic">Compte Inactif</h2>
-      <p className="text-white/40 max-w-md mb-10 font-medium">Désolé <span className="text-[#00D9FF]">{restaurantName}</span>, votre accès est suspendu. Contactez l'administration.</p>
-      <button onClick={handleLogout} className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer border-none">Déconnexion</button>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.ink, fontFamily: bodyFont, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+      <div style={{ width: 72, height: 72, background: T.badWash, color: T.bad, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}><ShieldCheck size={34} /></div>
+      <h2 style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>Compte inactif</h2>
+      <p style={{ color: T.muted, maxWidth: 420, marginBottom: 28, fontSize: 14, lineHeight: 1.6 }}>Désolé <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span>, votre accès est suspendu. Contactez l&apos;administration.</p>
+      <button onClick={handleLogout} style={{ padding: '13px 32px', background: T.accent, color: T.accentInk, borderRadius: 999, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>Déconnexion</button>
     </div>
   );
 }
