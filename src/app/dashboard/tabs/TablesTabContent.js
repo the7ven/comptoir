@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { printViaBluetooth } from "@/lib/bluetoothPrint";
@@ -43,6 +44,7 @@ export default function TablesTabContent({
 
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
   const [multiOrderTable, setMultiOrderTable] = useState(null);
+  const [freeTableToast, setFreeTableToast] = useState(null); // nom de la table libre cliquée, ou null
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
 
   useEffect(() => {
@@ -211,21 +213,27 @@ export default function TablesTabContent({
     } else if (orders.length === 1) {
       setSelectedOrderForBill(orders[0]);
     } else {
-      // LOGIQUE AJOUTÉE : Cliquer sur une table libre ouvre une nouvelle commande
-      if (confirm(`La ${tableName} est libre. Créer une nouvelle commande ?`)) {
-        // MenuTabContent préfixe déjà lui-même "Table " devant ce qu'on lui
-        // donne ici — on transmet donc l'identifiant SANS le préfixe "TABLE "
-        // pour éviter de se retrouver avec "Table TABLE 07" en base.
-        const rawTableId = tableName.replace(/^table\s*/i, "") || tableName;
-        setPendingOrder({
-          table_number: rawTableId,
-          items: [],
-          total: 0,
-          order_type: "Sur place",
-        });
-        setActiveTab("menu");
-      }
+      // Table libre : on demande confirmation via le toast d'action plutôt
+      // qu'un confirm() natif — la création effective se fait dans
+      // confirmCreateOrderOnTable().
+      setFreeTableToast(tableName);
     }
+  };
+
+  const confirmCreateOrderOnTable = () => {
+    if (!freeTableToast) return;
+    // MenuTabContent préfixe déjà lui-même "Table " devant ce qu'on lui
+    // donne ici — on transmet donc l'identifiant SANS le préfixe "TABLE "
+    // pour éviter de se retrouver avec "Table TABLE 07" en base.
+    const rawTableId = freeTableToast.replace(/^table\s*/i, "") || freeTableToast;
+    setPendingOrder({
+      table_number: rawTableId,
+      items: [],
+      total: 0,
+      order_type: "Sur place",
+    });
+    setFreeTableToast(null);
+    setActiveTab("menu");
   };
 
   const handleDeleteOrder = async () => {
@@ -475,11 +483,68 @@ export default function TablesTabContent({
         </div>
       )}
 
+      {/* TOAST : TABLE LIBRE — remplace le confirm() natif */}
+      {freeTableToast && (
+        <div
+          role="alertdialog"
+          aria-live="assertive"
+          className="dash-table-toast"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 28,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            width: "min(420px, calc(100vw - 32px))",
+            padding: "16px 16px 16px 18px",
+            borderRadius: radius,
+            background: T.surface,
+            border: `1px solid ${T.line}`,
+            boxShadow: T.shadow,
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: radiusSm, background: T.goodWash, color: T.good, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Grid size={19} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13.5, fontFamily: headFont }}>{freeTableToast} libre</p>
+            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: T.faint, fontWeight: 600 }}>Démarrer une nouvelle commande ?</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setFreeTableToast(null)}
+              style={{ padding: "9px 12px", borderRadius: radiusSm, fontWeight: 700, fontSize: 11.5, background: "none", border: `1px solid ${T.line}`, color: T.muted, cursor: "pointer" }}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmCreateOrderOnTable}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: radiusSm, fontWeight: 800, fontSize: 11.5, background: T.accent, border: "none", color: T.accentInk, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Créer <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
         .dash-table-card:hover { transform: scale(1.03); }
         .dash-table-card:hover .dash-table-delete { opacity: 1; }
         .dash-table-card { transition: transform .2s; }
         @keyframes dash-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+        @keyframes dash-toast-in {
+          from { opacity: 0; transform: translate(-50%, 14px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .dash-table-toast { animation: dash-toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-table-toast { animation: none; transform: translate(-50%, 0); }
+        }
+        @media (max-width: 480px) {
+          .dash-table-toast { flex-wrap: wrap; }
+        }
       `}</style>
     </div>
   );
