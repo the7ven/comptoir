@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Grid,
   Users,
@@ -46,6 +46,8 @@ export default function TablesTabContent({
   const [multiOrderTable, setMultiOrderTable] = useState(null);
   const [freeTableToast, setFreeTableToast] = useState(null); // nom de la table libre cliquée, ou null
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
+  const [paidToast, setPaidToast] = useState(null);
+  const paidToastTimeout = useRef(null);
 
   useEffect(() => {
     if (userProfile) {
@@ -145,6 +147,10 @@ export default function TablesTabContent({
       setShowPaymentSelector(false);
       setSelectedOrderForBill(null);
       fetchData();
+
+      setPaidToast({ table: order.table_number, amount: order.total_amount, method });
+      clearTimeout(paidToastTimeout.current);
+      paidToastTimeout.current = setTimeout(() => setPaidToast(null), 4000);
     } catch (err) {
       alert(toUserMessage(err, "Impossible de finaliser l'addition de cette table."));
     }
@@ -390,7 +396,10 @@ export default function TablesTabContent({
           <div style={{ width: "100%", maxWidth: 380 }}>
             <div style={{ background: "#fff", color: "#000", padding: 24, borderRadius: 4, boxShadow: "0 20px 50px -10px rgba(0,0,0,.5)", fontFamily: "monospace", fontSize: 11, lineHeight: 1.4, borderTop: "8px solid #000" }}>
               <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: 16, marginBottom: 16 }}>
-                <h4 style={{ fontSize: 17, fontWeight: 800, textTransform: "uppercase", margin: 0, fontStyle: "italic" }}>{userProfile?.restaurant_name || "Comptoir Luxe"}</h4>
+                {/* userProfile.restaurant_name n'existe pas dans le schéma (la colonne
+                    s'appelle "name", cf. SettingsTabContent) — le nom du resto ne
+                    s'affichait donc jamais, remplacé silencieusement par le repli. */}
+                <h4 style={{ fontSize: 17, fontWeight: 800, textTransform: "uppercase", margin: 0, fontStyle: "italic" }}>{userProfile?.name || "Comptoir"}</h4>
                 <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", margin: "4px 0 0" }}>{userProfile?.location || "Abidjan, CI"}</p>
               </div>
 
@@ -526,6 +535,35 @@ export default function TablesTabContent({
               Créer <ArrowRight size={14} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* TOAST : PAIEMENT ENREGISTRÉ */}
+      {paidToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="dash-table-toast"
+          style={{
+            position: "fixed", left: "50%", bottom: 28, zIndex: 1000,
+            display: "flex", alignItems: "center", gap: 14,
+            width: "min(380px, calc(100vw - 32px))",
+            padding: "16px 16px 16px 18px", borderRadius: radius,
+            background: T.surface, border: `1px solid ${T.line}`, boxShadow: T.shadow,
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: radiusSm, background: T.goodWash, color: T.good, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <CheckCircle2 size={20} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13.5, fontFamily: headFont }}>Paiement enregistré</p>
+            <p className="num" style={{ margin: "2px 0 0", fontSize: 12, color: T.faint, fontWeight: 700 }}>
+              {paidToast.table} · {paidToast.amount?.toLocaleString()} F · {paidToast.method}
+            </p>
+          </div>
+          <button onClick={() => setPaidToast(null)} aria-label="Fermer" style={{ background: "none", border: "none", color: T.faint, cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+            <X size={16} />
+          </button>
         </div>
       )}
 
