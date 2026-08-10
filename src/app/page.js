@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { THEME as C, bodyFont, headFont } from "@/lib/theme";
+import { Sun, Moon } from "lucide-react";
+import { getTheme, bodyFont, headFont } from "@/lib/theme";
+import { useTheme } from "@/context/ThemeContext";
 
 // ---------------------------------------------------------------------------
 // Landing page — refonte "Comptoir".
@@ -120,9 +122,11 @@ const faqItems = [
 
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState(0);
+  const { isDarkMode, toggleTheme } = useTheme();
+  const C = getTheme(isDarkMode);
 
   return (
-    <div style={{ width: "100%", overflowX: "hidden", background: C.bg, color: C.ink, fontFamily: bodyFont }}>
+    <div style={{ width: "100%", overflowX: "hidden", background: C.bg, color: C.ink, fontFamily: bodyFont, transition: "background .3s, color .3s" }}>
       {/* ---------------- NAV ---------------- */}
       <header
         style={{
@@ -169,11 +173,22 @@ export default function LandingPage() {
             <a href="#temoignages" style={{ color: "inherit" }}>Témoignages</a>
             <a href="#faq" style={{ color: "inherit" }}>FAQ</a>
           </nav>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={toggleTheme}
+              aria-label={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
+              title={isDarkMode ? "Thème clair" : "Thème sombre"}
+              style={{
+                width: 38, height: 38, borderRadius: 999, border: `1px solid ${C.line}`, background: C.surface,
+                color: C.muted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <Link href="/auth/login" style={{ fontSize: 15, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>Se connecter</Link>
             <Link
               href="/auth/signup"
-              style={{ background: C.accent, color: "#fff", padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 15, whiteSpace: "nowrap" }}
+              style={{ background: C.accent, color: C.accentInk, padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 15, whiteSpace: "nowrap" }}
             >
               Essai gratuit
             </Link>
@@ -204,7 +219,7 @@ export default function LandingPage() {
             Comptoir réunit caisse, plan de salle, stocks et rapports dans une console pensée pour aller vite — même avec une connexion instable.
           </p>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <Link href="/auth/signup" style={{ background: C.accent, color: "#fff", padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
+            <Link href="/auth/signup" style={{ background: C.accent, color: C.accentInk, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
               Essai gratuit 7 jours
             </Link>
             <a href="#fonctionnalites" style={{ border: `1px solid ${C.line}`, color: C.ink, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
@@ -215,7 +230,7 @@ export default function LandingPage() {
         </div>
 
         {/* Aperçu produit — tableau de bord réel, pas une photo stock */}
-        <div style={{ width: "100%", height: 420, borderRadius: 16, background: C.white, border: `1px solid ${C.line}`, boxShadow: "0 20px 50px -20px oklch(0.2 0.02 255 / 0.15)", padding: 16 }}>
+        <div style={{ width: "100%", height: 420, borderRadius: 16, background: C.surface, border: `1px solid ${C.line}`, boxShadow: "0 20px 50px -20px oklch(0.2 0.02 255 / 0.15)", padding: 16 }}>
           <div style={{ width: "100%", height: "100%", borderRadius: 12, background: C.wash, border: `1px solid ${C.line}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.line}` }}>
               <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: C.faint }}>Recettes du jour</span>
@@ -260,12 +275,12 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------- STATS ---------------- */}
-      <section style={{ background: C.accentDark, padding: "56px 24px" }}>
+      <section style={{ background: C.panel, padding: "56px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 32, textAlign: "center" }}>
           {stats.map((s) => (
             <div key={s.l}>
-              <div style={{ fontFamily: headFont, fontWeight: 800, fontSize: 40, color: "#fff" }}>{s.v}</div>
-              <div style={{ fontSize: 14, color: "oklch(0.85 0.03 255)", marginTop: 6 }}>{s.l}</div>
+              <div style={{ fontFamily: headFont, fontWeight: 800, fontSize: 40, color: C.accentInk }}>{s.v}</div>
+              <div style={{ fontSize: 14, color: C.accentInkMuted, marginTop: 6 }}>{s.l}</div>
             </div>
           ))}
         </div>
@@ -288,8 +303,8 @@ export default function LandingPage() {
             </div>
           ))}
           <div style={{ borderRadius: 14, padding: 32, background: C.accent, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <h3 style={{ fontFamily: headFont, fontWeight: 700, fontSize: 19, margin: "0 0 10px", color: "#fff" }}>Et bien plus</h3>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: "oklch(0.9 0.03 255)", margin: 0 }}>
+            <h3 style={{ fontFamily: headFont, fontWeight: 700, fontSize: 19, margin: "0 0 10px", color: C.accentInk }}>Et bien plus</h3>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: C.accentInkMuted, margin: 0 }}>
               Sécurité des données, accès mobile pour vos équipes et support local — tout est pensé pour votre quotidien.
             </p>
           </div>
@@ -316,7 +331,7 @@ export default function LandingPage() {
               ].map((txt) => (
                 <div key={txt} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, marginTop: 8, flexShrink: 0 }} />
-                  <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "oklch(0.30 0.02 255)" }}>{txt}</p>
+                  <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: C.ink }}>{txt}</p>
                 </div>
               ))}
             </div>
@@ -334,7 +349,7 @@ export default function LandingPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
           {testimonials.map((t) => (
             <div key={t.name} style={{ border: `1px solid ${C.line}`, borderRadius: 14, padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
-              <p style={{ fontSize: 16, lineHeight: 1.6, margin: 0, color: "oklch(0.25 0.02 255)" }}>&ldquo;{t.q}&rdquo;</p>
+              <p style={{ fontSize: 16, lineHeight: 1.6, margin: 0, color: C.ink }}>&ldquo;{t.q}&rdquo;</p>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.wash, color: C.accentDark, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0, border: `1px solid ${C.line}` }}>
                   {t.initials}
@@ -360,7 +375,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16 }}>
             {paymentMethods.map((m) => (
-              <div key={m} style={{ background: "#fff", borderRadius: 12, padding: 20, textAlign: "center", fontWeight: 700, fontSize: 14, color: C.muted }}>
+              <div key={m} style={{ background: C.surface, borderRadius: 12, padding: 20, textAlign: "center", fontWeight: 700, fontSize: 14, color: C.muted }}>
                 {m}
               </div>
             ))}
@@ -390,7 +405,7 @@ export default function LandingPage() {
               }}
             >
               {p.highlight && (
-                <div style={{ position: "absolute", top: -14, left: 36, background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 999 }}>
+                <div style={{ position: "absolute", top: -14, left: 36, background: C.accent, color: C.accentInk, fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 999 }}>
                   Le plus choisi
                 </div>
               )}
@@ -400,7 +415,7 @@ export default function LandingPage() {
                 <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 38 }}>{p.price}</span>
                 <span style={{ fontSize: 15, color: C.faint }}> {p.period}</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, fontSize: 14, color: "oklch(0.30 0.02 255)", flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, fontSize: 14, color: C.ink, flex: 1 }}>
                 {p.features.map((f) => (
                   <div key={f}>✓ {f}</div>
                 ))}
@@ -410,7 +425,7 @@ export default function LandingPage() {
                 style={{
                   background: p.highlight ? C.accent : "transparent",
                   border: p.highlight ? "none" : `1px solid ${C.line}`,
-                  color: p.highlight ? "#fff" : C.ink,
+                  color: p.highlight ? C.accentInk : C.ink,
                   padding: 12,
                   borderRadius: 8,
                   fontWeight: 700,
@@ -466,13 +481,13 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------- CTA FINAL ---------------- */}
-      <section style={{ background: C.accentDark, padding: "80px 24px", textAlign: "center" }}>
+      <section style={{ background: C.panel, padding: "80px 24px", textAlign: "center" }}>
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <h2 style={{ fontFamily: headFont, fontWeight: 800, fontSize: "clamp(28px, 3vw, 36px)", color: "#fff", letterSpacing: "-0.02em", margin: "0 0 16px" }}>
+          <h2 style={{ fontFamily: headFont, fontWeight: 800, fontSize: "clamp(28px, 3vw, 36px)", color: C.accentInk, letterSpacing: "-0.02em", margin: "0 0 16px" }}>
             Prêt à simplifier la gestion de votre restaurant ?
           </h2>
-          <p style={{ fontSize: 17, color: "oklch(0.85 0.03 255)", margin: "0 0 32px" }}>7 jours d'essai gratuit. Sans carte bancaire.</p>
-          <Link href="/auth/signup" style={{ display: "inline-block", background: "#fff", color: C.accentDark, padding: "14px 32px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
+          <p style={{ fontSize: 17, color: C.accentInkMuted, margin: "0 0 32px" }}>7 jours d'essai gratuit. Sans carte bancaire.</p>
+          <Link href="/auth/signup" style={{ display: "inline-block", background: C.accentInk, color: C.panel, padding: "14px 32px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
             Démarrer l'essai gratuit
           </Link>
         </div>
