@@ -8,6 +8,7 @@ import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff, ArrowLeft } from 'l
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
+import SocialAuthRow from '@/app/auth/_components/SocialAuthRow';
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
@@ -193,7 +194,9 @@ export default function SignupPage() {
               </button>
             </form>
 
-            <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
+            <SocialAuthRow />
+
+            <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: C.faint }}>
               Déjà membre ?{' '}
               <Link href="/auth/login" style={{ color: C.accent, fontWeight: 700 }}>Se connecter</Link>
             </p>

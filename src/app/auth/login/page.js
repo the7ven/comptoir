@@ -8,6 +8,7 @@ import { Mail, Lock, LogIn, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
+import SocialAuthRow from '@/app/auth/_components/SocialAuthRow';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -150,7 +151,9 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
+            <SocialAuthRow />
+
+            <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: C.faint }}>
               Pas encore de compte ?{' '}
               <Link href="/auth/signup" style={{ color: C.accent, fontWeight: 700 }}>Créer mon restaurant</Link>
             </p>
