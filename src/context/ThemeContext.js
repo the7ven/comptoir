@@ -4,11 +4,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // Thème clair par défaut : c'est la palette "vitrine" (landing, connexion,
+  // inscription) déjà peaufinée pour le produit. Le dashboard reste
+  // basculable en sombre, mais un nouveau visiteur/utilisateur qui n'a
+  // jamais touché l'interrupteur voit d'abord le thème clair partout.
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') setIsDarkMode(false);
+    if (savedTheme === 'dark') setIsDarkMode(true);
   }, []);
 
   const toggleTheme = () => {
