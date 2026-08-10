@@ -300,8 +300,8 @@ export default function LandingPage() {
       <section style={{ background: C.wash, padding: "96px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 56, alignItems: "center" }}>
           <img
-            src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/plandesalle.webp"
-            alt="Plan de salle Comptoir"
+            src="https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/dashboardcomptoir.webp"
+            alt="tableau de bord "
             style={{ width: "100%", height: 400, objectFit: "cover", borderRadius: 16, border: `1px solid ${C.line}` }}
           />
           <div>
