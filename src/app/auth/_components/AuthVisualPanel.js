@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { headFont } from "@/lib/theme";
 
+const BG_PHOTO = "https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/simon-kadula--gkndM1GvSA-unsplash.jpg";
+
 // Panneau visuel partagé par connexion/inscription — colonne de gauche sur
 // desktop (masquée en dessous de 880px via .auth-visual dans les pages
 // appelantes, le formulaire reste seul et centré sur mobile).
@@ -19,11 +21,23 @@ export default function AuthVisualPanel({ eyebrow, title, points }) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "linear-gradient(155deg, oklch(0.55 0.19 255) 0%, oklch(0.40 0.17 260) 55%, oklch(0.28 0.15 292) 100%)",
+        // Photo d'ambiance en fond ; en cas d'échec de chargement, le
+        // dégradé bleu signature Comptoir sert de repli (background-color).
+        backgroundColor: "oklch(0.40 0.17 260)",
+        backgroundImage: `url(${BG_PHOTO})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
       }}
     >
-      <div style={{ position: "absolute", width: 360, height: 360, borderRadius: "50%", background: "oklch(0.72 0.15 210 / .35)", filter: "blur(80px)", top: -110, right: -100 }} />
-      <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: "oklch(0.55 0.2 300 / .32)", filter: "blur(90px)", bottom: -80, left: -70 }} />
+      {/* Voile bleu Comptoir sur la photo, pour garder le texte lisible
+          quelle que soit la luminosité de l'image et rester sur la marque. */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(165deg, oklch(0.30 0.14 260 / .82) 0%, oklch(0.24 0.12 265 / .78) 45%, oklch(0.16 0.10 270 / .92) 100%)",
+        }}
+      />
 
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, textDecoration: "none" }}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff" }} />

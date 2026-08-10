@@ -89,7 +89,7 @@ export default function SignupPage() {
         <AuthVisualPanel
           eyebrow="Nouveau restaurant"
           title="Gérez votre restaurant à la vitesse de la lumière."
-          points={["Opérationnel en moins de 5 minutes", "Sans carte bancaire, sans engagement", "Support local basé à Abidjan"]}
+          points={["Opérationnel en moins de 5 minutes", "Sans carte bancaire, sans engagement", "Support dans les 24h"]}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
