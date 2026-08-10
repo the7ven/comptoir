@@ -19,6 +19,16 @@ import { supabase } from "@/lib/supabase";
 import { toUserMessage } from "@/lib/errors";
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from "@/lib/dashTheme";
 
+// finalizeOrder() reconstruit toujours table_number comme `Table ${tableNum}`
+// — donc tableNum ne doit JAMAIS contenir de préfixe "Table " lui-même.
+// Or pendingOrder.table_number (qu'il vienne d'une commande existante à
+// modifier, éditée depuis Commandes, ou d'ailleurs) est déjà au format
+// complet ("Table 5"). Sans ce nettoyage à l'entrée, rouvrir puis
+// ré-enregistrer une commande produit "Table Table 5" — une valeur qui ne
+// correspond plus à aucune table, et la commande "disparaît" du plan de
+// salle après modification.
+const stripTablePrefix = (v) => (v || "").replace(/^table\s*/i, "");
+
 export default function MenuTabContent({
   isDarkMode,
   cart,
@@ -41,7 +51,7 @@ export default function MenuTabContent({
   const [orderType, setOrderType] = useState(
     pendingOrder?.order_type || "Sur place",
   );
-  const [tableNum, setTableNum] = useState(pendingOrder?.table_number || "");
+  const [tableNum, setTableNum] = useState(stripTablePrefix(pendingOrder?.table_number));
 
   // Un caissier peut vendre depuis le menu, mais seul le owner peut créer/
   // modifier/supprimer des plats et fixer les prix. Ceci ne remplace pas
@@ -53,7 +63,7 @@ export default function MenuTabContent({
     if (userProfile) fetchDishes();
     if (pendingOrder) {
       setOrderType(pendingOrder.order_type || "Sur place");
-      setTableNum(pendingOrder.table_number || "");
+      setTableNum(stripTablePrefix(pendingOrder.table_number));
     }
   }, [pendingOrder, userProfile]);
 
