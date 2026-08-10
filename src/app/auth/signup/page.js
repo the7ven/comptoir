@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { THEME as C, bodyFont, headFont } from '@/lib/theme';
-import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
@@ -83,113 +84,127 @@ export default function SignupPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 420 }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, flexShrink: 0 }} />
-          <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', color: C.ink }}>Comptoir</span>
-        </Link>
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont }}>
+      <div className="auth-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', minHeight: '100vh' }}>
+        <AuthVisualPanel
+          eyebrow="Nouveau restaurant"
+          title="Gérez votre restaurant à la vitesse de la lumière."
+          points={["Opérationnel en moins de 5 minutes", "Sans carte bancaire, sans engagement", "Support local basé à Abidjan"]}
+        />
 
-        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
-          <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Créer un compte</h1>
-          <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Lancez votre restaurant sur le cloud</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 36 }}>
+              <ArrowLeft size={15} /> Retour à l&apos;accueil
+            </Link>
 
-          <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Nom du restaurant</label>
-              <div style={{ position: 'relative' }}>
-                <User size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
-                <input
-                  required
-                  type="text"
-                  placeholder="ex: Le Grill du Plateau"
-                  value={formData.restoName}
-                  onChange={e => setFormData({ ...formData, restoName: e.target.value })}
-                  style={inputStyle}
-                  onFocus={e => (e.target.style.borderColor = C.accent)}
-                  onBlur={e => (e.target.style.borderColor = C.line)}
-                />
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: C.accent, marginBottom: 24 }} />
+
+            <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Créer un compte</h1>
+            <p style={{ fontSize: 14, color: C.muted, margin: '0 0 32px' }}>Lancez votre restaurant sur le cloud</p>
+
+            <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Nom du restaurant</label>
+                <div style={{ position: 'relative' }}>
+                  <User size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                  <input
+                    required
+                    type="text"
+                    placeholder="ex: Le Grill du Plateau"
+                    value={formData.restoName}
+                    onChange={e => setFormData({ ...formData, restoName: e.target.value })}
+                    style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = C.accent)}
+                    onBlur={e => (e.target.style.borderColor = C.line)}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Email professionnel</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
-                <input
-                  required
-                  type="email"
-                  placeholder="contact@votre-resto.com"
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  style={inputStyle}
-                  onFocus={e => (e.target.style.borderColor = C.accent)}
-                  onBlur={e => (e.target.style.borderColor = C.line)}
-                />
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Email professionnel</label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                  <input
+                    required
+                    type="email"
+                    placeholder="contact@votre-resto.com"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = C.accent)}
+                    onBlur={e => (e.target.style.borderColor = C.line)}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Mot de passe</label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
-                <input
-                  required
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Min. 6 caractères"
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  style={{ ...inputStyle, paddingRight: 44 }}
-                  onFocus={e => (e.target.style.borderColor = C.accent)}
-                  onBlur={e => (e.target.style.borderColor = C.line)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Mot de passe</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+                  <input
+                    required
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min. 6 caractères"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    style={{ ...inputStyle, paddingRight: 44 }}
+                    onFocus={e => (e.target.style.borderColor = C.accent)}
+                    onBlur={e => (e.target.style.borderColor = C.line)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: C.faint, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                background: C.accent,
-                color: '#fff',
-                fontFamily: bodyFont,
-                fontWeight: 700,
-                fontSize: 15,
-                padding: '14px 0',
-                borderRadius: 10,
-                border: 'none',
-                cursor: loading ? 'default' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                marginTop: 8,
-              }}
-            >
-              {loading ? <Loader2 className="animate-spin" size={18} /> : (
-                <>
-                  <span>Devenir partenaire</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  background: C.accent,
+                  color: '#fff',
+                  fontFamily: bodyFont,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  padding: '14px 0',
+                  borderRadius: 10,
+                  border: 'none',
+                  cursor: loading ? 'default' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  marginTop: 8,
+                }}
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : (
+                  <>
+                    <span>Devenir partenaire</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
 
-          <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
-            Déjà membre ?{' '}
-            <Link href="/auth/login" style={{ color: C.accent, fontWeight: 700 }}>Se connecter</Link>
-          </p>
+            <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.faint }}>
+              Déjà membre ?{' '}
+              <Link href="/auth/login" style={{ color: C.accent, fontWeight: 700 }}>Se connecter</Link>
+            </p>
+          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (min-width: 880px) { .auth-grid { grid-template-columns: 1fr 1fr !important; } }
+        @media (max-width: 879px) { .auth-visual { display: none !important; } }
+      `}</style>
     </div>
   );
 }
