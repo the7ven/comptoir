@@ -16,6 +16,15 @@ import { printViaBluetooth } from "@/lib/bluetoothPrint";
 import { toUserMessage } from "@/lib/errors";
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from "@/lib/dashTheme";
 
+// Les tables ("TABLE 07", toujours en majuscules) et les commandes
+// ("Table 07", préfixe ajouté par MenuTabContent à partir de ce que tape
+// le caissier) ne partagent pas la même casse — et certains noms de table
+// libres ("Terrasse", "VIP"...) n'ont même pas de préfixe "TABLE " du
+// tout. On normalise donc les deux côtés (préfixe "table" retiré, casse
+// ignorée) avant toute comparaison, sinon aucune commande ne "retrouve"
+// jamais sa table.
+const normalizeTableId = (v) => (v || "").trim().replace(/^table\s*/i, "").toUpperCase();
+
 export default function TablesTabContent({
   isDarkMode,
   setActiveTab,
@@ -196,7 +205,7 @@ export default function TablesTabContent({
   };
 
   const handleTableClick = (tableName) => {
-    const orders = activeOrders.filter((o) => o.table_number === tableName);
+    const orders = activeOrders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(tableName));
     if (orders.length > 1) {
       setMultiOrderTable({ name: tableName, orders });
     } else if (orders.length === 1) {
@@ -204,8 +213,12 @@ export default function TablesTabContent({
     } else {
       // LOGIQUE AJOUTÉE : Cliquer sur une table libre ouvre une nouvelle commande
       if (confirm(`La ${tableName} est libre. Créer une nouvelle commande ?`)) {
+        // MenuTabContent préfixe déjà lui-même "Table " devant ce qu'on lui
+        // donne ici — on transmet donc l'identifiant SANS le préfixe "TABLE "
+        // pour éviter de se retrouver avec "Table TABLE 07" en base.
+        const rawTableId = tableName.replace(/^table\s*/i, "") || tableName;
         setPendingOrder({
-          table_number: tableName,
+          table_number: rawTableId,
           items: [],
           total: 0,
           order_type: "Sur place",
@@ -263,7 +276,7 @@ export default function TablesTabContent({
       {/* GRILLE DES TABLES */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16 }}>
         {tables.map((table) => {
-          const tableOrders = activeOrders.filter((o) => o.table_number === table.table_name);
+          const tableOrders = activeOrders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(table.table_name));
           const currentStatus =
             tableOrders.length > 0
               ? tableOrders.some((o) => o.status === "Prêt") ? "Addition" : "Occupée"
