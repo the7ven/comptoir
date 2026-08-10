@@ -3,12 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   Banknote, Smartphone, CreditCard,
-  ArrowRight,
+  ArrowRight, TrendingUp,
   Loader2, Utensils, GlassWater, Flame, Beer
 } from 'lucide-react';
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, inputStyle, pill, eyebrow, headFont, radius, radiusSm } from '@/lib/dashTheme';
+
+const MONTH_LABELS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
 export default function CashierTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
@@ -30,6 +35,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [closingData, setClosingData] = useState({ cashInHand: "", notes: "" });
   const [isClosing, setIsClosing] = useState(false);
+  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     if (userProfile) fetchDailyData();
@@ -103,10 +109,45 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
       const totalExp = exp?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
+      // GRAPHIQUE : recettes vs dépenses, en buckets adaptés à la période —
+      // par heure pour "jour", par jour pour "semaine"/"mois", par mois
+      // pour "année" (sinon 365 points de jour illisibles sur la vue annuelle).
+      let buckets = [];
+      if (period === "day") {
+        buckets = [...Array(24)].map((_, h) => ({
+          label: `${h}h`,
+          recettes: (trans || []).filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0),
+          depenses: (exp || []).filter(e => new Date(e.created_at).getHours() === h).reduce((s, e) => s + Number(e.amount), 0),
+        }));
+      } else if (period === "year") {
+        buckets = MONTH_LABELS.map((label, m) => ({
+          label,
+          recettes: (trans || []).filter(t => new Date(t.created_at).getMonth() === m).reduce((s, t) => s + Number(t.amount), 0),
+          depenses: (exp || []).filter(e => new Date(e.created_at).getMonth() === m).reduce((s, e) => s + Number(e.amount), 0),
+        }));
+      } else {
+        const dayKey = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        const recettesByDay = (trans || []).reduce((acc, t) => {
+          const k = dayKey(t.created_at);
+          acc[k] = (acc[k] || 0) + Number(t.amount);
+          return acc;
+        }, {});
+        const depensesByDay = (exp || []).reduce((acc, e) => {
+          const k = dayKey(e.created_at);
+          acc[k] = (acc[k] || 0) + Number(e.amount);
+          return acc;
+        }, {});
+        // trans/exp sont triés du plus récent au plus ancien -> on inverse
+        // pour que le graphique se lise chronologiquement de gauche à droite.
+        const days = [...new Set([...Object.keys(recettesByDay), ...Object.keys(depensesByDay)])].reverse();
+        buckets = days.map((label) => ({ label, recettes: recettesByDay[label] || 0, depenses: depensesByDay[label] || 0 }));
+      }
+
       setTransactions(trans || []);
       setSalesData({ total: totalSales, byMethod: methods });
       setSectionData({ repas, cocktails, jusNaturel: jus, barGlobal: bar });
       setTotalExpenses(totalExp);
+      setChartData(buckets);
     } catch (err) {
       console.error("Erreur caisse:", err.message);
     } finally {
@@ -184,6 +225,33 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
             ))}
           </div>
         )}
+      </div>
+
+      {/* --- GRAPHIQUE RECETTES VS DÉPENSES — navigable jour/semaine/mois/année --- */}
+      <div style={card(T, { padding: 26 })}>
+        <h4 style={{ fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, margin: "0 0 18px" }}>
+          <TrendingUp size={18} color={T.accent} /> Évolution ({periods.find(p => p.id === period)?.label.toLowerCase()})
+        </h4>
+        <div style={{ height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorRecettes" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={T.accent} stopOpacity={0.25} /><stop offset="95%" stopColor={T.accent} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorDepenses" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={T.bad} stopOpacity={0.2} /><stop offset="95%" stopColor={T.bad} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={T.line} />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: T.faint, fontSize: 11 }} />
+              <Tooltip contentStyle={{ borderRadius: radiusSm, border: `1px solid ${T.line}`, backgroundColor: T.surface, color: T.ink }} labelStyle={{ color: T.ink }} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: T.muted }} />
+              <Area type="monotone" dataKey="recettes" name="Recettes" stroke={T.accent} strokeWidth={2.5} fill="url(#colorRecettes)" />
+              <Area type="monotone" dataKey="depenses" name="Dépenses" stroke={T.bad} strokeWidth={2.5} fill="url(#colorDepenses)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }} className="dash-grid-collapse">
