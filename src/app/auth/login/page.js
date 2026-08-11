@@ -8,6 +8,7 @@ import { Mail, Lock, LogIn, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
+import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
 import SocialAuthRow from '@/app/auth/_components/SocialAuthRow';
 
 export default function LoginPage() {
@@ -59,8 +60,9 @@ export default function LoginPage() {
           points={["Caisse & paiements en un geste", "Plan de salle en temps réel", "Rapports toujours à jour"]}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
-          <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
+          <AuthDecorPattern />
+          <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 400 }}>
             <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 36 }}>
               <ArrowLeft size={15} /> Retour à l&apos;accueil
             </Link>

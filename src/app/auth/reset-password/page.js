@@ -6,6 +6,7 @@ import { toUserMessage } from '@/lib/errors';
 import { THEME as C, bodyFont, headFont } from '@/lib/theme';
 import { Mail, ArrowLeft, Loader2, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -34,8 +35,9 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 420 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <AuthDecorPattern />
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
         <Link href="/auth/login" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 24 }}>
           <ArrowLeft size={14} /> Retour à la connexion
         </Link>
