@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { getTheme, bodyFont, headFont } from '@/lib/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Lock, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
+import AuthThemeToggle from '@/app/auth/_components/AuthThemeToggle';
 
 export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -14,6 +16,8 @@ export default function UpdatePasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const router = useRouter();
+  const { isDarkMode } = useTheme();
+  const C = getTheme(isDarkMode);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -43,7 +47,11 @@ export default function UpdatePasswordPage() {
     <div style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <AuthDecorPattern />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <AuthThemeToggle />
+        </div>
+
+        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
           {!isSuccess ? (
             <>
               <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Nouveau mot de passe</h1>
@@ -60,7 +68,7 @@ export default function UpdatePasswordPage() {
                       placeholder="••••••••"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      style={{ width: '100%', background: C.white, border: `1px solid ${C.line}`, padding: '14px 44px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
+                      style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, padding: '14px 44px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
                       onFocus={e => (e.target.style.borderColor = C.accent)}
                       onBlur={e => (e.target.style.borderColor = C.line)}
                     />
@@ -80,7 +88,7 @@ export default function UpdatePasswordPage() {
                   style={{
                     width: '100%',
                     background: C.accent,
-                    color: '#fff',
+                    color: C.accentInk,
                     fontFamily: bodyFont,
                     fontWeight: 700,
                     fontSize: 15,
