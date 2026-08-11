@@ -31,9 +31,8 @@ const trustLogos = [
 ];
 
 const stats = [
-  { v: "500+", l: "restaurants gérés" },
   { v: "5 min", l: "pour prendre l'outil en main" },
-  { v: "24/7", l: "support local basé à Abidjan" },
+  { v: "24/7", l: "support local basé à Douala" },
   { v: "0", l: "vente perdue, même hors-ligne" },
 ];
 
