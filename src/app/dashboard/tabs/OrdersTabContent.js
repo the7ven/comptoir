@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Clock, CheckCircle2, Plus, Flame, Utensils,
   Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Beer,
@@ -22,6 +22,8 @@ export default function OrdersTabContent({
   const [previewOrder, setPreviewOrder] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [showPaymentSelector, setShowPaymentSelector] = useState(false);
+  const [paidToast, setPaidToast] = useState(null);
+  const paidToastTimeout = useRef(null);
 
   useEffect(() => {
     if (userProfile) {
@@ -69,9 +71,14 @@ export default function OrdersTabContent({
   };
 
   const handleUpdateStatus = async (order) => {
+    // "Servi" ne se déclenche plus que par un paiement réel (handleFinalizeOrder)
+    // — ce bouton ne fait plus avancer que En cours -> Prêt. Avant, cliquer ici
+    // sur une commande "Prêt" la faisait passer "Servi" SANS aucun paiement
+    // enregistré, ce qui rendait ensuite impossible de savoir si une commande
+    // "Servi" avait vraiment été encaissée ou non.
+    if (order.status !== "En cours") return;
     try {
-      const nextStatus = order.status === "En cours" ? "Prêt" : "Servi";
-      await supabase.from("orders").update({ status: nextStatus }).eq("id", order.id);
+      await supabase.from("orders").update({ status: "Prêt" }).eq("id", order.id);
       fetchOrders();
     } catch (err) { alert(toUserMessage(err, "Impossible de mettre à jour le statut de la commande.")); }
   };
@@ -91,6 +98,10 @@ export default function OrdersTabContent({
       setSelectedOrderForBill(null);
       setShowPaymentSelector(false);
       fetchOrders();
+
+      setPaidToast({ table: order.table_number, amount: order.total_amount, method });
+      clearTimeout(paidToastTimeout.current);
+      paidToastTimeout.current = setTimeout(() => setPaidToast(null), 4000);
     } catch (err) { alert(toUserMessage(err, "Impossible de finaliser cette commande.")); }
   };
 
@@ -103,6 +114,13 @@ export default function OrdersTabContent({
   // Filtrage pour les aperçus Cuisine/Bar
   const kitchenItems = previewOrder?.items_details.filter(i => ["Plats", "Accompagnements"].includes(i.category)) || [];
   const barItems = previewOrder?.items_details.filter(i => !["Plats", "Accompagnements"].includes(i.category)) || [];
+
+  // Commandes déjà réglées séparées des commandes actives : une commande
+  // "Servi" ne doit plus pouvoir être ré-encaissée (transaction en double,
+  // écart de caisse) ni modifiée (le total encaissé ne correspondrait plus
+  // aux articles).
+  const activeOrders = orders.filter((o) => o.status !== "Servi");
+  const paidOrders = orders.filter((o) => o.status === "Servi");
 
   return (
     <div style={{ textAlign: "left", paddingBottom: 40 }}>
@@ -123,42 +141,49 @@ export default function OrdersTabContent({
         <QuickStat T={T} label="Finalisés" value={orders.filter((o) => o.status === "Servi").length} icon={<CheckCircle2 size={18} color={T.accent} />} />
       </div>
 
-      {/* LISTE DES COMMANDES */}
+      {/* LISTE DES COMMANDES ACTIVES */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
-        {orders.map((order) => (
-          <div key={order.id} style={{ ...card(T, { padding: 18 }), display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
-                background: order.status === "En cours" ? T.accent : T.surface2, color: order.status === "En cours" ? T.accentInk : T.faint,
-              }}>
-                {order.table_number?.replace("Table ", "T.")}
-              </div>
-              <button onClick={() => setPreviewOrder(order)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 999, background: "oklch(0.7 0.16 55 / .12)", color: "oklch(0.55 0.16 55)", border: "none", cursor: "pointer" }}>
-                <Printer size={13} /> <span style={{ fontSize: 9.5, fontWeight: 800, textTransform: "uppercase" }}>Tickets</span>
-              </button>
-            </div>
-
-            <div style={{ flex: 1, marginBottom: 14 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.35, margin: "0 0 8px" }}>{order.items_summary}</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .5 }}>
-                <Clock size={10} />
-                <span style={{ fontSize: 10, fontWeight: 700 }}>{new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-            </div>
-
-            <div style={{ paddingTop: 14, borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p className="num" style={{ fontWeight: 800, color: T.accent, fontSize: 14, margin: 0 }}>{order.total_amount?.toLocaleString()} F</p>
-              <div style={{ display: "flex", gap: 4 }}>
-                <ActionBtn T={T} onClick={() => { setCart(order.items_details); setPendingOrder(order); setActiveTab("menu"); }} icon={<Edit3 size={13} />} />
-                <ActionBtn T={T} onClick={() => handleUpdateStatus(order)} icon={<Check size={13} />} />
-                <ActionBtn T={T} onClick={() => setSelectedOrderForBill(order)} icon={<Receipt size={13} />} />
-                <ActionBtn T={T} onClick={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }} icon={<Trash2 size={13} />} />
-              </div>
-            </div>
-          </div>
+        {activeOrders.map((order) => (
+          <OrderCard
+            key={order.id}
+            T={T}
+            order={order}
+            onPreview={() => setPreviewOrder(order)}
+            onEdit={() => { setCart(order.items_details); setPendingOrder(order); setActiveTab("menu"); }}
+            onAdvance={() => handleUpdateStatus(order)}
+            onPay={() => setSelectedOrderForBill(order)}
+            onDelete={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }}
+          />
         ))}
+        {activeOrders.length === 0 && (
+          <p style={{ gridColumn: "1 / -1", padding: "30px 0", textAlign: "center", opacity: .4, fontStyle: "italic", fontSize: 13 }}>
+            Aucune commande active pour le moment.
+          </p>
+        )}
       </div>
+
+      {/* COMMANDES DÉJÀ RÉGLÉES — séparées, sans action d'encaissement ni de
+          modification pour ne pas pouvoir facturer une même commande deux fois. */}
+      {paidOrders.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <h4 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 14, margin: 0 }}>Commandes réglées</h4>
+            <span className="num" style={{ padding: "2px 9px", borderRadius: 999, background: T.surface2, color: T.faint, fontSize: 10.5, fontWeight: 800 }}>{paidOrders.length}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+            {paidOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                T={T}
+                order={order}
+                paid
+                onPreview={() => setPreviewOrder(order)}
+                onDelete={() => { setOrderToDelete(order); setIsDeleteModalOpen(true); }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* --- MODALE FACTURE CLIENT (DÉTAILLÉE) — reste blanc/noir/mono, aperçu papier --- */}
       {selectedOrderForBill && (
@@ -278,6 +303,97 @@ export default function OrdersTabContent({
           </div>
         </div>
       )}
+
+      {/* TOAST : PAIEMENT ENREGISTRÉ */}
+      {paidToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="dash-order-toast"
+          style={{
+            position: "fixed", left: "50%", bottom: 28, zIndex: 1000,
+            display: "flex", alignItems: "center", gap: 14,
+            width: "min(380px, calc(100vw - 32px))",
+            padding: "16px 16px 16px 18px", borderRadius: radius,
+            background: T.surface, border: `1px solid ${T.line}`, boxShadow: T.shadow,
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: radiusSm, background: T.goodWash, color: T.good, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <CheckCircle2 size={20} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13.5, fontFamily: headFont }}>Paiement enregistré</p>
+            <p className="num" style={{ margin: "2px 0 0", fontSize: 12, color: T.faint, fontWeight: 700 }}>
+              {paidToast.table} · {paidToast.amount?.toLocaleString()} F · {paidToast.method}
+            </p>
+          </div>
+          <button onClick={() => setPaidToast(null)} aria-label="Fermer" style={{ background: "none", border: "none", color: T.faint, cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes dash-toast-in {
+          from { opacity: 0; transform: translate(-50%, 14px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .dash-order-toast { animation: dash-toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-order-toast { animation: none; transform: translate(-50%, 0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function OrderCard({ T, order, paid = false, onPreview, onEdit, onAdvance, onPay, onDelete }) {
+  return (
+    <div style={{ ...card(T, { padding: 18 }), display: "flex", flexDirection: "column", justifyContent: "space-between", opacity: paid ? 0.75 : 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+          background: order.status === "En cours" ? T.accent : T.surface2, color: order.status === "En cours" ? T.accentInk : T.faint,
+        }}>
+          {order.table_number?.replace("Table ", "T.")}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {paid && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 999, background: T.goodWash, color: T.good, fontSize: 9, fontWeight: 800, textTransform: "uppercase" }}>
+              <CheckCircle2 size={11} /> Payée
+            </span>
+          )}
+          <button onClick={onPreview} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 999, background: "oklch(0.7 0.16 55 / .12)", color: "oklch(0.55 0.16 55)", border: "none", cursor: "pointer" }}>
+            <Printer size={13} /> <span style={{ fontSize: 9.5, fontWeight: 800, textTransform: "uppercase" }}>Tickets</span>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, marginBottom: 14 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.35, margin: "0 0 8px" }}>{order.items_summary}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .5 }}>
+          <Clock size={10} />
+          <span style={{ fontSize: 10, fontWeight: 700 }}>{new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      </div>
+
+      <div style={{ paddingTop: 14, borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <p className="num" style={{ fontWeight: 800, color: T.accent, fontSize: 14, margin: 0 }}>{order.total_amount?.toLocaleString()} F</p>
+        <div style={{ display: "flex", gap: 4 }}>
+          {/* Une commande déjà réglée n'a plus ni action "Modifier" (le total
+              encaissé ne correspondrait plus aux articles) ni "Encaisser"
+              (double transaction = écart de caisse) — seule la suppression
+              reste possible, pour une éventuelle correction administrative. */}
+          {!paid && (
+            <>
+              <ActionBtn T={T} onClick={onEdit} icon={<Edit3 size={13} />} />
+              {order.status === "En cours" && <ActionBtn T={T} onClick={onAdvance} icon={<Check size={13} />} />}
+              <ActionBtn T={T} onClick={onPay} icon={<Receipt size={13} />} />
+            </>
+          )}
+          <ActionBtn T={T} onClick={onDelete} icon={<Trash2 size={13} />} />
+        </div>
+      </div>
     </div>
   );
 }
