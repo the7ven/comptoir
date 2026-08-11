@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { headFont } from "@/lib/theme";
+import BrandMark from "@/components/BrandMark";
 
 const BG_PHOTO = "https://rljfqvmjrhsairduykww.supabase.co/storage/v1/object/public/logos/simon-kadula--gkndM1GvSA-unsplash.jpg";
 
@@ -40,7 +41,7 @@ export default function AuthVisualPanel({ eyebrow, title, points }) {
       />
 
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, textDecoration: "none" }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff" }} />
+        <BrandMark size={30} color="#fff" barColor="oklch(0.52 0.19 255)" />
         <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 19, color: "#fff", letterSpacing: "-0.02em" }}>Comptoir</span>
       </Link>
 

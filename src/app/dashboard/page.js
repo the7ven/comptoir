@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import BrandMark from '@/components/BrandMark';
 
 // --- IMPORTS DES ONGLETS ---
 import MenuTabContent from './tabs/MenuTabContent';
@@ -193,7 +194,7 @@ export default function AdminDashboard() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: T.accent, flex: 'none' }} />
+            <BrandMark size={30} color={T.accent} />
             <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18 }}>Comptoir</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg-hidden" style={{ padding: 6, opacity: .5, background: 'none', border: 'none', cursor: 'pointer', color: T.ink }}>
