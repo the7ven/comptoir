@@ -83,7 +83,11 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
       const { data: exp, error: expErr } = await supabase
         .from('expenses')
-        .select('amount')
+        // "created_at" est nécessaire pour répartir chaque dépense dans le
+        // bon créneau du graphique Évolution (par heure/jour/mois) — sans
+        // cette colonne, new Date(e.created_at) est invalide et la courbe
+        // "Dépenses" reste plate à zéro même s'il y a des dépenses.
+        .select('amount, created_at')
         .eq('owner_email', userProfile.owner_email)
         .gte('created_at', start)
         .lte('created_at', end);
