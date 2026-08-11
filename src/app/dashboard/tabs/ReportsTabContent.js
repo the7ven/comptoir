@@ -33,7 +33,9 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     barRecette: 0,
     comparison: [],
     paymentDistribution: [],
-    monthlyBreakdown: []
+    monthlyBreakdown: [],
+    expensesList: [],
+    expensesByCategory: [],
   });
 
   useEffect(() => {
@@ -133,6 +135,20 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         monthlyMap[monthKey].depenses += Number(e.amount) || 0;
       });
 
+      // Détail des dépenses (liste + répartition par catégorie), pour le
+      // rapport PDF — jusqu'ici seul le total agrégé était disponible.
+      const expensesByCategory = Object.entries(
+        expenses.reduce((acc, e) => {
+          const cat = e.category || 'Autre';
+          acc[cat] = (acc[cat] || 0) + (Number(e.amount) || 0);
+          return acc;
+        }, {})
+      )
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const expensesList = [...expenses].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
       setData({
         recettes: totalRecettes,
         achats: totalAchats,
@@ -145,7 +161,9 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           { name: 'Dépenses', recettes: 0, achats: totalAchats }
         ],
         paymentDistribution: Object.entries(methods).map(([name, value]) => ({ name, value, color: colors[name] || T.faint })),
-        monthlyBreakdown: Object.entries(monthlyMap).map(([month, vals]) => ({ month, ...vals }))
+        monthlyBreakdown: Object.entries(monthlyMap).map(([month, vals]) => ({ month, ...vals })),
+        expensesList,
+        expensesByCategory,
       });
 
     } catch (err) { console.error("Erreur rapports:", err.message); }
@@ -218,6 +236,57 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           theme: 'striped',
           headStyles: { fillColor: accentRgb },
           styles: { fontSize: 10 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.expensesByCategory.length > 0) {
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Dépenses par catégorie', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Catégorie', 'Montant (F CFA)']],
+          body: data.expensesByCategory.map((c) => [c.category, formatFcfa(c.amount)]),
+          theme: 'striped',
+          headStyles: { fillColor: [220, 38, 38] },
+          styles: { fontSize: 10 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.expensesList.length > 0) {
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Détail des dépenses', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Date', 'Désignation', 'Catégorie', 'Montant (F CFA)']],
+          body: data.expensesList.map((e) => [
+            new Date(e.created_at).toLocaleDateString('fr-FR'),
+            e.label || '—',
+            e.category || 'Autre',
+            formatFcfa(e.amount),
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38] },
+          styles: { fontSize: 9 },
           margin: { left: marginX, right: marginX },
         });
 
