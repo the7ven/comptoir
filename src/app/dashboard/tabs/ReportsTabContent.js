@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3, PieChart, ArrowDownCircle, ArrowUpCircle,
-  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp, Calendar,
+  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp, Calendar, Download,
 } from 'lucide-react';
 import {
   PieChart as RePieChart, Pie, Cell, ResponsiveContainer,
@@ -16,6 +16,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
   const T = getDashTokens(isDarkMode);
   const [period, setPeriod] = useState('journalier');
   const [loading, setLoading] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [data, setData] = useState({
     recettes: 0,
     achats: 0,
@@ -144,6 +145,115 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     finally { setLoading(false); }
   };
 
+  // Chargement paresseux de jsPDF au clic seulement : évite d'alourdir le
+  // bundle initial pour une fonctionnalité utilisée occasionnellement.
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const marginX = 14;
+      const accentRgb = [37, 99, 235];
+      let y = 20;
+
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(20, 20, 30);
+      doc.text('Comptoir', marginX, y);
+
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 110, 130);
+      doc.text('Rapport financier', marginX, y + 6);
+
+      doc.setFontSize(9);
+      doc.text(userProfile?.name || '', pageWidth - marginX, y, { align: 'right' });
+      doc.text(`Période : ${period}`, pageWidth - marginX, y + 5, { align: 'right' });
+      doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, pageWidth - marginX, y + 10, { align: 'right' });
+
+      y += 18;
+      doc.setDrawColor(220, 224, 232);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      y += 8;
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Indicateur', 'Montant (F CFA)']],
+        body: [
+          ['Recettes', data.recettes.toLocaleString('fr-FR')],
+          ['Achats', data.achats.toLocaleString('fr-FR')],
+          ['Cash', data.cash.toLocaleString('fr-FR')],
+          ['Virtuel', data.virtuel.toLocaleString('fr-FR')],
+          ['Recette Cuisine', data.cuisineRecette.toLocaleString('fr-FR')],
+          ['Recette Bar', data.barRecette.toLocaleString('fr-FR')],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: accentRgb },
+        styles: { fontSize: 10 },
+        margin: { left: marginX, right: marginX },
+      });
+
+      y = doc.lastAutoTable.finalY + 12;
+
+      if (data.paymentDistribution.length > 0) {
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Répartition par moyen de paiement', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Moyen', 'Montant (F CFA)']],
+          body: data.paymentDistribution.map((p) => [p.name, p.value.toLocaleString('fr-FR')]),
+          theme: 'striped',
+          headStyles: { fillColor: accentRgb },
+          styles: { fontSize: 10 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.monthlyBreakdown.length > 0) {
+        // Nouvelle page si le récap mensuel ne tiendrait pas sous le reste.
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Récapitulatif mensuel', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Mois', 'Cuisine', 'Bar', 'Dépenses', 'Total Ventes']],
+          body: data.monthlyBreakdown.map((row) => [
+            row.month,
+            row.cuisine.toLocaleString('fr-FR'),
+            row.bar.toLocaleString('fr-FR'),
+            `-${row.depenses.toLocaleString('fr-FR')}`,
+            row.total.toLocaleString('fr-FR'),
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: accentRgb },
+          styles: { fontSize: 9 },
+          margin: { left: marginX, right: marginX },
+        });
+      }
+
+      doc.save(`rapport-comptoir-${period}-${selectedDate}.pdf`);
+    } catch (err) {
+      console.error('Erreur export PDF:', err.message);
+      alert("Impossible de générer le PDF pour le moment.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ height: 380, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
       <Loader2 className="animate-spin" color={T.accent} size={36} style={{ marginBottom: 14 }} />
@@ -161,22 +271,37 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           <p style={{ fontSize: 11, fontWeight: 600, color: T.faint, textTransform: "capitalize", margin: "4px 0 0" }}>Bilan {period}</p>
         </div>
 
-        {userProfile?.role === 'owner' && (
-          <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
-            {periods.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize",
-                  background: period === p ? T.accent : "none", color: period === p ? T.accentInk : T.muted,
-                }}
-              >
-                {p.slice(0, 4)}
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          {userProfile?.role === 'owner' && (
+            <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
+              {periods.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  style={{
+                    padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize",
+                    background: period === p ? T.accent : "none", color: period === p ? T.accentInk : T.muted,
+                  }}
+                >
+                  {p.slice(0, 4)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isExportingPdf}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999,
+              border: `1px solid ${T.line}`, background: T.surface, color: T.ink, fontSize: 11.5, fontWeight: 700,
+              cursor: isExportingPdf ? "default" : "pointer", opacity: isExportingPdf ? .6 : 1,
+            }}
+          >
+            {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            PDF
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
