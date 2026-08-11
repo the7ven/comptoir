@@ -6,6 +6,7 @@ import {
   Wallet, Grid, Flame, TrendingUp, Menu as MenuIcon, X, Sun, Moon,
   Package, FileText, ShoppingBag, History, Calendar as CalendarIcon,
   Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle,
+  AlertTriangle, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Lock,
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
@@ -299,6 +300,49 @@ export default function AdminDashboard() {
 
 // --- VUE D'ENSEMBLE ---
 
+// Même normalisation que TablesTabContent (table_name "TABLE 07" vs
+// table_number "Table 07" ne partagent ni la casse ni systématiquement le
+// préfixe) — nécessaire ici aussi pour compter les tables occupées/libres.
+const normalizeTableId = (v) => (v || "").trim().replace(/^table\s*/i, "").toUpperCase();
+
+// Calcule la plage de dates de la période équivalente immédiatement
+// précédente (hier / semaine dernière / mois dernier / année dernière),
+// pour la comparaison de tendance. Construit toujours sa propre Date à
+// partir de la chaîne d'origine plutôt que de réutiliser une Date déjà
+// mutée ailleurs par setDate().
+const getPreviousRange = (period, selectedDate) => {
+  const date = new Date(selectedDate);
+  if (period === "day") {
+    const prev = new Date(date);
+    prev.setDate(prev.getDate() - 1);
+    const iso = prev.toISOString().split('T')[0];
+    return { start: `${iso}T00:00:00.000Z`, end: `${iso}T23:59:59.999Z` };
+  }
+  if (period === "week") {
+    const first = date.getDate() - date.getDay();
+    const prevStart = new Date(date);
+    prevStart.setDate(first - 7);
+    const prevEnd = new Date(date);
+    prevEnd.setDate(first - 1);
+    return {
+      start: prevStart.toISOString().split('T')[0] + "T00:00:00.000Z",
+      end: prevEnd.toISOString().split('T')[0] + "T23:59:59.999Z",
+    };
+  }
+  if (period === "month") {
+    const prevMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+    return {
+      start: new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 1).toISOString(),
+      end: new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+    };
+  }
+  // year
+  return {
+    start: new Date(date.getFullYear() - 1, 0, 1).toISOString(),
+    end: new Date(date.getFullYear() - 1, 11, 31, 23, 59, 59).toISOString(),
+  };
+};
+
 function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
   const [period, setPeriod] = useState("day");
@@ -310,8 +354,24 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     barTotal: 0,
     byMethod: { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 },
     chartData: [],
-    popularItems: []
+    popularItems: [],
+    avgTicket: 0,
+    expensesByCategory: [],
+    recentTransactions: [],
+    peakHour: null,
+    trendPct: null,
   });
+
+  // Snapshot "en direct" (plan de salle / commandes actives / stock) —
+  // indépendant de la période choisie, ce sont des états présents, pas
+  // des données historiques : chargés une fois, puis tenus à jour par les
+  // mêmes canaux temps réel que Tables/Commandes.
+  const [liveStats, setLiveStats] = useState({
+    tablesLibre: 0, tablesOccupee: 0, tablesAddition: 0,
+    ordersEnCours: 0, ordersPret: 0, unpaidValue: 0,
+    lowStockItems: [],
+  });
+  const [closingDone, setClosingDone] = useState(null); // null = en cours de vérification
 
   useEffect(() => {
     const fetchRealData = async () => {
@@ -335,6 +395,8 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
         end = new Date(date.getFullYear(), 11, 31, 23, 59, 59).toISOString();
       }
 
+      const { start: prevStart, end: prevEnd } = getPreviousRange(period, selectedDate);
+
       const { data: transData } = await supabase.from('transactions')
         .select('*')
         .eq('owner_email', sharedEmail)
@@ -342,9 +404,14 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
         .order('created_at', { ascending: false });
 
       const { data: expData } = await supabase.from('expenses')
-        .select('amount')
+        .select('amount, category')
         .eq('owner_email', sharedEmail)
         .gte('created_at', start).lte('created_at', end);
+
+      const { data: prevTransData } = await supabase.from('transactions')
+        .select('amount')
+        .eq('owner_email', sharedEmail)
+        .gte('created_at', prevStart).lte('created_at', prevEnd);
 
       if (transData) {
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -384,11 +451,14 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
           .slice(0, 3);
 
         let chartData = [];
+        let peakHour = null;
         if (period === "day") {
           chartData = [...Array(24)].map((_, h) => ({
             label: `${h}h`,
             amount: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0)
           }));
+          const peak = chartData.reduce((best, cur) => (cur.amount > (best?.amount || 0) ? cur : best), null);
+          if (peak && peak.amount > 0) peakHour = peak.label;
         } else {
           const grouped = transData.reduce((acc, t) => {
             const d = new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
@@ -398,6 +468,19 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
           chartData = Object.entries(grouped).map(([label, amount]) => ({ label, amount }));
         }
 
+        const expensesByCategory = Object.entries(
+          (expData || []).reduce((acc, e) => {
+            const cat = e.category || "Autre";
+            acc[cat] = (acc[cat] || 0) + Number(e.amount);
+            return acc;
+          }, {})
+        )
+          .map(([category, amount]) => ({ category, amount }))
+          .sort((a, b) => b.amount - a.amount);
+
+        const prevTotal = prevTransData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+        const trendPct = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+
         setRealStats({
           dayTotal: total,
           dayExpenses: totalExp,
@@ -406,11 +489,77 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
           barTotal: bar,
           byMethod: methods,
           chartData: chartData,
-          popularItems: sortedItems
+          popularItems: sortedItems,
+          avgTicket: transData.length > 0 ? total / transData.length : 0,
+          expensesByCategory,
+          recentTransactions: transData.slice(0, 5),
+          peakHour,
+          trendPct,
         });
       }
     };
     fetchRealData();
+  }, [selectedDate, userProfile, period]);
+
+  // Snapshot en direct : plan de salle, commandes actives, stock critique.
+  // Ne dépend pas de la période/date affichée — c'est l'état "maintenant".
+  useEffect(() => {
+    if (!userProfile) return;
+    const sharedEmail = userProfile.owner_email;
+
+    const fetchLiveSnapshot = async () => {
+      const [{ data: tablesData }, { data: ordersData }, { data: inventoryData }] = await Promise.all([
+        supabase.from('restaurant_tables').select('table_name').eq('owner_email', sharedEmail),
+        supabase.from('orders').select('table_number, status, total_amount').eq('owner_email', sharedEmail).neq('status', 'Servi'),
+        supabase.from('inventory').select('name, quantity, min_threshold, unit').eq('restaurant_id', userProfile.id),
+      ]);
+
+      const tables = tablesData || [];
+      const orders = ordersData || [];
+
+      let tablesOccupee = 0, tablesAddition = 0;
+      tables.forEach((table) => {
+        const tableOrders = orders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(table.table_name));
+        if (tableOrders.length === 0) return;
+        if (tableOrders.some((o) => o.status === "Prêt")) tablesAddition += 1;
+        else tablesOccupee += 1;
+      });
+
+      setLiveStats({
+        tablesLibre: Math.max(0, tables.length - tablesOccupee - tablesAddition),
+        tablesOccupee,
+        tablesAddition,
+        ordersEnCours: orders.filter((o) => o.status === "En cours").length,
+        ordersPret: orders.filter((o) => o.status === "Prêt").length,
+        unpaidValue: orders.reduce((acc, o) => acc + (o.total_amount || 0), 0),
+        lowStockItems: (inventoryData || []).filter((i) => i.quantity <= i.min_threshold),
+      });
+    };
+
+    fetchLiveSnapshot();
+    const subscription = supabase
+      .channel("overview_live_snapshot")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchLiveSnapshot)
+      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables" }, fetchLiveSnapshot)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory" }, fetchLiveSnapshot)
+      .subscribe();
+    return () => { supabase.removeChannel(subscription); };
+  }, [userProfile]);
+
+  // Statut de clôture de caisse — seulement pertinent en vue "jour", pour
+  // la date affichée.
+  useEffect(() => {
+    if (!userProfile || period !== "day") { setClosingDone(null); return; }
+    const checkClosing = async () => {
+      const { data } = await supabase
+        .from('daily_closings')
+        .select('id')
+        .eq('owner_email', userProfile.owner_email)
+        .eq('date', selectedDate)
+        .limit(1);
+      setClosingDone((data?.length || 0) > 0);
+    };
+    checkClosing();
   }, [selectedDate, userProfile, period]);
 
   const periods = [
@@ -450,10 +599,25 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
       <div style={card(T, { padding: 32 })}>
         <p style={eyebrow(T, { marginBottom: 10 })}>Recettes ({periods.find(p => p.id === period)?.label.toLowerCase()})</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24 }}>
-          <h2 className="num" style={{ fontFamily: headFont, fontSize: 42, fontWeight: 800, margin: 0 }}>
-            {realStats.dayTotal.toLocaleString()} <span style={{ fontSize: 15, color: T.faint, fontWeight: 600 }}>F CFA</span>
-          </h2>
-          <div style={{ display: 'flex', gap: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <h2 className="num" style={{ fontFamily: headFont, fontSize: 42, fontWeight: 800, margin: 0 }}>
+              {realStats.dayTotal.toLocaleString()} <span style={{ fontSize: 15, color: T.faint, fontWeight: 600 }}>F CFA</span>
+            </h2>
+            {realStats.trendPct !== null && (
+              <span className="num" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800,
+                background: realStats.trendPct >= 0 ? T.goodWash : T.badWash, color: realStats.trendPct >= 0 ? T.good : T.bad,
+              }}>
+                {realStats.trendPct >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                {Math.abs(realStats.trendPct).toFixed(0)}%
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+            <div>
+              <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.faint, margin: '0 0 4px' }}>Panier moyen</p>
+              <p className="num" style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{Math.round(realStats.avgTicket).toLocaleString()} F</p>
+            </div>
             <div>
               <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.faint, margin: '0 0 4px' }}>Dépenses</p>
               <p className="num" style={{ fontSize: 17, fontWeight: 800, color: T.bad, margin: 0 }}>-{realStats.dayExpenses.toLocaleString()} F</p>
@@ -478,6 +642,68 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* SNAPSHOT EN DIRECT — plan de salle, commandes actives, stock, caisse */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <div style={card(T, { padding: 20 })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, color: T.muted }}>
+            <Grid size={16} />
+            <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Plan de salle</span>
+          </div>
+          <div style={{ display: 'flex', gap: 18 }}>
+            <MiniStat T={T} label="Libres" value={liveStats.tablesLibre} color={T.good} />
+            <MiniStat T={T} label="Occupées" value={liveStats.tablesOccupee} color={T.accent} />
+            <MiniStat T={T} label="Addition" value={liveStats.tablesAddition} color={T.warn} />
+          </div>
+        </div>
+
+        <div style={card(T, { padding: 20 })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, color: T.muted }}>
+            <ShoppingBag size={16} />
+            <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Commandes actives</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 18 }}>
+              <MiniStat T={T} label="En cours" value={liveStats.ordersEnCours} color="oklch(0.6 0.16 55)" />
+              <MiniStat T={T} label="Prêtes" value={liveStats.ordersPret} color={T.warn} />
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 9.5, fontWeight: 700, color: T.faint, margin: 0 }}>non encaissé</p>
+              <p className="num" style={{ fontSize: 13, fontWeight: 800, color: T.accent, margin: 0 }}>{liveStats.unpaidValue.toLocaleString()} F</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={card(T, { padding: 20, ...(liveStats.lowStockItems.length > 0 ? { border: `1px solid ${T.warn}55`, background: T.warnWash } : {}) })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: liveStats.lowStockItems.length > 0 ? T.warn : T.muted }}>
+            {liveStats.lowStockItems.length > 0 ? <AlertTriangle size={16} /> : <Package size={16} />}
+            <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Stock</span>
+          </div>
+          {liveStats.lowStockItems.length === 0 ? (
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: T.good, margin: 0 }}>Tous les niveaux sont bons</p>
+          ) : (
+            <>
+              <p className="num" style={{ fontSize: 17, fontWeight: 800, color: T.warn, margin: '0 0 6px' }}>{liveStats.lowStockItems.length} article{liveStats.lowStockItems.length > 1 ? 's' : ''} critique{liveStats.lowStockItems.length > 1 ? 's' : ''}</p>
+              <p style={{ fontSize: 11.5, color: T.muted, margin: 0, lineHeight: 1.4 }}>
+                {liveStats.lowStockItems.slice(0, 3).map(i => i.name).join(', ')}{liveStats.lowStockItems.length > 3 ? '…' : ''}
+              </p>
+            </>
+          )}
+        </div>
+
+        {period === "day" && closingDone !== null && (
+          <div style={card(T, { padding: 20 })}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: T.muted }}>
+              <Lock size={16} />
+              <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Caisse du jour</span>
+            </div>
+            <span style={{ ...pill(T, closingDone ? "good" : "warn"), display: 'inline-flex' }}>
+              {closingDone ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+              {closingDone ? "Clôturée" : "Non clôturée"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
@@ -505,9 +731,16 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }} className="dash-grid-collapse">
         <div style={card(T, { padding: 24 })}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-            <TrendingUp size={18} color={T.accent} /> Analyse des ventes
-          </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <TrendingUp size={18} color={T.accent} /> Analyse des ventes
+            </h3>
+            {realStats.peakHour && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: T.surface2, color: T.muted, fontSize: 11, fontWeight: 700 }}>
+                <Clock size={12} /> Pic à {realStats.peakHour}
+              </span>
+            )}
+          </div>
           <div style={{ height: 220, marginTop: 14 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={realStats.chartData}>
@@ -537,9 +770,69 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
         </div>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }} className="dash-grid-collapse">
+        <div style={card(T, { padding: 24 })}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 14px' }}>
+            <Receipt size={18} color={T.accent} /> Activité récente
+          </h3>
+          {realStats.recentTransactions.length === 0 ? (
+            <p style={{ opacity: .35, fontStyle: 'italic', fontSize: 13, margin: 0 }}>Aucune vente sur cette période.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {realStats.recentTransactions.map((t, i) => (
+                <div key={t.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i > 0 ? `1px solid ${T.line}` : 'none' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: T.good, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 700, flex: 1 }}>{t.table_number || 'Vente'}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: T.faint }}>{t.payment_method || 'Espèces'}</span>
+                  <span className="num" style={{ fontSize: 12.5, fontWeight: 800, color: T.accent }}>{Number(t.amount).toLocaleString()} F</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: T.faint, minWidth: 40, textAlign: 'right' }}>
+                    {new Date(t.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={card(T, { padding: 24 })}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 14px' }}>
+            <ArrowDownCircle size={18} color={T.bad} /> Dépenses par catégorie
+          </h3>
+          {realStats.expensesByCategory.length === 0 ? (
+            <p style={{ opacity: .35, fontStyle: 'italic', fontSize: 13, margin: 0 }}>Aucune dépense sur cette période.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {realStats.expensesByCategory.map((e) => {
+                const pct = realStats.dayExpenses > 0 ? (e.amount / realStats.dayExpenses) * 100 : 0;
+                return (
+                  <div key={e.category}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.muted }}>{e.category}</span>
+                      <span className="num" style={{ fontSize: 12, fontWeight: 800 }}>{e.amount.toLocaleString()} F</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, background: T.surface2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: T.bad, borderRadius: 999 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <style jsx global>{`
         @media (max-width: 900px) { .dash-grid-collapse { grid-template-columns: 1fr !important; } }
       `}</style>
+    </div>
+  );
+}
+
+function MiniStat({ T, label, value, color }) {
+  return (
+    <div>
+      <p className="num" style={{ fontSize: 19, fontWeight: 800, color, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 9.5, fontWeight: 700, color: T.faint, textTransform: 'uppercase', margin: '2px 0 0' }}>{label}</p>
     </div>
   );
 }
