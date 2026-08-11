@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Sun, Moon } from "lucide-react";
 import { getTheme, bodyFont, headFont } from "@/lib/theme";
 import { useTheme } from "@/context/ThemeContext";
+import BrandMark from "@/components/BrandMark";
 
 // ---------------------------------------------------------------------------
 // Landing page — refonte "Comptoir".
@@ -151,7 +152,7 @@ export default function LandingPage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, flexShrink: 0 }} />
+            <BrandMark size={32} color={C.accent} />
             <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em" }}>Comptoir</span>
           </div>
           <nav
@@ -502,7 +503,7 @@ export default function LandingPage() {
       <footer style={{ maxWidth: 1200, margin: "0 auto", padding: "56px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: C.accent }} />
+            <BrandMark size={28} color={C.accent} />
             <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 19 }}>Comptoir</span>
           </div>
           <p style={{ fontSize: 14, color: C.faint, maxWidth: 280, lineHeight: 1.6, margin: 0 }}>
