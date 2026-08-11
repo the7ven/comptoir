@@ -6,6 +6,7 @@ import { toUserMessage } from '@/lib/errors';
 import { THEME as C, bodyFont, headFont } from '@/lib/theme';
 import { Lock, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
 
 export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -39,8 +40,9 @@ export default function UpdatePasswordPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 420 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <AuthDecorPattern />
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
         <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
           {!isSuccess ? (
             <>

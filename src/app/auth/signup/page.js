@@ -8,6 +8,7 @@ import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff, ArrowLeft } from 'l
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
+import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
 import SocialAuthRow from '@/app/auth/_components/SocialAuthRow';
 
 export default function SignupPage() {
@@ -93,8 +94,9 @@ export default function SignupPage() {
           points={["Opérationnel en moins de 5 minutes", "Sans carte bancaire, sans engagement", "Support dans les 24h"]}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
-          <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
+          <AuthDecorPattern />
+          <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 400 }}>
             <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 36 }}>
               <ArrowLeft size={15} /> Retour à l&apos;accueil
             </Link>
