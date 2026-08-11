@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Banknote, Smartphone, CreditCard,
   ArrowRight, TrendingUp,
-  Loader2, Utensils, GlassWater, Flame, Beer
+  Loader2, Utensils, GlassWater, Flame, Beer,
+  Lock, AlertTriangle, X,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, Tooltip, Legend,
@@ -36,6 +37,14 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   const [closingData, setClosingData] = useState({ cashInHand: "", notes: "" });
   const [isClosing, setIsClosing] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [closingToast, setClosingToast] = useState(null);
+  const closingToastTimeout = useRef(null);
+
+  const showClosingToast = (toast, duration = 4000) => {
+    setClosingToast(toast);
+    clearTimeout(closingToastTimeout.current);
+    closingToastTimeout.current = setTimeout(() => setClosingToast(null), duration);
+  };
 
   useEffect(() => {
     if (userProfile) fetchDailyData();
@@ -159,10 +168,12 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   const difference = closingData.cashInHand ? Number(closingData.cashInHand) - expectedBalance : 0;
 
   const handleRegisterClosing = async () => {
-    if (!closingData.cashInHand) return alert("Saisissez le montant réel.");
+    if (!closingData.cashInHand) {
+      return showClosingToast({ type: "error", title: "Montant manquant", detail: "Saisissez le montant réel en caisse." }, 3000);
+    }
     const realAmount = Number(closingData.cashInHand);
     if (!Number.isFinite(realAmount) || realAmount < 0) {
-      return alert("Le montant réel doit être un nombre positif.");
+      return showClosingToast({ type: "error", title: "Montant invalide", detail: "Le montant réel doit être un nombre positif." }, 3000);
     }
     setIsClosing(true);
     try {
@@ -177,9 +188,15 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         closed_by: userProfile.name
       }]);
       if (error) throw error;
-      alert("Clôture réussie !");
+      showClosingToast({
+        type: "success",
+        title: "Clôture enregistrée",
+        detail: difference === 0 ? "Aucun écart de caisse." : `Écart : ${difference > 0 ? "+" : ""}${difference.toLocaleString()} F`,
+      });
       setClosingData({ cashInHand: "", notes: "" });
-    } catch (err) { alert(toUserMessage(err, "Impossible d'enregistrer la clôture de caisse.")); } finally { setIsClosing(false); }
+    } catch (err) {
+      showClosingToast({ type: "error", title: "Clôture impossible", detail: toUserMessage(err, "Impossible d'enregistrer la clôture de caisse.") }, 5000);
+    } finally { setIsClosing(false); }
   };
 
   if (loading) return (
@@ -360,12 +377,51 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
         </div>
       </div>
 
+      {/* TOAST : CLÔTURE DE CAISSE */}
+      {closingToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="dash-closing-toast"
+          style={{
+            position: "fixed", left: "50%", bottom: 28, zIndex: 1000,
+            display: "flex", alignItems: "flex-start", gap: 14,
+            width: "min(380px, calc(100vw - 32px))",
+            padding: "16px 16px 16px 18px", borderRadius: radius,
+            background: T.surface, border: `1px solid ${T.line}`, boxShadow: T.shadow,
+          }}
+        >
+          <div style={{
+            width: 40, height: 40, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            background: closingToast.type === "success" ? T.goodWash : T.badWash,
+            color: closingToast.type === "success" ? T.good : T.bad,
+          }}>
+            {closingToast.type === "success" ? <Lock size={19} /> : <AlertTriangle size={19} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13.5, fontFamily: headFont }}>{closingToast.title}</p>
+            <p className="num" style={{ margin: "2px 0 0", fontSize: 12, color: T.faint, fontWeight: 700 }}>{closingToast.detail}</p>
+          </div>
+          <button onClick={() => setClosingToast(null)} aria-label="Fermer" style={{ background: "none", border: "none", color: T.faint, cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <style jsx global>{`
         @media (max-width: 900px) {
           .dash-grid-collapse { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
           .dash-grid-collapse-sm { grid-template-columns: 1fr !important; }
+        }
+        @keyframes dash-toast-in {
+          from { opacity: 0; transform: translate(-50%, 14px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .dash-closing-toast { animation: dash-toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-closing-toast { animation: none; transform: translate(-50%, 0); }
         }
       `}</style>
     </div>
