@@ -526,6 +526,13 @@ export default function LandingPage() {
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Ressources</div>
           <span style={{ color: C.faint, fontSize: 14 }}>Plateau, Abidjan, Côte d&apos;Ivoire</span>
         </div>
+        {/* TODO: à remplir — vraies coordonnées de contact (téléphone, email dédié, adresse...) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Contact</div>
+          <span style={{ color: C.faint, fontSize: 14 }}>Téléphone : à venir</span>
+          <span style={{ color: C.faint, fontSize: 14 }}>Email : à venir</span>
+          <span style={{ color: C.faint, fontSize: 14 }}>Adresse : à venir</span>
+        </div>
       </footer>
       <div style={{ borderTop: `1px solid ${C.line}`, padding: "20px 24px", textAlign: "center", fontSize: 13, color: C.faint }}>
         © 2026 Comptoir Africa. Tous droits réservés. — By Corneille Nkwel
