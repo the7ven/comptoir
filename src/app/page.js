@@ -248,9 +248,14 @@ export default function LandingPage() {
               ))}
             </div>
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${C.line}`, marginTop: "auto" }}>
-              {[["Bistro 225", "2 150 000 F"], ["Gastro d'Or", "1 240 000 F"], ["Abidjan Grill", "890 500 F"]].map(([name, amount]) => (
+              <span style={{ fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: C.faint, marginBottom: 2 }}>Répartition par encaissement</span>
+              {[
+                ["Espèces", "420 000 F", "oklch(0.65 0.16 155)"],
+                ["Wave", "510 000 F", C.accent],
+                ["Orange Money", "310 500 F", "oklch(0.7 0.16 55)"],
+              ].map(([name, amount, dotColor]) => (
                 <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                   <span style={{ flex: 1, color: C.muted, fontWeight: 600 }}>{name}</span>
                   <span style={{ fontWeight: 800 }}>{amount}</span>
                 </div>
