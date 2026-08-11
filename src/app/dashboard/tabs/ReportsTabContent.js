@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3, PieChart, ArrowDownCircle, ArrowUpCircle,
-  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp, Calendar,
+  Banknote, Smartphone, Utensils, GlassWater, Loader2, TrendingUp, Calendar, Download,
 } from 'lucide-react';
 import {
   PieChart as RePieChart, Pie, Cell, ResponsiveContainer,
@@ -12,10 +12,18 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, headFont, radiusSm } from '@/lib/dashTheme';
 
+// Number.prototype.toLocaleString('fr-FR') sépare les milliers avec un espace
+// insécable fin (U+202F) — absent de la police par défaut de jsPDF (Helvetica,
+// encodage WinAnsi), ce qui l'affichait comme une barre oblique dans le PDF.
+// On formate donc nous-mêmes avec un espace ASCII classique, universellement
+// supporté.
+const formatFcfa = (n) => Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
 export default function ReportsTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
   const [period, setPeriod] = useState('journalier');
   const [loading, setLoading] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [data, setData] = useState({
     recettes: 0,
     achats: 0,
@@ -25,7 +33,9 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
     barRecette: 0,
     comparison: [],
     paymentDistribution: [],
-    monthlyBreakdown: []
+    monthlyBreakdown: [],
+    expensesList: [],
+    expensesByCategory: [],
   });
 
   useEffect(() => {
@@ -125,6 +135,20 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         monthlyMap[monthKey].depenses += Number(e.amount) || 0;
       });
 
+      // Détail des dépenses (liste + répartition par catégorie), pour le
+      // rapport PDF — jusqu'ici seul le total agrégé était disponible.
+      const expensesByCategory = Object.entries(
+        expenses.reduce((acc, e) => {
+          const cat = e.category || 'Autre';
+          acc[cat] = (acc[cat] || 0) + (Number(e.amount) || 0);
+          return acc;
+        }, {})
+      )
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const expensesList = [...expenses].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
       setData({
         recettes: totalRecettes,
         achats: totalAchats,
@@ -137,11 +161,173 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           { name: 'Dépenses', recettes: 0, achats: totalAchats }
         ],
         paymentDistribution: Object.entries(methods).map(([name, value]) => ({ name, value, color: colors[name] || T.faint })),
-        monthlyBreakdown: Object.entries(monthlyMap).map(([month, vals]) => ({ month, ...vals }))
+        monthlyBreakdown: Object.entries(monthlyMap).map(([month, vals]) => ({ month, ...vals })),
+        expensesList,
+        expensesByCategory,
       });
 
     } catch (err) { console.error("Erreur rapports:", err.message); }
     finally { setLoading(false); }
+  };
+
+  // Chargement paresseux de jsPDF au clic seulement : évite d'alourdir le
+  // bundle initial pour une fonctionnalité utilisée occasionnellement.
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const marginX = 14;
+      const accentRgb = [37, 99, 235];
+      let y = 20;
+
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(20, 20, 30);
+      doc.text('Comptoir', marginX, y);
+
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 110, 130);
+      doc.text('Rapport financier', marginX, y + 6);
+
+      doc.setFontSize(9);
+      doc.text(userProfile?.name || '', pageWidth - marginX, y, { align: 'right' });
+      doc.text(`Période : ${period}`, pageWidth - marginX, y + 5, { align: 'right' });
+      doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, pageWidth - marginX, y + 10, { align: 'right' });
+
+      y += 18;
+      doc.setDrawColor(220, 224, 232);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      y += 8;
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Indicateur', 'Montant (F CFA)']],
+        body: [
+          ['Recettes', formatFcfa(data.recettes)],
+          ['Achats', formatFcfa(data.achats)],
+          ['Cash', formatFcfa(data.cash)],
+          ['Virtuel', formatFcfa(data.virtuel)],
+          ['Recette Cuisine', formatFcfa(data.cuisineRecette)],
+          ['Recette Bar', formatFcfa(data.barRecette)],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: accentRgb },
+        styles: { fontSize: 10 },
+        margin: { left: marginX, right: marginX },
+      });
+
+      y = doc.lastAutoTable.finalY + 12;
+
+      if (data.paymentDistribution.length > 0) {
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Répartition par moyen de paiement', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Moyen', 'Montant (F CFA)']],
+          body: data.paymentDistribution.map((p) => [p.name, formatFcfa(p.value)]),
+          theme: 'striped',
+          headStyles: { fillColor: accentRgb },
+          styles: { fontSize: 10 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.expensesByCategory.length > 0) {
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Dépenses par catégorie', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Catégorie', 'Montant (F CFA)']],
+          body: data.expensesByCategory.map((c) => [c.category, formatFcfa(c.amount)]),
+          theme: 'striped',
+          headStyles: { fillColor: [220, 38, 38] },
+          styles: { fontSize: 10 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.expensesList.length > 0) {
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Détail des dépenses', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Date', 'Désignation', 'Catégorie', 'Montant (F CFA)']],
+          body: data.expensesList.map((e) => [
+            new Date(e.created_at).toLocaleDateString('fr-FR'),
+            e.label || '—',
+            e.category || 'Autre',
+            formatFcfa(e.amount),
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38] },
+          styles: { fontSize: 9 },
+          margin: { left: marginX, right: marginX },
+        });
+
+        y = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (data.monthlyBreakdown.length > 0) {
+        // Nouvelle page si le récap mensuel ne tiendrait pas sous le reste.
+        if (y > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 30);
+        doc.text('Récapitulatif mensuel', marginX, y);
+
+        autoTable(doc, {
+          startY: y + 4,
+          head: [['Mois', 'Cuisine', 'Bar', 'Dépenses', 'Total Ventes']],
+          body: data.monthlyBreakdown.map((row) => [
+            row.month,
+            formatFcfa(row.cuisine),
+            formatFcfa(row.bar),
+            `-${formatFcfa(row.depenses)}`,
+            formatFcfa(row.total),
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: accentRgb },
+          styles: { fontSize: 9 },
+          margin: { left: marginX, right: marginX },
+        });
+      }
+
+      doc.save(`rapport-comptoir-${period}-${selectedDate}.pdf`);
+    } catch (err) {
+      console.error('Erreur export PDF:', err.message);
+      alert("Impossible de générer le PDF pour le moment.");
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   if (loading) return (
@@ -161,22 +347,37 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           <p style={{ fontSize: 11, fontWeight: 600, color: T.faint, textTransform: "capitalize", margin: "4px 0 0" }}>Bilan {period}</p>
         </div>
 
-        {userProfile?.role === 'owner' && (
-          <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
-            {periods.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize",
-                  background: period === p ? T.accent : "none", color: period === p ? T.accentInk : T.muted,
-                }}
-              >
-                {p.slice(0, 4)}
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          {userProfile?.role === 'owner' && (
+            <div style={{ display: "inline-flex", padding: 3, background: T.surface2, borderRadius: 999, gap: 2 }}>
+              {periods.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  style={{
+                    padding: "7px 16px", borderRadius: 999, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize",
+                    background: period === p ? T.accent : "none", color: period === p ? T.accentInk : T.muted,
+                  }}
+                >
+                  {p.slice(0, 4)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isExportingPdf}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999,
+              border: `1px solid ${T.line}`, background: T.surface, color: T.ink, fontSize: 11.5, fontWeight: 700,
+              cursor: isExportingPdf ? "default" : "pointer", opacity: isExportingPdf ? .6 : 1,
+            }}
+          >
+            {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            PDF
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
