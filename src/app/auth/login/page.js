@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { getTheme, bodyFont, headFont } from '@/lib/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Mail, Lock, LogIn, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthVisualPanel from '@/app/auth/_components/AuthVisualPanel';
 import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
+import AuthThemeToggle from '@/app/auth/_components/AuthThemeToggle';
 import SocialAuthRow from '@/app/auth/_components/SocialAuthRow';
 
 export default function LoginPage() {
@@ -17,6 +19,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { isDarkMode } = useTheme();
+  const C = getTheme(isDarkMode);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -40,7 +44,7 @@ export default function LoginPage() {
 
   const inputStyle = {
     width: '100%',
-    background: C.white,
+    background: C.surface,
     border: `1px solid ${C.line}`,
     padding: '14px 16px 14px 44px',
     borderRadius: 10,
@@ -63,9 +67,12 @@ export default function LoginPage() {
         <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
           <AuthDecorPattern />
           <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 400 }}>
-            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 36 }}>
-              <ArrowLeft size={15} /> Retour à l&apos;accueil
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 36 }}>
+              <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.muted }}>
+                <ArrowLeft size={15} /> Retour à l&apos;accueil
+              </Link>
+              <AuthThemeToggle />
+            </div>
 
             <div style={{ width: 38, height: 38, borderRadius: 10, background: C.accent, marginBottom: 24 }} />
 
@@ -123,7 +130,7 @@ export default function LoginPage() {
                 style={{
                   width: '100%',
                   background: C.accent,
-                  color: '#fff',
+                  color: C.accentInk,
                   fontFamily: bodyFont,
                   fontWeight: 700,
                   fontSize: 15,

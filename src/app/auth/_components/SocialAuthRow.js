@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Phone, Sparkles, X } from "lucide-react";
-import { THEME as C, bodyFont, headFont } from "@/lib/theme";
+import { getTheme, bodyFont, headFont } from "@/lib/theme";
+import { useTheme } from "@/context/ThemeContext";
 
 // Logo Google officiel (multicolore), lucide-react n'en fournit pas.
 function GoogleIcon() {
@@ -24,6 +25,8 @@ function GoogleIcon() {
 // vrais appels (signInWithOAuth / signInWithOtp) une fois les deux
 // branchés.
 export default function SocialAuthRow() {
+  const { isDarkMode } = useTheme();
+  const C = getTheme(isDarkMode);
   const [toastOpen, setToastOpen] = useState(false);
   const timeoutRef = useRef(null);
 
@@ -46,7 +49,7 @@ export default function SocialAuthRow() {
     padding: "12px 0",
     borderRadius: 10,
     border: `1px solid ${C.line}`,
-    background: C.white,
+    background: C.surface,
     fontFamily: bodyFont,
     fontWeight: 700,
     fontSize: 13.5,
@@ -83,7 +86,10 @@ export default function SocialAuthRow() {
             display: "flex",
             alignItems: "flex-start",
             gap: 12,
-            background: C.ink,
+            // Fond volontairement fixe (indépendant du thème clair/sombre) :
+            // c'est un toast à texte blanc, il doit rester lisible même
+            // quand C.ink devient clair en mode sombre.
+            background: "oklch(0.22 0.02 255)",
             padding: "14px 16px",
             borderRadius: 14,
             boxShadow: "0 24px 48px -16px oklch(0.2 0.02 255 / 0.4)",

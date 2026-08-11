@@ -3,15 +3,19 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
-import { THEME as C, bodyFont, headFont } from '@/lib/theme';
+import { getTheme, bodyFont, headFont } from '@/lib/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Mail, ArrowLeft, Loader2, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import AuthDecorPattern from '@/app/auth/_components/AuthDecorPattern';
+import AuthThemeToggle from '@/app/auth/_components/AuthThemeToggle';
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const { isDarkMode } = useTheme();
+  const C = getTheme(isDarkMode);
 
   const handleReset = async (e) => {
     e.preventDefault();
@@ -38,11 +42,14 @@ export default function ResetPasswordPage() {
     <div style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh', background: C.bg, color: C.ink, fontFamily: bodyFont, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <AuthDecorPattern />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <Link href="/auth/login" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 24 }}>
-          <ArrowLeft size={14} /> Retour à la connexion
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <Link href="/auth/login" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: C.accent }}>
+            <ArrowLeft size={14} /> Retour à la connexion
+          </Link>
+          <AuthThemeToggle />
+        </div>
 
-        <div style={{ background: C.white, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: 40, boxShadow: '0 20px 50px -20px oklch(0.2 0.02 255 / 0.12)' }}>
           {!submitted ? (
             <>
               <h1 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Récupération</h1>
@@ -59,7 +66,7 @@ export default function ResetPasswordPage() {
                       placeholder="manager@votre-resto.com"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      style={{ width: '100%', background: C.white, border: `1px solid ${C.line}`, padding: '14px 16px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
+                      style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, padding: '14px 16px 14px 44px', borderRadius: 10, outline: 'none', fontFamily: bodyFont, fontWeight: 600, fontSize: 14, color: C.ink }}
                       onFocus={e => (e.target.style.borderColor = C.accent)}
                       onBlur={e => (e.target.style.borderColor = C.line)}
                     />
@@ -72,7 +79,7 @@ export default function ResetPasswordPage() {
                   style={{
                     width: '100%',
                     background: C.accent,
-                    color: '#fff',
+                    color: C.accentInk,
                     fontFamily: bodyFont,
                     fontWeight: 700,
                     fontSize: 15,
