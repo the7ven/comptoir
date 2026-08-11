@@ -12,6 +12,13 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, headFont, radiusSm } from '@/lib/dashTheme';
 
+// Number.prototype.toLocaleString('fr-FR') sépare les milliers avec un espace
+// insécable fin (U+202F) — absent de la police par défaut de jsPDF (Helvetica,
+// encodage WinAnsi), ce qui l'affichait comme une barre oblique dans le PDF.
+// On formate donc nous-mêmes avec un espace ASCII classique, universellement
+// supporté.
+const formatFcfa = (n) => Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
 export default function ReportsTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
   const [period, setPeriod] = useState('journalier');
@@ -183,12 +190,12 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         startY: y,
         head: [['Indicateur', 'Montant (F CFA)']],
         body: [
-          ['Recettes', data.recettes.toLocaleString('fr-FR')],
-          ['Achats', data.achats.toLocaleString('fr-FR')],
-          ['Cash', data.cash.toLocaleString('fr-FR')],
-          ['Virtuel', data.virtuel.toLocaleString('fr-FR')],
-          ['Recette Cuisine', data.cuisineRecette.toLocaleString('fr-FR')],
-          ['Recette Bar', data.barRecette.toLocaleString('fr-FR')],
+          ['Recettes', formatFcfa(data.recettes)],
+          ['Achats', formatFcfa(data.achats)],
+          ['Cash', formatFcfa(data.cash)],
+          ['Virtuel', formatFcfa(data.virtuel)],
+          ['Recette Cuisine', formatFcfa(data.cuisineRecette)],
+          ['Recette Bar', formatFcfa(data.barRecette)],
         ],
         theme: 'grid',
         headStyles: { fillColor: accentRgb },
@@ -207,7 +214,7 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         autoTable(doc, {
           startY: y + 4,
           head: [['Moyen', 'Montant (F CFA)']],
-          body: data.paymentDistribution.map((p) => [p.name, p.value.toLocaleString('fr-FR')]),
+          body: data.paymentDistribution.map((p) => [p.name, formatFcfa(p.value)]),
           theme: 'striped',
           headStyles: { fillColor: accentRgb },
           styles: { fontSize: 10 },
@@ -233,10 +240,10 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
           head: [['Mois', 'Cuisine', 'Bar', 'Dépenses', 'Total Ventes']],
           body: data.monthlyBreakdown.map((row) => [
             row.month,
-            row.cuisine.toLocaleString('fr-FR'),
-            row.bar.toLocaleString('fr-FR'),
-            `-${row.depenses.toLocaleString('fr-FR')}`,
-            row.total.toLocaleString('fr-FR'),
+            formatFcfa(row.cuisine),
+            formatFcfa(row.bar),
+            `-${formatFcfa(row.depenses)}`,
+            formatFcfa(row.total),
           ]),
           theme: 'grid',
           headStyles: { fillColor: accentRgb },
