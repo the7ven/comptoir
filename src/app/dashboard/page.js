@@ -250,6 +250,13 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => { setActiveTab("menu"); setIsSidebarOpen(false); }}
+              style={{ ...chipBtn(T), border: 'none', cursor: 'pointer', background: T.accentWash, color: T.accent }}
+            >
+              <UtensilsCrossed size={16} />
+              <span style={{ fontWeight: 700 }}>Menu</span>
+            </button>
             <div onClick={() => dateInputRef.current?.showPicker()} style={{ ...chipBtn(T), position: 'relative' }}>
               <CalendarIcon size={16} color={T.accent} />
               <span style={{ fontWeight: 700, color: T.ink }}>{currentDateDisplay}</span>
