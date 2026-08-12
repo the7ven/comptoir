@@ -21,6 +21,7 @@ import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
 import { getActiveOrders } from '@/lib/data/orders';
 import { getTransactionsForRange } from '@/lib/data/transactions';
 import { getExpensesForRange } from '@/lib/data/expenses';
+import { getInventory, getLowStockItems } from '@/lib/data/inventory';
 import { getPeriodRange } from '@/lib/dateRange';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
@@ -494,10 +495,10 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     if (!userProfile) return;
     const sharedEmail = userProfile.owner_email;
 
-    const [tables, orders, { data: inventoryData }] = await Promise.all([
+    const [tables, orders, inventory] = await Promise.all([
       getRestaurantTables(sharedEmail),
       getActiveOrders(sharedEmail),
-      supabase.from('inventory').select('name, quantity, min_threshold, unit').eq('restaurant_id', userProfile.id),
+      getInventory(userProfile.id),
     ]);
 
     let tablesOccupee = 0, tablesAddition = 0;
@@ -514,7 +515,7 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
       ordersEnCours: orders.filter((o) => o.status === "En cours").length,
       ordersPret: orders.filter((o) => o.status === "Prêt").length,
       unpaidValue: orders.reduce((acc, o) => acc + (o.total_amount || 0), 0),
-      lowStockItems: (inventoryData || []).filter((i) => i.quantity <= i.min_threshold),
+      lowStockItems: getLowStockItems(inventory),
     });
   };
 
