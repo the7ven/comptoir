@@ -23,6 +23,7 @@ import { getTransactionsForRange } from '@/lib/data/transactions';
 import { getExpensesForRange } from '@/lib/data/expenses';
 import { getInventory, getLowStockItems } from '@/lib/data/inventory';
 import { getRestaurantProfile } from '@/lib/data/restaurants';
+import { isDailyClosingDone } from '@/lib/data/closings';
 import { getPeriodRange } from '@/lib/dateRange';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
@@ -536,13 +537,11 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
   useEffect(() => {
     if (!userProfile || period !== "day") { setClosingDone(null); return; }
     const checkClosing = async () => {
-      const { data } = await supabase
-        .from('daily_closings')
-        .select('id')
-        .eq('owner_email', userProfile.owner_email)
-        .eq('date', selectedDate)
-        .limit(1);
-      setClosingDone((data?.length || 0) > 0);
+      try {
+        setClosingDone(await isDailyClosingDone(userProfile.owner_email, selectedDate));
+      } catch (err) {
+        console.error("Erreur vérification clôture:", err.message);
+      }
     };
     checkClosing();
   }, [selectedDate, userProfile, period]);

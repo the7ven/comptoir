@@ -29,3 +29,21 @@ export async function updateRestaurantProfile(id, updates) {
   const { error } = await supabase.from('restaurants').update(updates).eq('id', id);
   if (error) throw error;
 }
+
+// Tous les restaurants, triés par date de création — vue globale réservée
+// au Master Admin.
+export async function getAllRestaurants() {
+  const { data, error } = await supabase
+    .from('restaurants')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// Ping léger pour vérifier que la base répond (indicateur de santé du
+// Master Admin) — aucune ligne renvoyée, seul le statut de la requête compte.
+export async function pingDatabase() {
+  const { error } = await supabase.from('restaurants').select('id', { count: 'estimated', head: true }).limit(1);
+  if (error) throw error;
+}

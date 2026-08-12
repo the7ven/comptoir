@@ -15,3 +15,11 @@ export async function getTransactionsForRange(ownerEmail, start, end) {
   if (error) throw error;
   return data || [];
 }
+
+// Montants de toutes les transactions, tous restaurants confondus — vue
+// globale réservée au Master Admin (agrégation du CA par restaurant).
+export async function getAllTransactionAmounts() {
+  const { data, error } = await supabase.from('transactions').select('amount, restaurant_id');
+  if (error) throw error;
+  return data || [];
+}

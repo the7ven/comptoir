@@ -11,6 +11,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from "@/context/ThemeContext";
 import { getDashTokens, card, btnGhost, inputStyle, iconBtn, pill, eyebrow, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import { getRestaurantProfile, getAllRestaurants, updateRestaurantProfile, pingDatabase } from '@/lib/data/restaurants';
+import { getAllTransactionAmounts } from '@/lib/data/transactions';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 export default function MasterAdminPage() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -26,45 +29,37 @@ export default function MasterAdminPage() {
   const router = useRouter();
   const portfolioRef = useRef(null);
 
-  useEffect(() => {
-    setMounted(true);
-    checkAdminAndFetchData();
+  const fetchData = async () => {
+    let restos, transData;
+    try {
+      [restos, transData] = await Promise.all([
+        getAllRestaurants(),
+        getAllTransactionAmounts(),
+      ]);
+    } catch (err) {
+      return;
+    }
 
-    const checkHealth = async () => {
-      const start = performance.now();
-      try {
-        const { error } = await supabase.from('restaurants').select('id', { count: 'estimated', head: true }).limit(1);
-        const end = performance.now();
-        if (error) throw error;
-        setSystemHealth({ status: 'online', latency: Math.round(end - start) });
-      } catch (err) {
-        setSystemHealth({ status: 'offline', latency: 0 });
-      }
-    };
+    const salesByResto = transData.reduce((acc, curr) => {
+      const id = curr.restaurant_id;
+      acc[id] = (acc[id] || 0) + (Number(curr.amount) || 0);
+      return acc;
+    }, {});
 
-    const healthInterval = setInterval(checkHealth, 30000);
-    checkHealth();
+    const restosWithSales = restos.map(r => ({
+      ...r,
+      total_sales: salesByResto[r.id] || 0
+    }));
 
-    const channel = supabase.channel('master_sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, () => fetchData())
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(healthInterval);
-    };
-  }, []);
+    setRestaurants(restosWithSales);
+  };
 
   const checkAdminAndFetchData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.replace('/auth/login');
 
-      const { data: profile } = await supabase
-        .from('restaurants')
-        .select('is_super_admin')
-        .eq('id', user.id)
-        .maybeSingle();
+      const profile = await getRestaurantProfile(user.id);
 
       if (!profile?.is_super_admin) {
         return router.replace('/dashboard');
@@ -75,30 +70,6 @@ export default function MasterAdminPage() {
     } catch (err) {
       router.replace('/dashboard');
     }
-  };
-
-  const fetchData = async () => {
-    const { data: restos, error } = await supabase
-      .from('restaurants')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) return;
-
-    const { data: transData } = await supabase.from('transactions').select('amount, restaurant_id');
-
-    const salesByResto = transData?.reduce((acc, curr) => {
-      const id = curr.restaurant_id;
-      acc[id] = (acc[id] || 0) + (Number(curr.amount) || 0);
-      return acc;
-    }, {}) || {};
-
-    const restosWithSales = restos.map(r => ({
-      ...r,
-      total_sales: salesByResto[r.id] || 0
-    }));
-
-    setRestaurants(restosWithSales);
   };
 
   const toggleStatus = async (restoId, currentStatus) => {
@@ -113,10 +84,33 @@ export default function MasterAdminPage() {
       if (activating) payload.approved_at = new Date().toISOString();
       else payload.suspended_at = new Date().toISOString();
 
-      const { error } = await supabase.from('restaurants').update(payload).eq('id', restoId);
-      if (!error) fetchData();
+      await updateRestaurantProfile(restoId, payload);
+      fetchData();
     } catch (err) { alert("Erreur technique"); }
   };
+
+  useEffect(() => {
+    setMounted(true);
+    checkAdminAndFetchData();
+
+    const checkHealth = async () => {
+      const start = performance.now();
+      try {
+        await pingDatabase();
+        const end = performance.now();
+        setSystemHealth({ status: 'online', latency: Math.round(end - start) });
+      } catch (err) {
+        setSystemHealth({ status: 'offline', latency: 0 });
+      }
+    };
+
+    const healthInterval = setInterval(checkHealth, 30000);
+    checkHealth();
+
+    return () => clearInterval(healthInterval);
+  }, []);
+
+  useRealtimeRefresh("master_sync", ["restaurants"], () => fetchData(), true);
 
   const formatDateTime = (iso) => {
     if (!iso) return null;

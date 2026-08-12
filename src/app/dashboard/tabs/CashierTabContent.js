@@ -10,11 +10,11 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
-import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, inputStyle, pill, eyebrow, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import { getTransactionsForRange } from '@/lib/data/transactions';
 import { getExpensesForRange } from '@/lib/data/expenses';
+import { createDailyClosing } from '@/lib/data/closings';
 import { getPeriodRange } from '@/lib/dateRange';
 
 const MONTH_LABELS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
@@ -150,17 +150,16 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
     }
     setIsClosing(true);
     try {
-      const { error } = await supabase.from('daily_closings').insert([{
-        restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email,
+      await createDailyClosing({
+        restaurantId: userProfile.id,
+        ownerEmail: userProfile.owner_email,
         date: selectedDate,
-        theoretical_amount: expectedBalance,
-        real_amount: realAmount,
-        difference: difference,
+        theoreticalAmount: expectedBalance,
+        realAmount,
+        difference,
         notes: closingData.notes,
-        closed_by: userProfile.name
-      }]);
-      if (error) throw error;
+        closedBy: userProfile.name,
+      });
       showClosingToast({
         type: "success",
         title: "Clôture enregistrée",
