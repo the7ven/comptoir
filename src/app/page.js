@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Menu, X } from "lucide-react";
 import { getTheme, bodyFont, headFont } from "@/lib/theme";
 import { useTheme } from "@/context/ThemeContext";
 import BrandMark from "@/components/BrandMark";
@@ -122,6 +122,7 @@ const faqItems = [
 
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const C = getTheme(isDarkMode);
 
@@ -147,14 +148,15 @@ export default function LandingPage() {
             alignItems: "center",
             justifyContent: "space-between",
             gap: 16,
-            flexWrap: "wrap",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <BrandMark size={32} color={C.accent} />
             <span style={{ fontFamily: headFont, fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em" }}>Comptoir</span>
           </div>
+
           <nav
+            className="landing-nav-links"
             style={{
               display: "flex",
               alignItems: "center",
@@ -163,9 +165,6 @@ export default function LandingPage() {
               fontSize: 15,
               fontWeight: 500,
               color: C.muted,
-              flexWrap: "wrap",
-              flexBasis: "100%",
-              order: 3,
             }}
           >
             <a href="#fonctionnalites" style={{ color: "inherit" }}>Fonctionnalités</a>
@@ -173,6 +172,7 @@ export default function LandingPage() {
             <a href="#temoignages" style={{ color: "inherit" }}>Témoignages</a>
             <a href="#faq" style={{ color: "inherit" }}>FAQ</a>
           </nav>
+
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
               onClick={toggleTheme}
@@ -185,15 +185,75 @@ export default function LandingPage() {
             >
               {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <Link href="/auth/login" style={{ fontSize: 15, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>Se connecter</Link>
-            <Link
-              href="/auth/signup"
-              style={{ background: C.accent, color: C.accentInk, padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 15, whiteSpace: "nowrap" }}
+            <div className="landing-nav-auth" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Link href="/auth/login" style={{ fontSize: 15, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>Se connecter</Link>
+              <Link
+                href="/auth/signup"
+                style={{ background: C.accent, color: C.accentInk, padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 15, whiteSpace: "nowrap" }}
+              >
+                Essai gratuit
+              </Link>
+            </div>
+            <button
+              className="landing-nav-toggle"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={mobileMenuOpen}
+              style={{
+                display: "none",
+                width: 38, height: 38, borderRadius: 999, border: `1px solid ${C.line}`, background: C.surface,
+                color: C.ink, alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0,
+              }}
             >
-              Essai gratuit
-            </Link>
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div
+            className="landing-nav-mobile-panel"
+            style={{
+              borderTop: `1px solid ${C.line}`,
+              padding: "8px 24px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {[
+              ["#fonctionnalites", "Fonctionnalités"],
+              ["#tarifs", "Tarifs"],
+              ["#temoignages", "Témoignages"],
+              ["#faq", "FAQ"],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setMobileMenuOpen(false)}
+                style={{ color: C.ink, fontSize: 16, fontWeight: 600, padding: "12px 4px", borderBottom: `1px solid ${C.line}` }}
+              >
+                {label}
+              </a>
+            ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+              <Link
+                href="/auth/login"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{ textAlign: "center", fontSize: 15, fontWeight: 600, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 8, padding: 12 }}
+              >
+                Se connecter
+              </Link>
+              <Link
+                href="/auth/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{ textAlign: "center", background: C.accent, color: C.accentInk, padding: 12, borderRadius: 8, fontWeight: 700, fontSize: 15 }}
+              >
+                Essai gratuit
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ---------------- HERO ---------------- */}
@@ -560,6 +620,14 @@ export default function LandingPage() {
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4c-4.35 0-7.9 3.53-7.9 7.87a7.84 7.84 0 0 0 1.05 3.93L4 20l4.32-1.13a7.9 7.9 0 0 0 3.73.95h.01c4.35 0 7.9-3.53 7.9-7.87a7.83 7.83 0 0 0-2.36-5.63Zm-5.55 12.1h-.01a6.58 6.58 0 0 1-3.35-.92l-.24-.14-2.49.65.67-2.43-.16-.25a6.53 6.53 0 0 1-1-3.46c0-3.62 2.96-6.56 6.6-6.56a6.57 6.57 0 0 1 6.58 6.57c0 3.62-2.96 6.56-6.6 6.56Zm3.6-4.92c-.2-.1-1.17-.58-1.35-.64-.18-.07-.32-.1-.45.1-.13.2-.51.64-.63.77-.12.13-.23.15-.43.05-.2-.1-.85-.32-1.62-1.02-.6-.53-1-1.2-1.12-1.4-.12-.2-.01-.31.09-.4.09-.09.2-.23.3-.35.1-.12.13-.2.2-.33.06-.13.03-.25-.02-.35-.05-.1-.45-1.1-.62-1.5-.16-.4-.33-.34-.45-.35h-.38c-.13 0-.35.05-.53.25-.18.2-.7.68-.7 1.67s.72 1.94.82 2.07c.1.13 1.4 2.15 3.4 3 .48.2.85.33 1.14.42.48.15.91.13 1.26.08.38-.06 1.17-.48 1.34-.94.16-.46.16-.86.11-.94-.05-.08-.18-.13-.38-.23Z"/></svg>
       </a>
+
+      <style jsx global>{`
+        @media (max-width: 860px) {
+          .landing-nav-links { display: none !important; }
+          .landing-nav-auth { display: none !important; }
+          .landing-nav-toggle { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }
