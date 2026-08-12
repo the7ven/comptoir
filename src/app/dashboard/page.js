@@ -17,6 +17,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import BrandMark from '@/components/BrandMark';
+import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
+import { getActiveOrders } from '@/lib/data/orders';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 // --- IMPORTS DES ONGLETS ---
 import MenuTabContent from './tabs/MenuTabContent';
@@ -308,11 +311,6 @@ export default function AdminDashboard() {
 
 // --- VUE D'ENSEMBLE ---
 
-// Même normalisation que TablesTabContent (table_name "TABLE 07" vs
-// table_number "Table 07" ne partagent ni la casse ni systématiquement le
-// préfixe) — nécessaire ici aussi pour compter les tables occupées/libres.
-const normalizeTableId = (v) => (v || "").trim().replace(/^table\s*/i, "").toUpperCase();
-
 // Calcule la plage de dates de la période équivalente immédiatement
 // précédente (hier / semaine dernière / mois dernier / année dernière),
 // pour la comparaison de tendance. Construit toujours sa propre Date à
@@ -511,48 +509,44 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
 
   // Snapshot en direct : plan de salle, commandes actives, stock critique.
   // Ne dépend pas de la période/date affichée — c'est l'état "maintenant".
-  useEffect(() => {
+  const fetchLiveSnapshot = async () => {
     if (!userProfile) return;
     const sharedEmail = userProfile.owner_email;
 
-    const fetchLiveSnapshot = async () => {
-      const [{ data: tablesData }, { data: ordersData }, { data: inventoryData }] = await Promise.all([
-        supabase.from('restaurant_tables').select('table_name').eq('owner_email', sharedEmail),
-        supabase.from('orders').select('table_number, status, total_amount').eq('owner_email', sharedEmail).neq('status', 'Servi'),
-        supabase.from('inventory').select('name, quantity, min_threshold, unit').eq('restaurant_id', userProfile.id),
-      ]);
+    const [tables, orders, { data: inventoryData }] = await Promise.all([
+      getRestaurantTables(sharedEmail),
+      getActiveOrders(sharedEmail),
+      supabase.from('inventory').select('name, quantity, min_threshold, unit').eq('restaurant_id', userProfile.id),
+    ]);
 
-      const tables = tablesData || [];
-      const orders = ordersData || [];
+    let tablesOccupee = 0, tablesAddition = 0;
+    tables.forEach((table) => {
+      const status = getTableStatus(table.table_name, orders);
+      if (status === "Addition") tablesAddition += 1;
+      else if (status === "Occupée") tablesOccupee += 1;
+    });
 
-      let tablesOccupee = 0, tablesAddition = 0;
-      tables.forEach((table) => {
-        const tableOrders = orders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(table.table_name));
-        if (tableOrders.length === 0) return;
-        if (tableOrders.some((o) => o.status === "Prêt")) tablesAddition += 1;
-        else tablesOccupee += 1;
-      });
+    setLiveStats({
+      tablesLibre: Math.max(0, tables.length - tablesOccupee - tablesAddition),
+      tablesOccupee,
+      tablesAddition,
+      ordersEnCours: orders.filter((o) => o.status === "En cours").length,
+      ordersPret: orders.filter((o) => o.status === "Prêt").length,
+      unpaidValue: orders.reduce((acc, o) => acc + (o.total_amount || 0), 0),
+      lowStockItems: (inventoryData || []).filter((i) => i.quantity <= i.min_threshold),
+    });
+  };
 
-      setLiveStats({
-        tablesLibre: Math.max(0, tables.length - tablesOccupee - tablesAddition),
-        tablesOccupee,
-        tablesAddition,
-        ordersEnCours: orders.filter((o) => o.status === "En cours").length,
-        ordersPret: orders.filter((o) => o.status === "Prêt").length,
-        unpaidValue: orders.reduce((acc, o) => acc + (o.total_amount || 0), 0),
-        lowStockItems: (inventoryData || []).filter((i) => i.quantity <= i.min_threshold),
-      });
-    };
-
-    fetchLiveSnapshot();
-    const subscription = supabase
-      .channel("overview_live_snapshot")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchLiveSnapshot)
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables" }, fetchLiveSnapshot)
-      .on("postgres_changes", { event: "*", schema: "public", table: "inventory" }, fetchLiveSnapshot)
-      .subscribe();
-    return () => { supabase.removeChannel(subscription); };
+  useEffect(() => {
+    if (userProfile) fetchLiveSnapshot();
   }, [userProfile]);
+
+  useRealtimeRefresh(
+    "overview_live_snapshot",
+    ["orders", "restaurant_tables", "inventory"],
+    () => fetchLiveSnapshot(),
+    !!userProfile,
+  );
 
   // Statut de clôture de caisse — seulement pertinent en vue "jour", pour
   // la date affichée.
