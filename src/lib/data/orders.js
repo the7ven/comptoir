@@ -35,6 +35,30 @@ export async function updateOrderStatus(orderId, status) {
   if (error) throw error;
 }
 
+// Crée une nouvelle commande (statut initial "En cours"), depuis le panier
+// du Menu.
+export async function createOrder({ restaurantId, ownerEmail, orderFields }) {
+  const { error } = await supabase.from('orders').insert([{
+    restaurant_id: restaurantId,
+    owner_email: ownerEmail,
+    status: 'En cours',
+    ...orderFields,
+  }]);
+  if (error) throw error;
+}
+
+// Met à jour les champs d'une commande existante (ex: panier modifié avant
+// renvoi en cuisine) — distinct de updateOrderStatus, qui ne touche que le
+// statut, et de finalizeOrder, réservé à l'encaissement.
+export async function updateOrder(orderId, ownerEmail, fields) {
+  const { error } = await supabase
+    .from('orders')
+    .update(fields)
+    .eq('id', orderId)
+    .eq('owner_email', ownerEmail);
+  if (error) throw error;
+}
+
 export async function deleteOrder(orderId) {
   const { error } = await supabase.from('orders').delete().eq('id', orderId);
   if (error) throw error;
