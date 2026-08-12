@@ -9,8 +9,9 @@ import {
   PieChart as RePieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, Tooltip, Legend
 } from 'recharts';
-import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, headFont, radiusSm } from '@/lib/dashTheme';
+import { getTransactionsForRange } from '@/lib/data/transactions';
+import { getExpensesForRange } from '@/lib/data/expenses';
 
 // Number.prototype.toLocaleString('fr-FR') sépare les milliers avec un espace
 // insécable fin (U+202F) — absent de la police par défaut de jsPDF (Helvetica,
@@ -78,14 +79,10 @@ export default function ReportsTabContent({ isDarkMode, selectedDate, userProfil
         endStr = new Date(calendarDate.getFullYear(), 11, 31, 23, 59, 59).toISOString();
       }
 
-      const [transRes, expRes] = await Promise.all([
-        supabase.from('transactions').select('*').eq('owner_email', sharedEmail).gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('expenses').select('*').eq('owner_email', sharedEmail).gte('created_at', startStr).lte('created_at', endStr)
+      const [transactions, expenses] = await Promise.all([
+        getTransactionsForRange(sharedEmail, startStr, endStr),
+        getExpensesForRange(sharedEmail, startStr, endStr),
       ]);
-
-      if (transRes.error) throw transRes.error;
-      const transactions = transRes.data || [];
-      const expenses = expRes.data || [];
 
       let cuisine = 0;
       let bar = 0;

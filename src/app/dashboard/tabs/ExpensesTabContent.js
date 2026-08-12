@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Plus, Trash2, Loader2,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, inputStyle, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import { getExpensesForRange, createExpense, deleteExpense as deleteExpenseRow } from '@/lib/data/expenses';
+import { getPeriodRange } from '@/lib/dateRange';
 
 export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
@@ -25,37 +26,10 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const date = new Date(selectedDate);
-      let start, end;
-
-      // LOGIQUE DE CALCUL DES PÉRIODES
-      if (period === "day") {
-        start = `${selectedDate}T00:00:00.000Z`;
-        end = `${selectedDate}T23:59:59.999Z`;
-      } else if (period === "week") {
-        const first = date.getDate() - date.getDay();
-        const last = first + 6;
-        start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
-        end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
-      } else if (period === "month") {
-        start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      } else if (period === "year") {
-        start = new Date(date.getFullYear(), 0, 1).toISOString();
-        end = new Date(date.getFullYear(), 11, 31, 23, 59, 59).toISOString();
-      }
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('owner_email', userProfile.owner_email)
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setExpenses(data || []);
-      setTotalExpenses(data?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0);
+      const { start, end } = getPeriodRange(period, selectedDate);
+      const data = await getExpensesForRange(userProfile.owner_email, start, end);
+      setExpenses(data);
+      setTotalExpenses(data.reduce((acc, curr) => acc + Number(curr.amount), 0));
     } catch (err) {
       console.error("Erreur chargement dépenses:", err.message);
     } finally {
@@ -75,16 +49,13 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
         return;
       }
 
-      const { error } = await supabase.from('expenses').insert([{
-        restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email,
+      await createExpense({
+        restaurantId: userProfile.id,
+        ownerEmail: userProfile.owner_email,
         label: formData.get('label'),
         amount,
         category: formData.get('category'),
-        created_at: new Date().toISOString()
-      }]);
-
-      if (error) throw error;
+      });
 
       setIsModalOpen(false);
       fetchExpenses();
@@ -97,13 +68,7 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
   const deleteExpense = async (id) => {
     if (confirm("Supprimer cette dépense ?")) {
       try {
-        const { error } = await supabase
-          .from('expenses')
-          .delete()
-          .eq('id', id)
-          .eq('owner_email', userProfile.owner_email);
-
-        if (error) throw error;
+        await deleteExpenseRow(id, userProfile.owner_email);
         fetchExpenses();
       } catch (err) {
         alert("Erreur lors de la suppression");

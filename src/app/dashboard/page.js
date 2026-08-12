@@ -19,6 +19,9 @@ import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFon
 import BrandMark from '@/components/BrandMark';
 import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
 import { getActiveOrders } from '@/lib/data/orders';
+import { getTransactionsForRange } from '@/lib/data/transactions';
+import { getExpensesForRange } from '@/lib/data/expenses';
+import { getPeriodRange } from '@/lib/dateRange';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 // --- IMPORTS DES ONGLETS ---
@@ -382,42 +385,20 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
   useEffect(() => {
     const fetchRealData = async () => {
       const sharedEmail = userProfile.owner_email;
-      const date = new Date(selectedDate);
-      let start, end;
-
-      if (period === "day") {
-        start = `${selectedDate}T00:00:00.000Z`;
-        end = `${selectedDate}T23:59:59.999Z`;
-      } else if (period === "week") {
-        const first = date.getDate() - date.getDay();
-        const last = first + 6;
-        start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
-        end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
-      } else if (period === "month") {
-        start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      } else if (period === "year") {
-        start = new Date(date.getFullYear(), 0, 1).toISOString();
-        end = new Date(date.getFullYear(), 11, 31, 23, 59, 59).toISOString();
-      }
-
+      const { start, end } = getPeriodRange(period, selectedDate);
       const { start: prevStart, end: prevEnd } = getPreviousRange(period, selectedDate);
 
-      const { data: transData } = await supabase.from('transactions')
-        .select('*')
-        .eq('owner_email', sharedEmail)
-        .gte('created_at', start).lte('created_at', end)
-        .order('created_at', { ascending: false });
-
-      const { data: expData } = await supabase.from('expenses')
-        .select('amount, category')
-        .eq('owner_email', sharedEmail)
-        .gte('created_at', start).lte('created_at', end);
-
-      const { data: prevTransData } = await supabase.from('transactions')
-        .select('amount')
-        .eq('owner_email', sharedEmail)
-        .gte('created_at', prevStart).lte('created_at', prevEnd);
+      let transData, expData, prevTransData;
+      try {
+        [transData, expData, prevTransData] = await Promise.all([
+          getTransactionsForRange(sharedEmail, start, end),
+          getExpensesForRange(sharedEmail, start, end),
+          getTransactionsForRange(sharedEmail, prevStart, prevEnd),
+        ]);
+      } catch (err) {
+        console.error("Erreur chargement des statistiques:", err.message);
+        return;
+      }
 
       if (transData) {
         const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
