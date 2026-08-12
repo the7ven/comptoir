@@ -22,6 +22,7 @@ import { getActiveOrders } from '@/lib/data/orders';
 import { getTransactionsForRange } from '@/lib/data/transactions';
 import { getExpensesForRange } from '@/lib/data/expenses';
 import { getInventory, getLowStockItems } from '@/lib/data/inventory';
+import { getRestaurantProfile } from '@/lib/data/restaurants';
 import { getPeriodRange } from '@/lib/dateRange';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
@@ -87,7 +88,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        const { data: realProfile } = await supabase.from('restaurants').select('*').eq('id', session.user.id).maybeSingle();
+        const realProfile = await getRestaurantProfile(session.user.id);
         if (!realProfile) {
           if (isMounted) router.replace('/auth/login');
           return;
@@ -106,7 +107,7 @@ export default function AdminDashboard() {
         let profileToUse = realProfile;
 
         if (impersonateId && realProfile.is_super_admin) {
-          const { data: targetProfile } = await supabase.from('restaurants').select('*').eq('id', impersonateId).maybeSingle();
+          const targetProfile = await getRestaurantProfile(impersonateId);
           if (targetProfile) profileToUse = targetProfile;
         }
 

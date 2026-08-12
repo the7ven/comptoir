@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import {
   UserPlus, ShieldCheck, CheckCircle2, X, Loader2, Mail
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, pill } from '@/lib/dashTheme';
+import { getStaffForOwner } from '@/lib/data/restaurants';
 
 export default function StaffTabContent({ isDarkMode, userProfile }) {
   const T = getDashTokens(isDarkMode);
@@ -23,21 +23,14 @@ export default function StaffTabContent({ isDarkMode, userProfile }) {
   });
 
   useEffect(() => {
-    fetchStaff();
-  }, []);
+    if (userProfile) fetchStaff();
+  }, [userProfile]);
 
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('owner_email', userProfile.owner_email)
-        .eq('role', 'cashier')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setStaff(data || []);
+      const data = await getStaffForOwner(userProfile.owner_email);
+      setStaff(data);
     } catch (error) {
       console.error('Erreur:', error.message);
     } finally {

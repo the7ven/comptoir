@@ -8,8 +8,9 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useRouter } from 'next/navigation';
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import { getRestaurantProfile, updateRestaurantProfile } from '@/lib/data/restaurants';
 
-export default function SettingsTabContent({ isDarkMode }) {
+export default function SettingsTabContent({ isDarkMode, userProfile }) {
   const T = getDashTokens(isDarkMode);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -26,21 +27,13 @@ export default function SettingsTabContent({ isDarkMode }) {
   });
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (userProfile) fetchSettings();
+  }, [userProfile]);
 
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // LECTURE : On récupère uniquement les infos liées à l'ID de l'utilisateur
-      const { data, error } = await supabase
-        .from("restaurants")
-        .select("name, location, logo_url")
-        .eq("id", user.id) // ISOLATION SÉCURISÉE
-        .single();
+      const data = await getRestaurantProfile(userProfile.id);
 
       if (data) {
         setSettings(prev => ({
@@ -60,19 +53,12 @@ export default function SettingsTabContent({ isDarkMode }) {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userProfile) return;
 
-      // MISE À JOUR : On verrouille la modification sur l'ID de l'utilisateur
-      const { error } = await supabase
-        .from('restaurants')
-        .update({
-          name: settings.name,
-          location: settings.location
-        })
-        .eq('id', user.id); // SÉCURITÉ CRITIQUE
-
-      if (error) throw error;
+      await updateRestaurantProfile(userProfile.id, {
+        name: settings.name,
+        location: settings.location,
+      });
 
       setSaveSuccess(true);
       router.refresh();
@@ -94,13 +80,12 @@ export default function SettingsTabContent({ isDarkMode }) {
     try {
       setUploading(true);
       const file = e.target.files[0];
-      const { data: { user } } = await supabase.auth.getUser();
 
-      if (!file || !user) return;
+      if (!file || !userProfile) return;
 
-      // Organisation du stockage par ID utilisateur pour éviter les conflits
+      // Organisation du stockage par ID restaurant pour éviter les conflits
       const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/logo-${Date.now()}.${fileExt}`;
+      const filePath = `${userProfile.id}/logo-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('logos')
@@ -112,11 +97,7 @@ export default function SettingsTabContent({ isDarkMode }) {
         .from('logos')
         .getPublicUrl(filePath);
 
-      // Mise à jour de l'URL du logo dans la table restaurant
-      await supabase
-        .from('restaurants')
-        .update({ logo_url: publicUrl })
-        .eq('id', user.id); // SÉCURITÉ CRITIQUE
+      await updateRestaurantProfile(userProfile.id, { logo_url: publicUrl });
 
       setSettings(prev => ({ ...prev, logo_url: publicUrl }));
       alert("Logo mis à jour !");
