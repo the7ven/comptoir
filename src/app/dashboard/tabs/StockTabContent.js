@@ -2,31 +2,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius } from '@/lib/dashTheme';
+import { getInventory, createInventoryItem } from '@/lib/data/inventory';
 
-export default function StockTabContent({ isDarkMode }) {
+export default function StockTabContent({ isDarkMode, userProfile }) {
   const T = getDashTokens(isDarkMode);
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchStock();
-  }, []);
+    if (userProfile) fetchStock();
+  }, [userProfile]);
 
   const fetchStock = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('restaurant_id', user.id) // ISOLATION SÉCURISÉE
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setInventory(data || []);
+      const data = await getInventory(userProfile.id);
+      setInventory(data);
     } catch (err) {
       console.error(err.message);
     } finally {
@@ -45,16 +38,14 @@ export default function StockTabContent({ isDarkMode }) {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('inventory').insert([{
-        restaurant_id: user.id,
+      await createInventoryItem({
+        restaurantId: userProfile.id,
         name: formData.get('name'),
         quantity,
-        min_threshold: minThreshold,
-        unit: formData.get('unit')
-      }]);
+        minThreshold,
+        unit: formData.get('unit'),
+      });
 
-      if (error) throw error;
       setIsModalOpen(false);
       fetchStock();
     } catch (err) {

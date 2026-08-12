@@ -5,10 +5,11 @@ import {
   Clock, CheckCircle2, Plus, Flame, Utensils,
   Trash2, AlertCircle, X, Check, Printer, Receipt, Edit3, Beer,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { printViaBluetooth } from '@/lib/bluetoothPrint';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import { getOrdersForDay, updateOrderStatus, deleteOrder, finalizeOrder } from '@/lib/data/orders';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 
 export default function OrdersTabContent({
   isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
@@ -26,32 +27,18 @@ export default function OrdersTabContent({
   const paidToastTimeout = useRef(null);
 
   useEffect(() => {
-    if (userProfile) {
-      fetchOrders();
-      const subscription = supabase
-        .channel("orders_live")
-        .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchOrders)
-        .subscribe();
-      return () => { supabase.removeChannel(subscription); };
-    }
+    if (userProfile) fetchOrders();
   }, [selectedDate, userProfile]);
+
+  // Référencée via une fonction fléchée : `fetchOrders` est déclarée plus
+  // bas (temporal dead zone sinon, le hook est appelé pendant le rendu).
+  useRealtimeRefresh("orders_live", ["orders"], () => fetchOrders(), !!userProfile);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const startOfDay = `${selectedDate}T00:00:00.000Z`;
-      const endOfDay = `${selectedDate}T23:59:59.999Z`;
-
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("owner_email", userProfile.owner_email)
-        .gte("created_at", startOfDay)
-        .lte("created_at", endOfDay)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setOrders(data || []);
+      const data = await getOrdersForDay(userProfile.owner_email, selectedDate);
+      setOrders(data);
     } catch (error) { console.error("Erreur:", error.message); }
     finally { setLoading(false); }
   };
@@ -78,7 +65,7 @@ export default function OrdersTabContent({
     // "Servi" avait vraiment été encaissée ou non.
     if (order.status !== "En cours") return;
     try {
-      await supabase.from("orders").update({ status: "Prêt" }).eq("id", order.id);
+      await updateOrderStatus(order.id, "Prêt");
       fetchOrders();
     } catch (err) { alert(toUserMessage(err, "Impossible de mettre à jour le statut de la commande.")); }
   };
@@ -86,15 +73,7 @@ export default function OrdersTabContent({
   const handleFinalizeOrder = async (method) => {
     const order = selectedOrderForBill;
     try {
-      await supabase.from("transactions").insert([{
-        restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email,
-        table_number: order.table_number,
-        amount: order.total_amount,
-        payment_method: method,
-        items: order.items_details || [],
-      }]);
-      await supabase.from("orders").update({ status: "Servi" }).eq("id", order.id);
+      await finalizeOrder({ order, restaurantId: userProfile.id, ownerEmail: userProfile.owner_email, method });
       setSelectedOrderForBill(null);
       setShowPaymentSelector(false);
       fetchOrders();
@@ -106,7 +85,11 @@ export default function OrdersTabContent({
   };
 
   const handleDeleteOrder = async () => {
-    await supabase.from("orders").delete().eq("id", orderToDelete.id);
+    try {
+      await deleteOrder(orderToDelete.id);
+    } catch (error) {
+      console.error("Erreur:", error.message);
+    }
     setIsDeleteModalOpen(false);
     fetchOrders();
   };

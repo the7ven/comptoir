@@ -15,9 +15,10 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { toUserMessage } from "@/lib/errors";
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from "@/lib/dashTheme";
+import { getDishes, createDish, updateDish, deleteDish } from "@/lib/data/dishes";
+import { createOrder, updateOrder } from "@/lib/data/orders";
 
 // finalizeOrder() reconstruit toujours table_number comme `Table ${tableNum}`
 // — donc tableNum ne doit JAMAIS contenir de préfixe "Table " lui-même.
@@ -70,13 +71,8 @@ export default function MenuTabContent({
   const fetchDishes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("dishes")
-        .select("*")
-        .ilike("owner_email", userProfile.owner_email.trim())
-        .order("name", { ascending: true });
-      if (error) throw error;
-      setItems(data || []);
+      const data = await getDishes(userProfile.owner_email);
+      setItems(data);
     } catch (error) {
       console.error("Erreur:", error.message);
     } finally {
@@ -137,12 +133,7 @@ export default function MenuTabContent({
   const handleDeleteDish = async () => {
     if (!itemToDelete) return;
     try {
-      const { error } = await supabase
-        .from("dishes")
-        .delete()
-        .eq("id", itemToDelete.id)
-        .eq("owner_email", userProfile.owner_email);
-      if (error) throw error;
+      await deleteDish(itemToDelete.id, userProfile.owner_email);
       setIsDeleteModalOpen(false);
       setItemToDelete(null);
       fetchDishes();
@@ -171,22 +162,9 @@ export default function MenuTabContent({
         // Modification d'une commande existante : on met à jour la ligne en
         // place plutôt que d'en insérer une nouvelle, sinon on se retrouve
         // avec un doublon sur la même table en plus de la commande d'origine.
-        const { error } = await supabase
-          .from("orders")
-          .update(orderFields)
-          .eq("id", pendingOrder.id)
-          .eq("owner_email", userProfile.owner_email);
-        if (error) throw error;
+        await updateOrder(pendingOrder.id, userProfile.owner_email, orderFields);
       } else {
-        const { error } = await supabase.from("orders").insert([
-          {
-            restaurant_id: userProfile.id,
-            owner_email: userProfile.owner_email,
-            status: "En cours",
-            ...orderFields,
-          },
-        ]);
-        if (error) throw error;
+        await createOrder({ restaurantId: userProfile.id, ownerEmail: userProfile.owner_email, orderFields });
       }
       setCart([]);
       setPendingOrder(null);
@@ -384,11 +362,14 @@ export default function MenuTabContent({
                 image_url: formData.get("image"),
                 status: "Disponible",
               };
-              if (editingItem?.id)
-                await supabase.from("dishes").update(dishData).eq("id", editingItem.id);
-              else await supabase.from("dishes").insert([dishData]);
-              setIsModalOpen(false);
-              fetchDishes();
+              try {
+                if (editingItem?.id) await updateDish(editingItem.id, dishData);
+                else await createDish(dishData);
+                setIsModalOpen(false);
+                fetchDishes();
+              } catch (error) {
+                alert(toUserMessage(error, "Impossible d'enregistrer cet article."));
+              }
             }}
             style={{ ...card(T, { borderRadius: radius }), width: "100%", maxWidth: 420, padding: 32, position: "relative", boxShadow: T.shadow }}
           >

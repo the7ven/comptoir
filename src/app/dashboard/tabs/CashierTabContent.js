@@ -10,9 +10,12 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
-import { supabase } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, inputStyle, pill, eyebrow, headFont, radius, radiusSm } from '@/lib/dashTheme';
+import { getTransactionsForRange } from '@/lib/data/transactions';
+import { getExpensesForRange } from '@/lib/data/expenses';
+import { createDailyClosing } from '@/lib/data/closings';
+import { getPeriodRange } from '@/lib/dateRange';
 
 const MONTH_LABELS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
@@ -53,46 +56,12 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   const fetchDailyData = async () => {
     try {
       setLoading(true);
-      const date = new Date(selectedDate);
-      let start, end;
+      const { start, end } = getPeriodRange(period, selectedDate);
 
-      // LOGIQUE DE CALCUL DES PÉRIODES (Même que Overview)
-      if (period === "day") {
-        start = `${selectedDate}T00:00:00.000Z`;
-        end = `${selectedDate}T23:59:59.999Z`;
-      } else if (period === "week") {
-        const first = date.getDate() - date.getDay();
-        const last = first + 6;
-        start = new Date(date.setDate(first)).toISOString().split('T')[0] + "T00:00:00.000Z";
-        end = new Date(date.setDate(last)).toISOString().split('T')[0] + "T23:59:59.999Z";
-      } else if (period === "month") {
-        start = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      } else if (period === "year") {
-        start = new Date(date.getFullYear(), 0, 1).toISOString();
-        end = new Date(date.getFullYear(), 11, 31, 23, 59, 59).toISOString();
-      }
-
-      const { data: trans, error: transErr } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('owner_email', userProfile.owner_email)
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .order('created_at', { ascending: false });
-
-      const { data: exp, error: expErr } = await supabase
-        .from('expenses')
-        // "created_at" est nécessaire pour répartir chaque dépense dans le
-        // bon créneau du graphique Évolution (par heure/jour/mois) — sans
-        // cette colonne, new Date(e.created_at) est invalide et la courbe
-        // "Dépenses" reste plate à zéro même s'il y a des dépenses.
-        .select('amount, created_at')
-        .eq('owner_email', userProfile.owner_email)
-        .gte('created_at', start)
-        .lte('created_at', end);
-
-      if (transErr || expErr) throw transErr || expErr;
+      const [trans, exp] = await Promise.all([
+        getTransactionsForRange(userProfile.owner_email, start, end),
+        getExpensesForRange(userProfile.owner_email, start, end),
+      ]);
 
       let repas = 0, cocktails = 0, jus = 0, bar = 0;
 
@@ -181,17 +150,16 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
     }
     setIsClosing(true);
     try {
-      const { error } = await supabase.from('daily_closings').insert([{
-        restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email,
+      await createDailyClosing({
+        restaurantId: userProfile.id,
+        ownerEmail: userProfile.owner_email,
         date: selectedDate,
-        theoretical_amount: expectedBalance,
-        real_amount: realAmount,
-        difference: difference,
+        theoreticalAmount: expectedBalance,
+        realAmount,
+        difference,
         notes: closingData.notes,
-        closed_by: userProfile.name
-      }]);
-      if (error) throw error;
+        closedBy: userProfile.name,
+      });
       showClosingToast({
         type: "success",
         title: "Clôture enregistrée",

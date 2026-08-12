@@ -12,19 +12,18 @@ import {
   Trash2,
   ArrowRight,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { printViaBluetooth } from "@/lib/bluetoothPrint";
 import { toUserMessage } from "@/lib/errors";
 import { getDashTokens, card, btnSolid, inputStyle, headFont, radius, radiusSm } from "@/lib/dashTheme";
-
-// Les tables ("TABLE 07", toujours en majuscules) et les commandes
-// ("Table 07", préfixe ajouté par MenuTabContent à partir de ce que tape
-// le caissier) ne partagent pas la même casse — et certains noms de table
-// libres ("Terrasse", "VIP"...) n'ont même pas de préfixe "TABLE " du
-// tout. On normalise donc les deux côtés (préfixe "table" retiré, casse
-// ignorée) avant toute comparaison, sinon aucune commande ne "retrouve"
-// jamais sa table.
-const normalizeTableId = (v) => (v || "").trim().replace(/^table\s*/i, "").toUpperCase();
+import {
+  getRestaurantTables,
+  createTable,
+  deleteTable as deleteTableRow,
+  getOrdersForTable,
+  getStatusFromOrders,
+} from "@/lib/data/tables";
+import { getActiveOrders, deleteOrder, finalizeOrder } from "@/lib/data/orders";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export default function TablesTabContent({
   isDarkMode,
@@ -50,26 +49,13 @@ export default function TablesTabContent({
   const paidToastTimeout = useRef(null);
 
   useEffect(() => {
-    if (userProfile) {
-      fetchData();
-      const subscription = supabase
-        .channel("tables_sync_realtime")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "orders" },
-          fetchData,
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "restaurant_tables" },
-          fetchData,
-        )
-        .subscribe();
-      return () => {
-        supabase.removeChannel(subscription);
-      };
-    }
+    if (userProfile) fetchData();
   }, [userProfile]);
+
+  // Référencée via une fonction fléchée (et non directement) : `fetchData`
+  // est déclarée plus bas dans le composant (temporal dead zone sinon, le
+  // hook est appelé pendant le rendu, avant que `const fetchData` existe).
+  useRealtimeRefresh("tables_sync_realtime", ["orders", "restaurant_tables"], () => fetchData(), !!userProfile);
 
   const fetchData = async () => {
     try {
@@ -79,25 +65,15 @@ export default function TablesTabContent({
 
       const sharedEmail = userProfile.owner_email;
 
-      const { data: tablesData, error: tableError } = await supabase
-        .from("restaurant_tables")
-        .select("*")
-        .eq("owner_email", sharedEmail);
+      const tablesData = await getRestaurantTables(sharedEmail);
+      const ordersData = await getActiveOrders(sharedEmail);
 
-      const { data: ordersData } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("owner_email", sharedEmail)
-        .neq("status", "Servi");
-
-      if (tableError) throw tableError;
-
-      const sortedTables = (tablesData || []).sort((a, b) =>
+      const sortedTables = tablesData.sort((a, b) =>
         a.table_name.localeCompare(b.table_name, undefined, { numeric: true }),
       );
 
       setTables(sortedTables);
-      setActiveOrders(ordersData || []);
+      setActiveOrders(ordersData);
     } catch (error) {
       console.error("Erreur Supabase:", error.message);
     } finally {
@@ -125,24 +101,7 @@ export default function TablesTabContent({
   const handleFinalizeTable = async (method) => {
     const order = selectedOrderForBill;
     try {
-      const { error: transError } = await supabase.from("transactions").insert([
-        {
-          restaurant_id: userProfile.id,
-          owner_email: userProfile.owner_email,
-          table_number: order.table_number,
-          amount: order.total_amount,
-          payment_method: method,
-          items: order.items_details || [],
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      if (transError) throw transError;
-
-      const { error: orderError } = await supabase
-        .from("orders")
-        .update({ status: "Servi" })
-        .eq("id", order.id);
-      if (orderError) throw orderError;
+      await finalizeOrder({ order, restaurantId: userProfile.id, ownerEmail: userProfile.owner_email, method });
 
       setShowPaymentSelector(false);
       setSelectedOrderForBill(null);
@@ -184,36 +143,28 @@ export default function TablesTabContent({
       return;
     }
 
-    const { error } = await supabase.from("restaurant_tables").insert([
-      {
-        restaurant_id: userProfile.id,
-        owner_email: userProfile.owner_email,
-        table_name: tableName,
-        capacity: capacity,
-        status: "Libre",
-      },
-    ]);
-
-    if (error) {
-      alert(toUserMessage(error, "Impossible d'enregistrer cette table."));
-    } else {
+    try {
+      await createTable({ restaurantId: userProfile.id, ownerEmail: userProfile.owner_email, tableName, capacity });
       setIsAddTableModalOpen(false);
       fetchData();
+    } catch (error) {
+      alert(toUserMessage(error, "Impossible d'enregistrer cette table."));
     }
   };
 
   const deleteTable = async (id) => {
     if (confirm("Voulez-vous supprimer cette table du plan ?")) {
-      const { error } = await supabase
-        .from("restaurant_tables")
-        .delete()
-        .eq("id", id);
-      if (!error) fetchData();
+      try {
+        await deleteTableRow(id);
+        fetchData();
+      } catch (error) {
+        console.error("Erreur Supabase:", error.message);
+      }
     }
   };
 
   const handleTableClick = (tableName) => {
-    const orders = activeOrders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(tableName));
+    const orders = getOrdersForTable(tableName, activeOrders);
     if (orders.length > 1) {
       setMultiOrderTable({ name: tableName, orders });
     } else if (orders.length === 1) {
@@ -244,15 +195,14 @@ export default function TablesTabContent({
 
   const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
-    const { error } = await supabase
-      .from("orders")
-      .delete()
-      .eq("id", orderToDelete.id);
-    if (!error) {
+    try {
+      await deleteOrder(orderToDelete.id);
       setIsDeleteModalOpen(false);
       setOrderToDelete(null);
       setSelectedOrderForBill(null);
       fetchData();
+    } catch (error) {
+      console.error("Erreur Supabase:", error.message);
     }
   };
 
@@ -290,11 +240,8 @@ export default function TablesTabContent({
       {/* GRILLE DES TABLES */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16 }}>
         {tables.map((table) => {
-          const tableOrders = activeOrders.filter((o) => normalizeTableId(o.table_number) === normalizeTableId(table.table_name));
-          const currentStatus =
-            tableOrders.length > 0
-              ? tableOrders.some((o) => o.status === "Prêt") ? "Addition" : "Occupée"
-              : "Libre";
+          const tableOrders = getOrdersForTable(table.table_name, activeOrders);
+          const currentStatus = getStatusFromOrders(tableOrders);
           const st = getStatusStyle(currentStatus);
 
           return (
