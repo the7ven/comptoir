@@ -29,3 +29,10 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* Landing page nav — bascule menu mobile (voir src/app/page.js) */
+@media (max-width: 860px) {
+  .landing-nav-links { display: none !important; }
+  .landing-nav-auth { display: none !important; }
+  .landing-nav-toggle { display: flex !important; }
+}
