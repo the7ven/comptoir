@@ -167,10 +167,10 @@ export default function LandingPage() {
               color: C.muted,
             }}
           >
-            <a href="#fonctionnalites" style={{ color: "inherit" }}>Fonctionnalités</a>
-            <a href="#tarifs" style={{ color: "inherit" }}>Tarifs</a>
-            <a href="#temoignages" style={{ color: "inherit" }}>Témoignages</a>
-            <a href="#faq" style={{ color: "inherit" }}>FAQ</a>
+            <a href="#fonctionnalites" className="landing-link" style={{ color: "inherit", "--hover-color": C.accent }}>Fonctionnalités</a>
+            <a href="#tarifs" className="landing-link" style={{ color: "inherit", "--hover-color": C.accent }}>Tarifs</a>
+            <a href="#temoignages" className="landing-link" style={{ color: "inherit", "--hover-color": C.accent }}>Témoignages</a>
+            <a href="#faq" className="landing-link" style={{ color: "inherit", "--hover-color": C.accent }}>FAQ</a>
           </nav>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -186,9 +186,10 @@ export default function LandingPage() {
               {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <div className="landing-nav-auth" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Link href="/auth/login" style={{ fontSize: 15, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>Se connecter</Link>
+              <Link href="/auth/login" className="landing-link" style={{ fontSize: 15, fontWeight: 600, color: C.muted, whiteSpace: "nowrap", "--hover-color": C.accent }}>Se connecter</Link>
               <Link
                 href="/auth/signup"
+                className="landing-btn-solid"
                 style={{ background: C.accent, color: C.accentInk, padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 15, whiteSpace: "nowrap" }}
               >
                 Essai gratuit
@@ -231,7 +232,8 @@ export default function LandingPage() {
                 key={href}
                 href={href}
                 onClick={() => setMobileMenuOpen(false)}
-                style={{ color: C.ink, fontSize: 16, fontWeight: 600, padding: "12px 4px", borderBottom: `1px solid ${C.line}` }}
+                className="landing-link"
+                style={{ color: C.ink, fontSize: 16, fontWeight: 600, padding: "12px 4px", borderBottom: `1px solid ${C.line}`, "--hover-color": C.accent }}
               >
                 {label}
               </a>
@@ -240,13 +242,15 @@ export default function LandingPage() {
               <Link
                 href="/auth/login"
                 onClick={() => setMobileMenuOpen(false)}
-                style={{ textAlign: "center", fontSize: 15, fontWeight: 600, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 8, padding: 12 }}
+                className="landing-btn-outline"
+                style={{ textAlign: "center", fontSize: 15, fontWeight: 600, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 8, padding: 12, "--hover-bg": C.wash, "--hover-color": C.accent }}
               >
                 Se connecter
               </Link>
               <Link
                 href="/auth/signup"
                 onClick={() => setMobileMenuOpen(false)}
+                className="landing-btn-solid"
                 style={{ textAlign: "center", background: C.accent, color: C.accentInk, padding: 12, borderRadius: 8, fontWeight: 700, fontSize: 15 }}
               >
                 Essai gratuit
@@ -279,10 +283,10 @@ export default function LandingPage() {
             Comptoir réunit caisse, plan de salle, stocks et rapports dans une console pensée pour aller vite — même avec une connexion instable.
           </p>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <Link href="/auth/signup" style={{ background: C.accent, color: C.accentInk, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
+            <Link href="/auth/signup" className="landing-btn-solid" style={{ background: C.accent, color: C.accentInk, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
               Essai gratuit 7 jours
             </Link>
-            <a href="#fonctionnalites" style={{ border: `1px solid ${C.line}`, color: C.ink, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
+            <a href="#fonctionnalites" className="landing-btn-outline" style={{ border: `1px solid ${C.line}`, color: C.ink, padding: "14px 28px", borderRadius: 8, fontWeight: 700, fontSize: 16, "--hover-bg": C.wash, "--hover-color": C.accent }}>
               Découvrir l'outil
             </a>
           </div>
@@ -487,6 +491,7 @@ export default function LandingPage() {
               </div>
               <Link
                 href="/auth/signup"
+                className={p.highlight ? "landing-btn-solid" : "landing-btn-outline"}
                 style={{
                   background: p.highlight ? C.accent : "transparent",
                   border: p.highlight ? "none" : `1px solid ${C.line}`,
@@ -496,6 +501,8 @@ export default function LandingPage() {
                   fontWeight: 700,
                   fontSize: 15,
                   textAlign: "center",
+                  "--hover-bg": C.wash,
+                  "--hover-color": C.accent,
                 }}
               >
                 {p.cta}
@@ -552,7 +559,7 @@ export default function LandingPage() {
             Prêt à simplifier la gestion de votre restaurant ?
           </h2>
           <p style={{ fontSize: 17, color: C.accentInkMuted, margin: "0 0 32px" }}>7 jours d'essai gratuit. Sans carte bancaire.</p>
-          <Link href="/auth/signup" style={{ display: "inline-block", background: C.accentInk, color: C.panel, padding: "14px 32px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
+          <Link href="/auth/signup" className="landing-btn-solid" style={{ display: "inline-block", background: C.accentInk, color: C.panel, padding: "14px 32px", borderRadius: 8, fontWeight: 700, fontSize: 16 }}>
             Démarrer l'essai gratuit
           </Link>
         </div>
@@ -571,16 +578,21 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Produit</div>
-          <a href="#fonctionnalites" style={{ color: C.muted, fontSize: 14 }}>Fonctionnalités</a>
-          <a href="#tarifs" style={{ color: C.muted, fontSize: 14 }}>Tarifs</a>
-          <a href="#temoignages" style={{ color: C.muted, fontSize: 14 }}>Témoignages</a>
-          <a href="#faq" style={{ color: C.muted, fontSize: 14 }}>FAQ</a>
+          <a href="#fonctionnalites" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>Fonctionnalités</a>
+          <a href="#tarifs" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>Tarifs</a>
+          <a href="#temoignages" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>Témoignages</a>
+          <a href="#faq" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>FAQ</a>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Contact</div>
-          <a href="tel:+237698710659" style={{ color: C.muted, fontSize: 14 }}>+237 6 98 71 06 59</a>
-          <a href="mailto:supportcomptoir@gmail.com" style={{ color: C.muted, fontSize: 14 }}>supportcomptoir@gmail.com</a>
+          <a href="tel:+237698710659" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>+237 6 98 71 06 59</a>
+          <a href="mailto:supportcomptoir@gmail.com" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>supportcomptoir@gmail.com</a>
           <span style={{ color: C.faint, fontSize: 14 }}>Douala, Cameroun</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Légal</div>
+          <Link href="/cgu" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>Conditions Générales d&apos;Utilisation</Link>
+          <Link href="/confidentialite" className="landing-link" style={{ color: C.muted, fontSize: 14, "--hover-color": C.accent }}>Politique de confidentialité</Link>
         </div>
       </footer>
       <div style={{ borderTop: `1px solid ${C.line}`, padding: "20px 24px", textAlign: "center", fontSize: 13, color: C.faint }}>
