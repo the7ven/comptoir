@@ -347,7 +347,7 @@ export default function TablesTabContent({
                     s'appelle "name", cf. SettingsTabContent) — le nom du resto ne
                     s'affichait donc jamais, remplacé silencieusement par le repli. */}
                 <h4 style={{ fontSize: 17, fontWeight: 800, textTransform: "uppercase", margin: 0, fontStyle: "italic" }}>{userProfile?.name || "Comptoir"}</h4>
-                <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", margin: "4px 0 0" }}>{userProfile?.location || "Abidjan, CI"}</p>
+                <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", margin: "4px 0 0" }}>{userProfile?.location || "Douala, CM"}</p>
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 800, marginBottom: 16, borderBottom: "1px solid #000", paddingBottom: 8 }}>
