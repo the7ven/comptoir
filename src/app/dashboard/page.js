@@ -283,7 +283,7 @@ export default function AdminDashboard() {
       </main>
 
       <a
-        href={`https://wa.me/2250757471552?text=${encodeURIComponent(
+        href={`https://wa.me/237698710659?text=${encodeURIComponent(
           `Bonjour Comptoir, je suis ${restaurantName}. J'ai besoin d'assistance sur ma console de gestion.`
         )}`}
         target="_blank"

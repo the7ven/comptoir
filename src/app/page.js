@@ -574,23 +574,13 @@ export default function LandingPage() {
           <a href="#fonctionnalites" style={{ color: C.muted, fontSize: 14 }}>Fonctionnalités</a>
           <a href="#tarifs" style={{ color: C.muted, fontSize: 14 }}>Tarifs</a>
           <a href="#temoignages" style={{ color: C.muted, fontSize: 14 }}>Témoignages</a>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Société</div>
-          <a href="mailto:srestopay@gmail.com" style={{ color: C.muted, fontSize: 14 }}>Contact</a>
           <a href="#faq" style={{ color: C.muted, fontSize: 14 }}>FAQ</a>
-          <a href="https://wa.me/2250757471552" target="_blank" rel="noopener noreferrer" style={{ color: C.muted, fontSize: 14 }}>WhatsApp</a>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Ressources</div>
-          <span style={{ color: C.faint, fontSize: 14 }}>Plateau, Abidjan, Côte d&apos;Ivoire</span>
-        </div>
-        {/* TODO: à remplir — vraies coordonnées de contact (téléphone, email dédié, adresse...) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Contact</div>
-          <span style={{ color: C.faint, fontSize: 14 }}>Téléphone : à venir</span>
-          <span style={{ color: C.faint, fontSize: 14 }}>Email : à venir</span>
-          <span style={{ color: C.faint, fontSize: 14 }}>Adresse : à venir</span>
+          <a href="tel:+237698710659" style={{ color: C.muted, fontSize: 14 }}>+237 6 98 71 06 59</a>
+          <a href="mailto:supportcomptoir@gmail.com" style={{ color: C.muted, fontSize: 14 }}>supportcomptoir@gmail.com</a>
+          <span style={{ color: C.faint, fontSize: 14 }}>Douala, Cameroun</span>
         </div>
       </footer>
       <div style={{ borderTop: `1px solid ${C.line}`, padding: "20px 24px", textAlign: "center", fontSize: 13, color: C.faint }}>
@@ -599,7 +589,7 @@ export default function LandingPage() {
 
       {/* ---------------- WHATSAPP ---------------- */}
       <a
-        href="https://wa.me/2250757471552"
+        href="https://wa.me/237698710659"
         target="_blank"
         rel="noopener noreferrer"
         style={{
