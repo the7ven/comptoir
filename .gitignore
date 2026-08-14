@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# docs de travail (notes/plans internes — pas pour la prod)
+/docs/
