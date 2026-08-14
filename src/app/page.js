@@ -12,7 +12,7 @@ import BrandMark from "@/components/BrandMark";
 // Port fidèle de la maquette fournie (palette bleue oklch, Inter + Manrope,
 // bandeau stats, grille fonctionnalités, section démo, témoignages, bandeau
 // moyens de paiement, tarifs, FAQ en accordéon, CTA final, footer 4 colonnes).
-// Contenu réel de RestoPay substitué à la copie générique de la maquette :
+// Contenu réel de Comptoir substitué à la copie générique de la maquette :
 // témoignages/tarifs/moyens de paiement/stats sont ceux déjà établis pour ce
 // produit — aucun faux client ni chiffre inventé n'a été repris tel quel.
 // Jetons de couleur/typo partagés avec les pages connexion/inscription

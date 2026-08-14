@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration de durcissement sécurité — RestoPay
+-- Migration de durcissement sécurité — Comptoir
 -- Date : 2026-08-08
 --
 -- Contexte : audit du code + inspection des policies RLS existantes a révélé
