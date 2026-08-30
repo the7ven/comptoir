@@ -18,5 +18,12 @@ export function toUserMessage(error, fallback = 'Une erreur est survenue. Veuill
   if (error) console.error(error);
   const msg = error?.message;
   if (msg && KNOWN_AUTH_MESSAGES[msg]) return KNOWN_AUTH_MESSAGES[msg];
+
+  // Rejet renvoyé par le hook Supabase « Password Verification Attempt »
+  // (verrouillage après 5 échecs — voir migration 20260830120000).
+  if (msg && msg.includes('Trop de tentatives')) {
+    return 'Trop de tentatives de connexion. Compte bloqué, réessayez dans 30 minutes.';
+  }
+
   return fallback;
 }
