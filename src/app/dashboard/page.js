@@ -144,7 +144,14 @@ export default function AdminDashboard() {
   }
 
   if (!isActive && !userProfile?.is_super_admin) {
-    return <AccountInactiveScreen T={T} restaurantName={restaurantName} handleLogout={handleLogout} />;
+    return (
+      <AccountInactiveScreen
+        T={T}
+        restaurantName={restaurantName}
+        handleLogout={handleLogout}
+        pending={!userProfile?.approved_at}
+      />
+    );
   }
 
   const renderContent = () => {
@@ -849,12 +856,22 @@ function NavItem({ T, icon, label, active, onClick }) {
   );
 }
 
-function AccountInactiveScreen({ T, restaurantName, handleLogout }) {
+function AccountInactiveScreen({ T, restaurantName, handleLogout, pending }) {
   return (
     <div style={{ minHeight: '100vh', background: T.bg, color: T.ink, fontFamily: bodyFont, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-      <div style={{ width: 72, height: 72, background: T.badWash, color: T.bad, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}><ShieldCheck size={34} /></div>
-      <h2 style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>Compte inactif</h2>
-      <p style={{ color: T.muted, maxWidth: 420, marginBottom: 28, fontSize: 14, lineHeight: 1.6 }}>Désolé <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span>, votre accès est suspendu. Contactez l&apos;administration.</p>
+      <div style={{ width: 72, height: 72, background: pending ? T.warnWash : T.badWash, color: pending ? T.warn : T.bad, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        {pending ? <Clock size={34} /> : <ShieldCheck size={34} />}
+      </div>
+      <h2 style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>
+        {pending ? 'Compte en attente de validation' : 'Compte suspendu'}
+      </h2>
+      <p style={{ color: T.muted, maxWidth: 420, marginBottom: 28, fontSize: 14, lineHeight: 1.6 }}>
+        {pending ? (
+          <>Bienvenue <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span> ! Votre compte a bien été créé et attend la validation de l&apos;administration. Vous recevrez l&apos;accès dès qu&apos;il sera activé.</>
+        ) : (
+          <>Désolé <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span>, votre accès est suspendu. Contactez l&apos;administration.</>
+        )}
+      </p>
       <button onClick={handleLogout} style={{ padding: '13px 32px', background: T.accent, color: T.accentInk, borderRadius: 999, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>Déconnexion</button>
     </div>
   );
