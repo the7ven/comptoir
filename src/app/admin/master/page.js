@@ -28,6 +28,9 @@ export default function MasterAdminPage() {
 
   const [toast, setToast] = useState(null);
   const toastTimeout = useRef(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
 
   const router = useRouter();
   const portfolioRef = useRef(null);
@@ -105,22 +108,20 @@ export default function MasterAdminPage() {
     }
   };
 
-  const handleDelete = async (resto) => {
+  const handleDelete = (resto) => {
+    setConfirmText('');
+    setPendingDelete(resto);
+  };
+
+  const runDelete = async () => {
+    const resto = pendingDelete;
+    if (!resto) return;
     const isOwner = resto.role === 'owner';
-    const first = isOwner
-      ? `Supprimer définitivement « ${resto.name} » ?\n\n`
-        + `Cela efface le compte propriétaire, TOUS ses comptes caissier, et `
-        + `TOUTES les données : menu, commandes, transactions, dépenses, stock, `
-        + `tables, clôtures de caisse.\n\nAction IRRÉVERSIBLE.`
-      : `Supprimer définitivement le compte caissier « ${resto.name} » ?\n\n`
-        + `Les données du restaurant ne sont pas touchées.`;
-
-    if (!window.confirm(first)) return;
-    if (isOwner && !window.confirm(`Dernière confirmation : suppression totale de « ${resto.name} ».`)) return;
-
+    setDeleteBusy(true);
     try {
       const { data, error } = await supabase.rpc('admin_delete_restaurant', { target_id: resto.id });
       if (error) throw error;
+      setPendingDelete(null);
       fetchData();
       showToast({
         type: 'success',
@@ -130,11 +131,14 @@ export default function MasterAdminPage() {
           : `« ${resto.name} » a été effacé.`,
       });
     } catch (err) {
+      setPendingDelete(null);
       showToast({
         type: 'error',
         title: 'Suppression impossible',
         detail: err?.message || 'Erreur technique.',
       }, 5000);
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -415,6 +419,78 @@ export default function MasterAdminPage() {
         </div>
       </div>
 
+      {pendingDelete && (() => {
+        const isOwner = pendingDelete.role === 'owner';
+        const locked = isOwner && confirmText.trim() !== (pendingDelete.name || '').trim();
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={() => !deleteBusy && setPendingDelete(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="dash-master-modal"
+              style={{ ...card(T, { padding: 28 }), width: 'min(460px, 100%)', textAlign: 'left' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: radiusSm, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.badWash, color: T.bad }}>
+                  <Trash2 size={20} />
+                </div>
+                <h3 style={{ fontFamily: headFont, fontWeight: 800, fontSize: 18, margin: 0 }}>
+                  Supprimer « {pendingDelete.name || 'ce compte'} » ?
+                </h3>
+              </div>
+
+              <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, margin: '0 0 18px' }}>
+                {isOwner ? (
+                  <>Cela efface <b>définitivement</b> le compte propriétaire, <b>tous ses comptes caissier</b>, et <b>toutes les données</b> : menu, commandes, transactions, dépenses, stock, tables, clôtures de caisse. Action irréversible.</>
+                ) : (
+                  <>Cela efface définitivement ce compte caissier. Les données du restaurant (propriété du gérant) ne sont pas touchées.</>
+                )}
+              </p>
+
+              {isOwner && (
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', color: T.faint, display: 'block', marginBottom: 8 }}>
+                    Tapez « {pendingDelete.name} » pour confirmer
+                  </label>
+                  <input
+                    autoFocus
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    style={inputStyle(T, { padding: '11px 14px', borderRadius: radiusSm })}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  onClick={() => setPendingDelete(null)}
+                  disabled={deleteBusy}
+                  style={{ ...btnGhost(T, { padding: '11px 20px' }), cursor: deleteBusy ? 'default' : 'pointer' }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={runDelete}
+                  disabled={deleteBusy || locked}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: radiusSm,
+                    background: T.bad, color: '#fff', border: 'none', fontWeight: 800, fontSize: 12, textTransform: 'uppercase',
+                    cursor: (deleteBusy || locked) ? 'not-allowed' : 'pointer', opacity: (deleteBusy || locked) ? 0.5 : 1,
+                  }}
+                >
+                  {deleteBusy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {toast && (
         <div
           role="status"
@@ -455,8 +531,14 @@ export default function MasterAdminPage() {
           to { opacity: 1; transform: translate(-50%, 0); }
         }
         .dash-master-toast { animation: dash-master-toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes dash-master-modal-in {
+          from { opacity: 0; transform: translateY(8px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .dash-master-modal { animation: dash-master-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @media (prefers-reduced-motion: reduce) {
           .dash-master-toast { animation: none; transform: translate(-50%, 0); }
+          .dash-master-modal { animation: none; }
         }
       `}</style>
     </div>
