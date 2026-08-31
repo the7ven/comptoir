@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
   ShieldCheck, Store, TrendingUp,
   Loader2, CheckCircle2, AlertCircle, Search,
-  Sun, Moon, Eye, Ban, RotateCcw, ChevronsUpDown, Trash2
+  Sun, Moon, Eye, Ban, RotateCcw, ChevronsUpDown, Trash2, X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -26,8 +26,17 @@ export default function MasterAdminPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', dir: 'desc' });
 
+  const [toast, setToast] = useState(null);
+  const toastTimeout = useRef(null);
+
   const router = useRouter();
   const portfolioRef = useRef(null);
+
+  const showToast = (next, duration = 4000) => {
+    setToast(next);
+    clearTimeout(toastTimeout.current);
+    toastTimeout.current = setTimeout(() => setToast(null), duration);
+  };
 
   const fetchData = async () => {
     let restos, transData;
@@ -86,7 +95,14 @@ export default function MasterAdminPage() {
 
       await updateRestaurantProfile(restoId, payload);
       fetchData();
-    } catch (err) { alert("Erreur technique"); }
+      showToast({
+        type: 'success',
+        title: activating ? 'Restaurant activé' : 'Restaurant suspendu',
+        detail: activating ? "L'accès a été rétabli." : "L'accès a été coupé.",
+      });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Action impossible', detail: 'Erreur technique.' }, 5000);
+    }
   };
 
   const handleDelete = async (resto) => {
@@ -103,11 +119,22 @@ export default function MasterAdminPage() {
     if (isOwner && !window.confirm(`Dernière confirmation : suppression totale de « ${resto.name} ».`)) return;
 
     try {
-      const { error } = await supabase.rpc('admin_delete_restaurant', { target_id: resto.id });
+      const { data, error } = await supabase.rpc('admin_delete_restaurant', { target_id: resto.id });
       if (error) throw error;
       fetchData();
+      showToast({
+        type: 'success',
+        title: isOwner ? 'Restaurant supprimé' : 'Compte caissier supprimé',
+        detail: isOwner
+          ? `« ${resto.name} » et ${data?.accounts_deleted ?? 1} compte(s) effacés définitivement.`
+          : `« ${resto.name} » a été effacé.`,
+      });
     } catch (err) {
-      alert('Suppression impossible : ' + (err?.message || 'erreur technique'));
+      showToast({
+        type: 'error',
+        title: 'Suppression impossible',
+        detail: err?.message || 'Erreur technique.',
+      }, 5000);
     }
   };
 
@@ -388,11 +415,49 @@ export default function MasterAdminPage() {
         </div>
       </div>
 
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="dash-master-toast"
+          style={{
+            position: "fixed", left: "50%", bottom: 28, zIndex: 1000,
+            display: "flex", alignItems: "flex-start", gap: 14,
+            width: "min(400px, calc(100vw - 32px))",
+            padding: "16px 16px 16px 18px", borderRadius: radius,
+            background: T.surface, border: `1px solid ${T.line}`, boxShadow: T.shadow,
+          }}
+        >
+          <div style={{
+            width: 40, height: 40, borderRadius: radiusSm, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            background: toast.type === "success" ? T.goodWash : T.badWash,
+            color: toast.type === "success" ? T.good : T.bad,
+          }}>
+            {toast.type === "success" ? <CheckCircle2 size={19} /> : <AlertCircle size={19} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13.5, fontFamily: headFont }}>{toast.title}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: T.faint, fontWeight: 700, lineHeight: 1.5 }}>{toast.detail}</p>
+          </div>
+          <button onClick={() => setToast(null)} aria-label="Fermer" style={{ background: "none", border: "none", color: T.faint, cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <style jsx global>{`
         @keyframes dash-pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
         .dash-master-row:hover { background: ${T.surface2}; }
         @media (min-width: 720px) { .dash-master-actions { width: auto; } }
         @media (max-width: 640px) { .dash-hide-sm { display: none !important; } }
+        @keyframes dash-master-toast-in {
+          from { opacity: 0; transform: translate(-50%, 14px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .dash-master-toast { animation: dash-master-toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-master-toast { animation: none; transform: translate(-50%, 0); }
+        }
       `}</style>
     </div>
   );
