@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
   ShieldCheck, Store, TrendingUp,
   Loader2, CheckCircle2, AlertCircle, Search,
-  Sun, Moon, Eye, Ban, RotateCcw, ChevronsUpDown
+  Sun, Moon, Eye, Ban, RotateCcw, ChevronsUpDown, Trash2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -87,6 +87,28 @@ export default function MasterAdminPage() {
       await updateRestaurantProfile(restoId, payload);
       fetchData();
     } catch (err) { alert("Erreur technique"); }
+  };
+
+  const handleDelete = async (resto) => {
+    const isOwner = resto.role === 'owner';
+    const first = isOwner
+      ? `Supprimer définitivement « ${resto.name} » ?\n\n`
+        + `Cela efface le compte propriétaire, TOUS ses comptes caissier, et `
+        + `TOUTES les données : menu, commandes, transactions, dépenses, stock, `
+        + `tables, clôtures de caisse.\n\nAction IRRÉVERSIBLE.`
+      : `Supprimer définitivement le compte caissier « ${resto.name} » ?\n\n`
+        + `Les données du restaurant ne sont pas touchées.`;
+
+    if (!window.confirm(first)) return;
+    if (isOwner && !window.confirm(`Dernière confirmation : suppression totale de « ${resto.name} ».`)) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_restaurant', { target_id: resto.id });
+      if (error) throw error;
+      fetchData();
+    } catch (err) {
+      alert('Suppression impossible : ' + (err?.message || 'erreur technique'));
+    }
   };
 
   useEffect(() => {
@@ -351,6 +373,7 @@ export default function MasterAdminPage() {
                   formatDateTime={formatDateTime}
                   toggleStatus={toggleStatus}
                   handleImpersonate={handleImpersonate}
+                  handleDelete={handleDelete}
                 />
               ))}
               {sortedPortfolio.length === 0 && (
@@ -402,7 +425,7 @@ function SortableTh({ T, label, sortKey, sortConfig, onSort, align }) {
   );
 }
 
-function PortfolioRow({ T, resto, formatDateTime, toggleStatus, handleImpersonate }) {
+function PortfolioRow({ T, resto, formatDateTime, toggleStatus, handleImpersonate, handleDelete }) {
   const isPending = !resto.is_active && !resto.approved_at;
   const isSuspended = !resto.is_active && resto.approved_at;
   const isActive = resto.is_active;
@@ -486,6 +509,13 @@ function PortfolioRow({ T, resto, formatDateTime, toggleStatus, handleImpersonat
               <RotateCcw size={12} /> Réactiver
             </button>
           )}
+          <button
+            onClick={() => handleDelete(resto)}
+            title="Supprimer définitivement"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 11px", borderRadius: radiusSm, background: T.badWash, border: `1px solid ${T.bad}33`, color: T.bad, cursor: "pointer" }}
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       </td>
     </tr>
