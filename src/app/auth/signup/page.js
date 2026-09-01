@@ -36,11 +36,13 @@ export default function SignupPage() {
 
       if (data?.user) {
         // 2. Création/Mise à jour sécurisée du profil (UPSERT au lieu de INSERT)
-        // SÉCURITÉ : on n'envoie jamais is_active / is_super_admin depuis le
-        // client. Ces colonnes doivent avoir un DEFAULT false côté base et ne
-        // doivent être modifiables que par un service_role (ex: validation
-        // manuelle par le Master Admin) — sinon n'importe quel appel API
-        // pourrait s'auto-activer ou s'auto-promouvoir super admin.
+        // SÉCURITÉ : on n'envoie jamais is_active / is_super_admin / role /
+        // owner_email depuis le client. Le trigger protect_restaurant_privileged_columns
+        // les impose de force côté base à l'INSERT (owner, actif d'emblée,
+        // is_super_admin = false, owner_email = email du JWT). Un appel API brut
+        // qui tenterait de s'auto-promouvoir super admin serait donc neutralisé.
+        // Le compte est actif immédiatement ; la modération se fait a posteriori
+        // via le God Mode (suspension manuelle).
         const { error: dbError } = await supabase
           .from('restaurants')
           .upsert({
