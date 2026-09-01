@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import { getDb } from '@/lib/offline/db';
-import { looksLikeNetworkError, normEmail } from '@/lib/offline/net';
+import { looksLikeNetworkError } from '@/lib/offline/net';
 import {
   createOp, unsentOps, foldPendingOrders, newOrderId, newTransactionId,
 } from '@/lib/offline/outbox';
+import { readOrdersMirror, upsertOrdersMirror } from '@/lib/offline/pull';
 
 // Couche d'accès aux commandes (`orders`) et à leur encaissement (insertion
 // dans `transactions`).
@@ -14,33 +14,9 @@ import {
 // lectures fusionnent le dernier instantané serveur/miroir avec les
 // opérations non envoyées pour que l'UI reste cohérente sans réseau.
 
-// ---------------------------------------------------------------------------
-// Miroir local du dernier instantané "commandes actives"
-// ---------------------------------------------------------------------------
-
-async function replaceActiveMirror(ownerEmail, rows) {
-  const db = getDb();
-  if (!db) return;
-  const key = normEmail(ownerEmail);
-  await db.transaction('rw', db.orders, db.meta, async () => {
-    await db.orders.where('owner_email').equalsIgnoreCase(key).delete();
-    if (rows.length) {
-      await db.orders.bulkPut(rows.map((r) => ({ ...r, owner_email: normEmail(r.owner_email) })));
-    }
-    await db.meta.put({ key: `synced:orders:${key}`, at: Date.now() });
-  });
-}
-
-async function readActiveMirror(ownerEmail) {
-  const db = getDb();
-  if (!db) return { rows: [], everSynced: false };
-  const key = normEmail(ownerEmail);
-  const [rows, meta] = await Promise.all([
-    db.orders.where('owner_email').equalsIgnoreCase(key).toArray(),
-    db.meta.get(`synced:orders:${key}`),
-  ]);
-  return { rows, everSynced: Boolean(meta) };
-}
+// Le miroir local des commandes (réplique des commandes récentes) est géré
+// par src/lib/offline/pull.js : upsert à chaque lecture en ligne, delta /
+// réconciliation déclenchés par OutboxSync.
 
 // ---------------------------------------------------------------------------
 // Lectures
@@ -57,13 +33,13 @@ export async function getActiveOrders(ownerEmail) {
       .neq('status', 'Servi');
     if (error) throw error;
     const server = data || [];
-    replaceActiveMirror(ownerEmail, server).catch((e) =>
+    upsertOrdersMirror(ownerEmail, server).catch((e) =>
       console.warn('[offline] miroir orders non mis à jour', e),
     );
     return foldPendingOrders(server, ops).filter((o) => o.status !== 'Servi');
   } catch (err) {
     if (!looksLikeNetworkError(err)) throw err;
-    const { rows, everSynced } = await readActiveMirror(ownerEmail);
+    const { rows, everSynced } = await readOrdersMirror(ownerEmail);
     if (!rows.length && !ops.length && !everSynced) throw err;
     return foldPendingOrders(rows, ops).filter((o) => o.status !== 'Servi');
   }
@@ -86,14 +62,15 @@ export async function getOrdersForDay(ownerEmail, dateISO) {
       .lte('created_at', end)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return foldPendingOrders(data || [], ops).filter(inDay).sort(byNewest);
+    const server = data || [];
+    upsertOrdersMirror(ownerEmail, server).catch((e) =>
+      console.warn('[offline] miroir orders non mis à jour', e),
+    );
+    return foldPendingOrders(server, ops).filter(inDay).sort(byNewest);
   } catch (err) {
     if (!looksLikeNetworkError(err)) throw err;
-    const { rows, everSynced } = await readActiveMirror(ownerEmail);
+    const { rows, everSynced } = await readOrdersMirror(ownerEmail);
     if (!rows.length && !ops.length && !everSynced) throw err;
-    // Hors-ligne, le miroir ne contient que les commandes actives : les
-    // commandes déjà servies avant la coupure n'apparaîtront pas (limite
-    // assumée de la Phase 3).
     return foldPendingOrders(rows, ops).filter(inDay).sort(byNewest);
   }
 }

@@ -292,7 +292,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <OutboxSync />
+        <OutboxSync ownerEmail={userProfile?.owner_email} />
         <OfflineIndicator isDarkMode={isDarkMode} ownerEmail={userProfile?.owner_email} />
 
         <div style={{ padding: '28px', maxWidth: 1400, margin: '0 auto' }}>
