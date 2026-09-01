@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import BrandMark from '@/components/BrandMark';
+import OfflineIndicator from '@/components/OfflineIndicator';
 import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
 import { getActiveOrders } from '@/lib/data/orders';
 import { getTransactionsForRange } from '@/lib/data/transactions';
@@ -288,6 +289,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         </header>
+
+        <OfflineIndicator isDarkMode={isDarkMode} ownerEmail={userProfile?.owner_email} />
 
         <div style={{ padding: '28px', maxWidth: 1400, margin: '0 auto' }}>
           {renderContent()}

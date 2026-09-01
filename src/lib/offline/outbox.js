@@ -28,6 +28,15 @@ const uuid = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
+// Évènement émis à chaque changement de l'outbox — l'indicateur d'état
+// (Phase 4) s'y abonne pour rafraîchir son compteur sans polling agressif.
+export const OUTBOX_EVENT = "comptoir:outbox-changed";
+function notifyOutboxChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(OUTBOX_EVENT));
+  }
+}
+
 export function newOrderId() {
   // `orders.id` est un TEXT côté Supabase (format historique "ORD-XXXX").
   // On garde le préfixe mais avec un UUID complet : pas de collision possible
@@ -73,10 +82,14 @@ export async function createOp({ entity, entityId, kind, payload, ownerEmail }) 
     if (related.length) {
       await db.outbox.bulkDelete(related.map((o) => o.opId));
     }
-    if (hadPendingCreate) return null;
+    if (hadPendingCreate) {
+      notifyOutboxChanged();
+      return null;
+    }
   }
 
   await db.outbox.add(op);
+  notifyOutboxChanged();
   return op;
 }
 
