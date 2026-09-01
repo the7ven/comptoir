@@ -7,6 +7,7 @@ import {
   Package, FileText, ShoppingBag, History, Calendar as CalendarIcon,
   Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Lock,
+  Mail, MessageCircle, ArrowLeft,
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
@@ -865,14 +866,41 @@ function AccountInactiveScreen({ T, restaurantName, handleLogout, pending }) {
       <h2 style={{ fontFamily: headFont, fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>
         {pending ? 'Compte en attente de validation' : 'Compte suspendu'}
       </h2>
-      <p style={{ color: T.muted, maxWidth: 420, marginBottom: 28, fontSize: 14, lineHeight: 1.6 }}>
+      <p style={{ color: T.muted, maxWidth: 420, marginBottom: 24, fontSize: 14, lineHeight: 1.6 }}>
         {pending ? (
           <>Bienvenue <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span> ! Votre compte a bien été créé et attend la validation de l&apos;administration. Vous recevrez l&apos;accès dès qu&apos;il sera activé.</>
         ) : (
-          <>Désolé <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span>, votre accès est suspendu. Contactez l&apos;administration.</>
+          <>Désolé <span style={{ color: T.accent, fontWeight: 700 }}>{restaurantName}</span>, votre accès est suspendu. Contactez-nous pour régulariser la situation et retrouver votre accès.</>
         )}
       </p>
-      <button onClick={handleLogout} style={{ padding: '13px 32px', background: T.accent, color: T.accentInk, borderRadius: 999, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>Déconnexion</button>
+
+      {/* Contact support */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+        <a
+          href="https://wa.me/237698710659"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: '#25D366', color: '#fff', borderRadius: 999, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+        >
+          <MessageCircle size={16} /> WhatsApp : +237 6 98 71 06 59
+        </a>
+        <a
+          href="mailto:supportcomptoir@gmail.com"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: 999, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+        >
+          <Mail size={16} /> supportcomptoir@gmail.com
+        </a>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+        <button onClick={handleLogout} style={{ padding: '13px 32px', background: T.accent, color: T.accentInk, borderRadius: 999, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>Déconnexion</button>
+        <Link
+          href="/"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', background: 'none', color: T.muted, border: `1px solid ${T.line}`, borderRadius: 999, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+        >
+          <ArrowLeft size={16} /> Retour à l&apos;accueil
+        </Link>
+      </div>
     </div>
   );
 }
