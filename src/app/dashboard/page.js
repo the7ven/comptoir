@@ -509,11 +509,18 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     if (!userProfile) return;
     const sharedEmail = userProfile.owner_email;
 
-    const [tables, orders, inventory] = await Promise.all([
-      getRestaurantTables(sharedEmail),
-      getActiveOrders(sharedEmail),
-      getInventory(userProfile.id),
-    ]);
+    let tables, orders, inventory;
+    try {
+      [tables, orders, inventory] = await Promise.all([
+        getRestaurantTables(sharedEmail),
+        getActiveOrders(sharedEmail),
+        getInventory(userProfile.id),
+      ]);
+    } catch (err) {
+      // Hors-ligne : commandes actives / stock indisponibles (Phases 3 & 7).
+      console.warn("Snapshot live indisponible", err?.message);
+      return;
+    }
 
     let tablesOccupee = 0, tablesAddition = 0;
     tables.forEach((table) => {

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { readThroughCache } from '@/lib/offline/cache';
 
 // Couche d'accès aux données pour le plan de salle (table `restaurant_tables`)
 // et le rattachement des commandes à une table. Centralise ce qui était
@@ -35,13 +36,16 @@ export function getTableStatus(tableName, activeOrders) {
   return getStatusFromOrders(getOrdersForTable(tableName, activeOrders));
 }
 
+// Cache-through (Phase 2 hors-ligne) : miroir IndexedDB servi hors réseau.
 export async function getRestaurantTables(ownerEmail) {
-  const { data, error } = await supabase
-    .from('restaurant_tables')
-    .select('*')
-    .eq('owner_email', ownerEmail);
-  if (error) throw error;
-  return data || [];
+  return readThroughCache('restaurant_tables', ownerEmail, async () => {
+    const { data, error } = await supabase
+      .from('restaurant_tables')
+      .select('*')
+      .eq('owner_email', ownerEmail);
+    if (error) throw error;
+    return data || [];
+  });
 }
 
 export async function createTable({ restaurantId, ownerEmail, tableName, capacity }) {

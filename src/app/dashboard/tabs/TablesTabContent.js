@@ -65,15 +65,22 @@ export default function TablesTabContent({
 
       const sharedEmail = userProfile.owner_email;
 
+      // Les tables (données de référence) sont servies depuis le cache local
+      // hors-ligne ; les commandes actives (Phase 3) échouent encore sans
+      // réseau — on les traite séparément pour que le plan de salle reste
+      // affiché même sans elles.
       const tablesData = await getRestaurantTables(sharedEmail);
-      const ordersData = await getActiveOrders(sharedEmail);
-
-      const sortedTables = tablesData.sort((a, b) =>
+      const sortedTables = [...tablesData].sort((a, b) =>
         a.table_name.localeCompare(b.table_name, undefined, { numeric: true }),
       );
-
       setTables(sortedTables);
-      setActiveOrders(ordersData);
+
+      try {
+        setActiveOrders(await getActiveOrders(sharedEmail));
+      } catch (ordersErr) {
+        console.warn("Commandes actives indisponibles (hors-ligne ?)", ordersErr?.message);
+        setActiveOrders([]);
+      }
     } catch (error) {
       console.error("Erreur Supabase:", error.message);
     } finally {
