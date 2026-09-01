@@ -19,6 +19,8 @@ import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import BrandMark from '@/components/BrandMark';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import OutboxSync from '@/components/OutboxSync';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
 import { getActiveOrders } from '@/lib/data/orders';
 import { getTransactionsForRange } from '@/lib/data/transactions';
@@ -290,6 +292,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        <OutboxSync />
         <OfflineIndicator isDarkMode={isDarkMode} ownerEmail={userProfile?.owner_email} />
 
         <div style={{ padding: '28px', maxWidth: 1400, margin: '0 auto' }}>
@@ -553,6 +556,10 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     () => fetchLiveSnapshot(),
     !!userProfile,
   );
+
+  // Après un rejeu réussi de l'outbox, l'état serveur a changé sans que le
+  // realtime ne se déclenche (ce sont nos propres écritures).
+  useSyncedRefresh(() => fetchLiveSnapshot(), !!userProfile);
 
   // Statut de clôture de caisse — seulement pertinent en vue "jour", pour
   // la date affichée.

@@ -2,17 +2,17 @@ import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/offline/db';
 import { looksLikeNetworkError, normEmail } from '@/lib/offline/net';
 import {
-  createOp, pendingOps, foldPendingOrders, newOrderId, newTransactionId,
+  createOp, unsentOps, foldPendingOrders, newOrderId, newTransactionId,
 } from '@/lib/offline/outbox';
 
 // Couche d'accès aux commandes (`orders`) et à leur encaissement (insertion
 // dans `transactions`).
 //
-// Phase 3 du chantier hors-ligne : chaque écriture tente Supabase d'abord ;
-// sur panne réseau, elle est déposée dans l'outbox local (voir
-// src/lib/offline/outbox.js) et la Phase 5 la rejouera. Les lectures
-// fusionnent le dernier instantané serveur connu avec les opérations en
-// attente pour que l'UI reste cohérente sans réseau.
+// Chantier hors-ligne : chaque écriture tente Supabase d'abord ; sur panne
+// réseau, elle est déposée dans l'outbox local (src/lib/offline/outbox.js),
+// rejouée ensuite par src/lib/offline/sync.js dès le retour du réseau. Les
+// lectures fusionnent le dernier instantané serveur/miroir avec les
+// opérations non envoyées pour que l'UI reste cohérente sans réseau.
 
 // ---------------------------------------------------------------------------
 // Miroir local du dernier instantané "commandes actives"
@@ -48,7 +48,7 @@ async function readActiveMirror(ownerEmail) {
 
 // Commandes actives (tout sauf "Servi") — plan de salle + snapshot dashboard.
 export async function getActiveOrders(ownerEmail) {
-  const ops = await pendingOps(ownerEmail);
+  const ops = await unsentOps(ownerEmail);
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -75,7 +75,7 @@ export async function getOrdersForDay(ownerEmail, dateISO) {
   const end = `${dateISO}T23:59:59.999Z`;
   const inDay = (r) => (r.created_at || '') >= start && (r.created_at || '') <= end;
   const byNewest = (a, b) => (b.created_at || '').localeCompare(a.created_at || '');
-  const ops = await pendingOps(ownerEmail);
+  const ops = await unsentOps(ownerEmail);
 
   try {
     const { data, error } = await supabase

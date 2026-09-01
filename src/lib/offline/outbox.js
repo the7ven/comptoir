@@ -3,10 +3,15 @@ import { normEmail } from "@/lib/offline/net";
 
 // File d'attente des écritures faites hors-ligne.
 //
-// Phase 3 : on ENREGISTRE seulement (createOp) et on RELIT (pendingOps,
-// pendingCount, foldPendingOrders) pour que l'UI reflète immédiatement ce
-// qui a été fait sans réseau. Le rejeu vers Supabase (ordre, idempotence,
-// garde anti-régression de statut, gestion des échecs) est la Phase 5.
+//   - createOp .................. enfile une opération
+//   - pendingOps / pendingCount . opérations restant à envoyer (status 'pending')
+//   - unsentOps / failedCount ... 'pending' + 'failed', pour l'affichage local :
+//                                 une op échouée ne doit pas faire "disparaître"
+//                                 la commande de l'écran, elle reste pliée dans
+//                                 la vue et signalée par l'indicateur.
+//   - foldPendingOrders ........ reconstruit l'état effectif des commandes
+//
+// Le rejeu vers Supabase vit dans src/lib/offline/sync.js (Phase 5).
 //
 // Forme d'une opération :
 //   {
@@ -31,6 +36,9 @@ const uuid = () =>
 // Évènement émis à chaque changement de l'outbox — l'indicateur d'état
 // (Phase 4) s'y abonne pour rafraîchir son compteur sans polling agressif.
 export const OUTBOX_EVENT = "comptoir:outbox-changed";
+// Émis par le rejeu (sync.js) quand au moins une opération a été confirmée
+// côté serveur — les onglets s'en servent pour recharger leurs données.
+export const SYNCED_EVENT = "comptoir:synced";
 function notifyOutboxChanged() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(OUTBOX_EVENT));
@@ -69,20 +77,20 @@ export async function createOp({ entity, entityId, kind, payload, ownerEmail }) 
     lastError: null,
   };
 
-  // Optimisation : supprimer une commande créée hors-ligne et jamais
-  // synchronisée => on annule ses opérations en attente et on n'enfile RIEN
-  // (il n'y a rien à supprimer côté serveur).
+  // Optimisation : supprimer une commande dont la création n'a jamais atteint
+  // le serveur => on annule ses opérations non envoyées et on n'enfile RIEN
+  // (rien à supprimer côté serveur).
   if (kind === "order.delete") {
     const related = await db.outbox
       .where("entityId")
       .equals(entityId)
-      .and((o) => o.entity === "order" && o.status === "pending")
+      .and((o) => o.entity === "order" && o.status !== "done")
       .toArray();
-    const hadPendingCreate = related.some((o) => o.kind === "order.create");
+    const hadUnsentCreate = related.some((o) => o.kind === "order.create");
     if (related.length) {
       await db.outbox.bulkDelete(related.map((o) => o.opId));
     }
-    if (hadPendingCreate) {
+    if (hadUnsentCreate) {
       notifyOutboxChanged();
       return null;
     }
@@ -93,28 +101,39 @@ export async function createOp({ entity, entityId, kind, payload, ownerEmail }) 
   return op;
 }
 
-/** Opérations en attente, triées par ordre de création (ordre de rejeu). */
-export async function pendingOps(ownerEmail) {
+async function opsByStatus(statuses, ownerEmail) {
   const db = getDb();
   if (!db) return [];
-  let coll = db.outbox.where("status").equals("pending");
-  const rows = await coll.toArray();
   const key = ownerEmail ? normEmail(ownerEmail) : null;
+  const rows = await db.outbox.where("status").anyOf(statuses).toArray();
   return rows
     .filter((o) => !key || o.ownerEmail === key)
     .sort((a, b) => a.clientCreatedAt - b.clientCreatedAt);
 }
 
-/** Nombre d'opérations en attente (indicateur d'état — Phase 4). */
+/** Opérations restant à envoyer (ordre de rejeu). */
+export function pendingOps(ownerEmail) {
+  return opsByStatus(["pending"], ownerEmail);
+}
+
+/** Opérations non confirmées côté serveur (en attente OU en échec) — vue locale. */
+export function unsentOps(ownerEmail) {
+  return opsByStatus(["pending", "failed"], ownerEmail);
+}
+
 export async function pendingCount(ownerEmail) {
   return (await pendingOps(ownerEmail)).length;
 }
 
+export async function failedCount(ownerEmail) {
+  return (await opsByStatus(["failed"], ownerEmail)).length;
+}
+
 /**
- * Applique les opérations en attente sur une base de commandes (lignes
+ * Applique les opérations non envoyées sur une base de commandes (lignes
  * serveur OU miroir local) et renvoie l'état effectif.
  * @param {any[]} baseRows
- * @param {any[]} ops  déjà triées par clientCreatedAt
+ * @param {any[]} ops  déjà triées par clientCreatedAt (unsentOps)
  */
 export function foldPendingOrders(baseRows, ops) {
   const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));

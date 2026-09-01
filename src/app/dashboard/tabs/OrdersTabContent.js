@@ -10,6 +10,7 @@ import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import { getOrdersForDay, updateOrderStatus, deleteOrder, finalizeOrder } from '@/lib/data/orders';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 
 export default function OrdersTabContent({
   isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
@@ -33,6 +34,7 @@ export default function OrdersTabContent({
   // Référencée via une fonction fléchée : `fetchOrders` est déclarée plus
   // bas (temporal dead zone sinon, le hook est appelé pendant le rendu).
   useRealtimeRefresh("orders_live", ["orders"], () => fetchOrders(), !!userProfile);
+  useSyncedRefresh(() => fetchOrders(), !!userProfile);
 
   const fetchOrders = async () => {
     try {

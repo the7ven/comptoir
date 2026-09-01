@@ -24,6 +24,7 @@ import {
 } from "@/lib/data/tables";
 import { getActiveOrders, deleteOrder, finalizeOrder } from "@/lib/data/orders";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { useSyncedRefresh } from "@/hooks/useSyncedRefresh";
 
 export default function TablesTabContent({
   isDarkMode,
@@ -56,6 +57,7 @@ export default function TablesTabContent({
   // est déclarée plus bas dans le composant (temporal dead zone sinon, le
   // hook est appelé pendant le rendu, avant que `const fetchData` existe).
   useRealtimeRefresh("tables_sync_realtime", ["orders", "restaurant_tables"], () => fetchData(), !!userProfile);
+  useSyncedRefresh(() => fetchData(), !!userProfile);
 
   const fetchData = async () => {
     try {

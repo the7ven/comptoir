@@ -7,9 +7,8 @@ import Dexie from "dexie";
 // v2 (Phase 3) — commandes :
 //   - `orders`  : miroir du dernier instantané "commandes actives" ;
 //   - `outbox`  : file des écritures faites hors-ligne (créations / éditions /
-//                 changements de statut / encaissements). La Phase 5 la
-//                 rejouera vers Supabase ; en Phase 3 elle ne fait que
-//                 s'accumuler et alimenter les lectures locales.
+//                 changements de statut / encaissements), rejouée vers
+//                 Supabase par src/lib/offline/sync.js dès le retour réseau.
 //
 // Singleton paresseux : jamais instancié côté serveur (SSR / build), où
 // `indexedDB` n'existe pas.
