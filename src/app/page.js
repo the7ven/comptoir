@@ -19,17 +19,6 @@ import BrandMark from "@/components/BrandMark";
 // via src/lib/theme.js.
 // ---------------------------------------------------------------------------
 
-const trustLogos = [
-  "Gastro d'Or",
-  "Maquis Pro",
-  "Abidjan Grill",
-  "Sénégal Délices",
-  "Douala Fast",
-  "Bistro 225",
-  "Le Krystal",
-  "Yamoussoukro Food",
-];
-
 const stats = [
   { v: "5 min", l: "pour prendre l'outil en main" },
   { v: "24/7", l: "support local basé à Douala" },
@@ -265,7 +254,7 @@ export default function LandingPage() {
         style={{
           maxWidth: 1200,
           margin: "0 auto",
-          padding: "80px 24px 40px",
+          padding: "168px 24px 128px",
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
           gap: 56,
@@ -329,27 +318,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------- LOGOS ---------------- */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
-        <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: C.faint, letterSpacing: "0.04em", textTransform: "uppercase", margin: "0 0 28px" }}>
-          Ils gèrent leurs établissements avec Comptoir
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 20 }}>
-          {trustLogos.map((name) => (
-            <div key={name} style={{ width: "100%", height: 48, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: headFont, fontWeight: 700, fontSize: 14, color: C.faint, textAlign: "center" }}>
-              {name}
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ---------------- STATS ---------------- */}
-      <section style={{ background: C.panel, padding: "56px 24px" }}>
+      <section style={{ background: C.panel, padding: "40px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 32, textAlign: "center" }}>
           {stats.map((s) => (
             <div key={s.l}>
-              <div style={{ fontFamily: headFont, fontWeight: 800, fontSize: 40, color: C.accentInk }}>{s.v}</div>
-              <div style={{ fontSize: 14, color: C.accentInkMuted, marginTop: 6 }}>{s.l}</div>
+              <div style={{ fontFamily: headFont, fontWeight: 800, fontSize: 34, color: C.accentInk }}>{s.v}</div>
+              <div style={{ fontSize: 13, color: C.accentInkMuted, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
         </div>
