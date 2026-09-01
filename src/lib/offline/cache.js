@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/offline/db";
+import { looksLikeNetworkError, normEmail } from "@/lib/offline/net";
 
 // Lecture "cache-through" pour les données de référence (Phase 2).
 //
@@ -10,20 +11,6 @@ import { getDb } from "@/lib/offline/db";
 // échoue / navigator.onLine === false). Une vraie erreur applicative
 // (RLS, requête invalide…) est propagée normalement — on ne veut pas masquer
 // un bug derrière des données périmées.
-
-function looksLikeNetworkError(err) {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
-  if (err instanceof TypeError) return true; // "Failed to fetch"
-  const m = (err && err.message ? err.message : "").toLowerCase();
-  return (
-    m.includes("failed to fetch") ||
-    m.includes("network") ||
-    m.includes("fetch") ||
-    m.includes("timeout")
-  );
-}
-
-const normEmail = (v) => (v || "").trim().toLowerCase();
 
 async function replaceMirror(storeName, ownerKey, rows) {
   const db = getDb();

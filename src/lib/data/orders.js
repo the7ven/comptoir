@@ -1,75 +1,189 @@
 import { supabase } from '@/lib/supabase';
+import { getDb } from '@/lib/offline/db';
+import { looksLikeNetworkError, normEmail } from '@/lib/offline/net';
+import {
+  createOp, pendingOps, foldPendingOrders, newOrderId, newTransactionId,
+} from '@/lib/offline/outbox';
 
-// Couche d'accès aux données pour les commandes (`orders`) et leur
-// encaissement (insertion dans `transactions`). Centralise ce qui était
-// dupliqué entre le plan de salle (TablesTabContent) et l'onglet Commandes.
+// Couche d'accès aux commandes (`orders`) et à leur encaissement (insertion
+// dans `transactions`).
+//
+// Phase 3 du chantier hors-ligne : chaque écriture tente Supabase d'abord ;
+// sur panne réseau, elle est déposée dans l'outbox local (voir
+// src/lib/offline/outbox.js) et la Phase 5 la rejouera. Les lectures
+// fusionnent le dernier instantané serveur connu avec les opérations en
+// attente pour que l'UI reste cohérente sans réseau.
 
-// Commandes actives (tout sauf "Servi") d'un restaurant — utilisé par le
-// plan de salle et le snapshot en direct du dashboard.
+// ---------------------------------------------------------------------------
+// Miroir local du dernier instantané "commandes actives"
+// ---------------------------------------------------------------------------
+
+async function replaceActiveMirror(ownerEmail, rows) {
+  const db = getDb();
+  if (!db) return;
+  const key = normEmail(ownerEmail);
+  await db.transaction('rw', db.orders, db.meta, async () => {
+    await db.orders.where('owner_email').equalsIgnoreCase(key).delete();
+    if (rows.length) {
+      await db.orders.bulkPut(rows.map((r) => ({ ...r, owner_email: normEmail(r.owner_email) })));
+    }
+    await db.meta.put({ key: `synced:orders:${key}`, at: Date.now() });
+  });
+}
+
+async function readActiveMirror(ownerEmail) {
+  const db = getDb();
+  if (!db) return { rows: [], everSynced: false };
+  const key = normEmail(ownerEmail);
+  const [rows, meta] = await Promise.all([
+    db.orders.where('owner_email').equalsIgnoreCase(key).toArray(),
+    db.meta.get(`synced:orders:${key}`),
+  ]);
+  return { rows, everSynced: Boolean(meta) };
+}
+
+// ---------------------------------------------------------------------------
+// Lectures
+// ---------------------------------------------------------------------------
+
+// Commandes actives (tout sauf "Servi") — plan de salle + snapshot dashboard.
 export async function getActiveOrders(ownerEmail) {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('owner_email', ownerEmail)
-    .neq('status', 'Servi');
-  if (error) throw error;
-  return data || [];
+  const ops = await pendingOps(ownerEmail);
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('owner_email', ownerEmail)
+      .neq('status', 'Servi');
+    if (error) throw error;
+    const server = data || [];
+    replaceActiveMirror(ownerEmail, server).catch((e) =>
+      console.warn('[offline] miroir orders non mis à jour', e),
+    );
+    return foldPendingOrders(server, ops).filter((o) => o.status !== 'Servi');
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+    const { rows, everSynced } = await readActiveMirror(ownerEmail);
+    if (!rows.length && !ops.length && !everSynced) throw err;
+    return foldPendingOrders(rows, ops).filter((o) => o.status !== 'Servi');
+  }
 }
 
-// Toutes les commandes d'une journée donnée (active + déjà servies),
-// utilisé par l'onglet Commandes.
+// Toutes les commandes d'une journée (bornes UTC, comme la requête d'origine).
 export async function getOrdersForDay(ownerEmail, dateISO) {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('owner_email', ownerEmail)
-    .gte('created_at', `${dateISO}T00:00:00.000Z`)
-    .lte('created_at', `${dateISO}T23:59:59.999Z`)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  const start = `${dateISO}T00:00:00.000Z`;
+  const end = `${dateISO}T23:59:59.999Z`;
+  const inDay = (r) => (r.created_at || '') >= start && (r.created_at || '') <= end;
+  const byNewest = (a, b) => (b.created_at || '').localeCompare(a.created_at || '');
+  const ops = await pendingOps(ownerEmail);
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('owner_email', ownerEmail)
+      .gte('created_at', start)
+      .lte('created_at', end)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return foldPendingOrders(data || [], ops).filter(inDay).sort(byNewest);
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+    const { rows, everSynced } = await readActiveMirror(ownerEmail);
+    if (!rows.length && !ops.length && !everSynced) throw err;
+    // Hors-ligne, le miroir ne contient que les commandes actives : les
+    // commandes déjà servies avant la coupure n'apparaîtront pas (limite
+    // assumée de la Phase 3).
+    return foldPendingOrders(rows, ops).filter(inDay).sort(byNewest);
+  }
 }
 
-export async function updateOrderStatus(orderId, status) {
-  const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-  if (error) throw error;
+// ---------------------------------------------------------------------------
+// Écritures — Supabase d'abord, sinon outbox
+// ---------------------------------------------------------------------------
+
+async function tryOnlineElseQueue({ online, offline }) {
+  try {
+    await online();
+    return { synced: true };
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+    await offline();
+    return { synced: false };
+  }
 }
 
-// Crée une nouvelle commande (statut initial "En cours"), depuis le panier
-// du Menu.
+// Nouvelle commande (statut initial "En cours"), depuis le panier du Menu.
+// L'`id` est toujours généré côté client : clé d'idempotence pour le rejeu.
 export async function createOrder({ restaurantId, ownerEmail, orderFields }) {
-  const { error } = await supabase.from('orders').insert([{
+  const row = {
+    id: newOrderId(),
     restaurant_id: restaurantId,
     owner_email: ownerEmail,
     status: 'En cours',
+    priority: 'medium',
+    created_at: new Date().toISOString(),
     ...orderFields,
-  }]);
-  if (error) throw error;
+  };
+  return tryOnlineElseQueue({
+    online: async () => {
+      const { error } = await supabase.from('orders').insert([row]);
+      if (error) throw error;
+    },
+    offline: () => createOp({
+      entity: 'order', entityId: row.id, kind: 'order.create', payload: row, ownerEmail,
+    }),
+  });
 }
 
-// Met à jour les champs d'une commande existante (ex: panier modifié avant
-// renvoi en cuisine) — distinct de updateOrderStatus, qui ne touche que le
-// statut, et de finalizeOrder, réservé à l'encaissement.
+// Met à jour les champs d'une commande existante (panier modifié avant renvoi
+// en cuisine).
 export async function updateOrder(orderId, ownerEmail, fields) {
-  const { error } = await supabase
-    .from('orders')
-    .update(fields)
-    .eq('id', orderId)
-    .eq('owner_email', ownerEmail);
-  if (error) throw error;
+  return tryOnlineElseQueue({
+    online: async () => {
+      const { error } = await supabase
+        .from('orders')
+        .update(fields)
+        .eq('id', orderId)
+        .eq('owner_email', ownerEmail);
+      if (error) throw error;
+    },
+    offline: () => createOp({
+      entity: 'order', entityId: orderId, kind: 'order.update', payload: fields, ownerEmail,
+    }),
+  });
 }
 
-export async function deleteOrder(orderId) {
-  const { error } = await supabase.from('orders').delete().eq('id', orderId);
-  if (error) throw error;
+export async function updateOrderStatus(orderId, status, ownerEmail) {
+  return tryOnlineElseQueue({
+    online: async () => {
+      const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+      if (error) throw error;
+    },
+    offline: () => createOp({
+      entity: 'order', entityId: orderId, kind: 'order.status', payload: { status }, ownerEmail,
+    }),
+  });
 }
 
-// Encaissement d'une commande : insère la transaction correspondante puis
-// marque la commande "Servi". Avant cette centralisation, cette même
-// séquence à deux étapes était écrite à l'identique dans TablesTabContent
-// (handleFinalizeTable) et OrdersTabContent (handleFinalizeOrder).
+export async function deleteOrder(orderId, ownerEmail) {
+  return tryOnlineElseQueue({
+    online: async () => {
+      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      if (error) throw error;
+    },
+    offline: () => createOp({
+      entity: 'order', entityId: orderId, kind: 'order.delete', payload: { id: orderId }, ownerEmail,
+    }),
+  });
+}
+
+// Encaissement : insère la transaction puis marque la commande "Servi".
+// Hors-ligne, les deux étapes partent dans l'outbox (transaction avec UUID
+// client = idempotence au rejeu).
 export async function finalizeOrder({ order, restaurantId, ownerEmail, method }) {
-  const { error: transError } = await supabase.from('transactions').insert([{
+  const tx = {
+    id: newTransactionId(),
     restaurant_id: restaurantId,
     owner_email: ownerEmail,
     table_number: order.table_number,
@@ -77,8 +191,20 @@ export async function finalizeOrder({ order, restaurantId, ownerEmail, method })
     payment_method: method,
     items: order.items_details || [],
     created_at: new Date().toISOString(),
-  }]);
-  if (transError) throw transError;
+  };
 
-  await updateOrderStatus(order.id, 'Servi');
+  const txRes = await tryOnlineElseQueue({
+    online: async () => {
+      const { error } = await supabase.from('transactions').insert([tx]);
+      if (error) throw error;
+    },
+    offline: () => createOp({
+      entity: 'transaction', entityId: tx.id, kind: 'payment.create',
+      payload: { tx, orderId: order.id }, ownerEmail,
+    }),
+  });
+
+  await updateOrderStatus(order.id, 'Servi', ownerEmail);
+
+  return txRes;
 }

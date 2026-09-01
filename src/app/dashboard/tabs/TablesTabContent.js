@@ -203,7 +203,7 @@ export default function TablesTabContent({
   const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
     try {
-      await deleteOrder(orderToDelete.id);
+      await deleteOrder(orderToDelete.id, userProfile.owner_email);
       setIsDeleteModalOpen(false);
       setOrderToDelete(null);
       setSelectedOrderForBill(null);
