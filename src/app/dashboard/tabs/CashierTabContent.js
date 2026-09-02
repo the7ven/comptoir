@@ -39,6 +39,8 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   });
 
   const [totalExpenses, setTotalExpenses] = useState(0);
+  // Part réalisée hors-ligne (pas encore confirmée par le serveur).
+  const [offlinePart, setOfflinePart] = useState({ sales: 0, expenses: 0 });
   const [closingData, setClosingData] = useState({ cashInHand: "", notes: "" });
   const [isClosing, setIsClosing] = useState(false);
   const [chartData, setChartData] = useState([]);
@@ -95,6 +97,11 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
 
       const totalExp = exp?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
+      // Part hors-ligne : encaissements / dépenses saisis sans réseau et pas
+      // encore remontés (marqués _pending par le fold de l'outbox).
+      const offlineSales = (trans || []).filter((t) => t._pending).reduce((s, t) => s + Number(t.amount), 0);
+      const offlineExp = (exp || []).filter((e) => e._pending).reduce((s, e) => s + Number(e.amount), 0);
+
       // GRAPHIQUE : recettes vs dépenses, en buckets adaptés à la période —
       // par heure pour "jour", par jour pour "semaine"/"mois", par mois
       // pour "année" (sinon 365 points de jour illisibles sur la vue annuelle).
@@ -133,6 +140,7 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
       setSalesData({ total: totalSales, byMethod: methods });
       setSectionData({ repas, cocktails, jusNaturel: jus, barGlobal: bar });
       setTotalExpenses(totalExp);
+      setOfflinePart({ sales: offlineSales, expenses: offlineExp });
       setChartData(buckets);
     } catch (err) {
       console.error("Erreur caisse:", err.message);
@@ -300,10 +308,20 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
             <div style={card(T, { padding: 26 })}>
               <p style={eyebrow(T, { marginBottom: 8 })}>Total Recettes ({period})</p>
               <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, margin: 0 }}>{salesData.total.toLocaleString()} F</h2>
+              {offlinePart.sales > 0 && (
+                <p className="num" style={{ fontSize: 11, fontWeight: 700, color: T.warn, margin: "8px 0 0" }}>
+                  dont {offlinePart.sales.toLocaleString()} F hors-ligne · confirmé {(salesData.total - offlinePart.sales).toLocaleString()} F
+                </p>
+              )}
             </div>
             <div style={card(T, { padding: 26 })}>
               <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: T.bad, margin: "0 0 8px" }}>Total Dépenses ({period})</p>
               <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, color: T.bad, margin: 0 }}>-{totalExpenses.toLocaleString()} F</h2>
+              {offlinePart.expenses > 0 && (
+                <p className="num" style={{ fontSize: 11, fontWeight: 700, color: T.warn, margin: "8px 0 0" }}>
+                  dont {offlinePart.expenses.toLocaleString()} F hors-ligne
+                </p>
+              )}
             </div>
           </div>
 
@@ -323,10 +341,17 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
               {transactions.map((t, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: radiusSm, background: T.surface2 }}>
                   <div>
-                    <span style={{ fontSize: 12, fontWeight: 700, display: "block" }}>{t.payment_method}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                      {t.payment_method}
+                      {t._pending && (
+                        <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: t._failed ? T.bad : T.warn, background: t._failed ? T.badWash : T.warnWash, padding: "1px 6px", borderRadius: 999 }}>
+                          {t._failed ? "échec synchro" : "hors-ligne"}
+                        </span>
+                      )}
+                    </span>
                     <span style={{ fontSize: 10, color: T.faint, fontWeight: 600 }}>{new Date(t.created_at).toLocaleTimeString()}</span>
                   </div>
-                  <span className="num" style={{ fontWeight: 800, fontSize: 13 }}>{t.amount.toLocaleString()} F</span>
+                  <span className="num" style={{ fontWeight: 800, fontSize: 13 }}>{Number(t.amount).toLocaleString()} F</span>
                 </div>
               ))}
               {transactions.length === 0 && <p style={{ opacity: .4, fontStyle: "italic", padding: 14, fontSize: 13 }}>Aucun flux enregistré pour cette période.</p>}
@@ -338,6 +363,11 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
           <div style={card(T, { padding: 28, background: T.accent, border: "none" })}>
             <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: T.accentInk, opacity: .75, margin: "0 0 8px" }}>Solde Attendu (Net)</p>
             <h2 className="num" style={{ fontFamily: headFont, fontSize: 30, fontWeight: 800, color: T.accentInk, margin: 0 }}>{expectedBalance.toLocaleString()} F</h2>
+            {(offlinePart.sales > 0 || offlinePart.expenses > 0) && (
+              <p style={{ fontSize: 10.5, fontWeight: 700, color: T.accentInk, opacity: .8, margin: "10px 0 0" }}>
+                Inclut {(offlinePart.sales - offlinePart.expenses).toLocaleString()} F saisis hors-ligne, non encore confirmés.
+              </p>
+            )}
           </div>
 
           <div style={card(T, { padding: 24 })}>

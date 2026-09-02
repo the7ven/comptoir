@@ -202,11 +202,16 @@ export function foldPendingOrders(baseRows, ops) {
   return [...byId.values()];
 }
 
+// Les lignes issues d'une opération non envoyée sont marquées :
+//   _pending : true  -> saisie hors-ligne, pas encore confirmée par le serveur
+//   _failed  : true  -> le serveur l'a refusée (voir "Voir le détail")
+const tagPending = (row, op) => ({ ...row, _pending: true, _failed: op.status === "failed" });
+
 /** Idem foldPendingOrders, pour les dépenses (create / delete). */
 export function foldPendingExpenses(baseRows, ops) {
   const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));
   for (const op of ops || []) {
-    if (op.kind === "expense.create") byId.set(op.entityId, { ...op.payload });
+    if (op.kind === "expense.create") byId.set(op.entityId, tagPending(op.payload, op));
     else if (op.kind === "expense.delete") byId.delete(op.entityId);
   }
   return [...byId.values()];
@@ -217,7 +222,7 @@ export function foldPendingTransactions(baseRows, ops) {
   const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));
   for (const op of ops || []) {
     if (op.kind === "payment.create" && op.payload && op.payload.tx) {
-      byId.set(op.payload.tx.id, { ...op.payload.tx });
+      byId.set(op.payload.tx.id, tagPending(op.payload.tx, op));
     }
   }
   return [...byId.values()];
