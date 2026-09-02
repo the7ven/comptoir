@@ -14,6 +14,8 @@ import { getRestaurantTables } from "@/lib/data/tables";
 //                             DELTA (updated_at > curseur), soit par
 //                             RÉCONCILIATION complète de la fenêtre (qui
 //                             capture aussi les suppressions).
+//   - dépenses (Phase 3.6) : miroir de la fenêtre glissante, réconciliation
+//                             complète uniquement (pas de curseur).
 
 const MIRROR_WINDOW_DAYS = 3;
 const windowStartISO = () =>
@@ -144,21 +146,81 @@ export async function reconcileOrders(ownerEmail) {
 }
 
 // ---------------------------------------------------------------------------
+// Miroir dépenses (Phase 3.6) — pas de curseur (pas d'updated_at) : simple
+// réconciliation de la fenêtre glissante, suffisant vu le très faible volume.
+// ---------------------------------------------------------------------------
+
+const expSyncedKey = (key) => `synced:expenses:${key}`;
+
+export async function readExpensesMirror(ownerEmail) {
+  const db = getDb();
+  if (!db) return { rows: [], everSynced: false };
+  const key = normEmail(ownerEmail);
+  const [rows, meta] = await Promise.all([
+    db.expenses.where("owner_email").equalsIgnoreCase(key).toArray(),
+    db.meta.get(expSyncedKey(key)),
+  ]);
+  return { rows, everSynced: Boolean(meta) };
+}
+
+// Upsert sans suppression — utilisé par les lectures en ligne.
+export async function upsertExpensesMirror(ownerEmail, rows) {
+  const db = getDb();
+  if (!db || !rows) return;
+  const key = normEmail(ownerEmail);
+  await db.transaction("rw", db.expenses, db.meta, async () => {
+    if (rows.length) {
+      await db.expenses.bulkPut(rows.map((r) => ({ ...r, owner_email: normEmail(r.owner_email) })));
+    }
+    await db.meta.put({ key: expSyncedKey(key), at: Date.now() });
+  });
+}
+
+export async function reconcileExpenses(ownerEmail) {
+  const db = getDb();
+  if (!db || !ownerEmail) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  const key = normEmail(ownerEmail);
+  const start = windowStartISO();
+
+  try {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .eq("owner_email", ownerEmail)
+      .gte("created_at", start);
+    if (error) throw error;
+    const rows = (data || []).map((r) => ({ ...r, owner_email: normEmail(r.owner_email) }));
+
+    await db.transaction("rw", db.expenses, db.meta, async () => {
+      // Remplacement complet pour ce restaurant (volume négligeable).
+      await db.expenses.where("owner_email").equalsIgnoreCase(key).delete();
+      if (rows.length) await db.expenses.bulkPut(rows);
+      await db.meta.put({ key: expSyncedKey(key), at: Date.now() });
+    });
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
 
 /**
  * Rafraîchit tous les miroirs.
  * @param {string} ownerEmail
- * @param {{full?: boolean}} opts  full = réconciliation complète des commandes
- *   (capture les suppressions) ; sinon simple delta.
+ * @param {{full?: boolean}} opts  full = réconciliation complète (commandes +
+ *   dépenses, capture les suppressions) ; sinon simple delta commandes.
  */
 export async function pullAll(ownerEmail, { full = false } = {}) {
   if (!ownerEmail) return;
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-  await Promise.allSettled([
+  const jobs = [
     getDishes(ownerEmail),
     getRestaurantTables(ownerEmail),
     full ? reconcileOrders(ownerEmail) : pullOrdersDelta(ownerEmail),
-  ]);
+  ];
+  if (full) jobs.push(reconcileExpenses(ownerEmail));
+  await Promise.allSettled(jobs);
 }

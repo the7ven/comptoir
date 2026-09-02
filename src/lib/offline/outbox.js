@@ -18,8 +18,8 @@ import { normEmail } from "@/lib/offline/net";
 //     opId: uuid,            // clé primaire = clé d'idempotence
 //     entity: 'order' | 'transaction',
 //     entityId: string,      // id de la commande / transaction concernée
-//     kind: 'order.create' | 'order.update' | 'order.status'
-//         | 'order.delete'  | 'payment.create',
+//     kind: 'order.create' | 'order.update' | 'order.status' | 'order.delete'
+//         | 'payment.create' | 'expense.create' | 'expense.delete',
 //     payload: object,       // ce dont la Phase 5 aura besoin pour rejouer
 //     ownerEmail: string,
 //     clientCreatedAt: number, // Date.now() — ordre de rejeu
@@ -77,16 +77,16 @@ export async function createOp({ entity, entityId, kind, payload, ownerEmail }) 
     lastError: null,
   };
 
-  // Optimisation : supprimer une commande dont la création n'a jamais atteint
+  // Optimisation : supprimer une entité dont la création n'a jamais atteint
   // le serveur => on annule ses opérations non envoyées et on n'enfile RIEN
   // (rien à supprimer côté serveur).
-  if (kind === "order.delete") {
+  if (kind === "order.delete" || kind === "expense.delete") {
     const related = await db.outbox
       .where("entityId")
       .equals(entityId)
-      .and((o) => o.entity === "order" && o.status !== "done")
+      .and((o) => o.entity === entity && o.status !== "done")
       .toArray();
-    const hadUnsentCreate = related.some((o) => o.kind === "order.create");
+    const hadUnsentCreate = related.some((o) => o.kind === `${entity}.create`);
     if (related.length) {
       await db.outbox.bulkDelete(related.map((o) => o.opId));
     }
@@ -155,5 +155,15 @@ export function foldPendingOrders(baseRows, ops) {
     }
   }
 
+  return [...byId.values()];
+}
+
+/** Idem foldPendingOrders, pour les dépenses (create / delete). */
+export function foldPendingExpenses(baseRows, ops) {
+  const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));
+  for (const op of ops || []) {
+    if (op.kind === "expense.create") byId.set(op.entityId, { ...op.payload });
+    else if (op.kind === "expense.delete") byId.delete(op.entityId);
+  }
   return [...byId.values()];
 }

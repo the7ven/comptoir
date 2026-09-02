@@ -64,6 +64,18 @@ async function replayOp(op) {
       if (error) throw error;
       return;
     }
+    case "expense.create": {
+      const { error } = await supabase
+        .from("expenses")
+        .upsert([op.payload], { onConflict: "id", ignoreDuplicates: true });
+      if (error) throw error;
+      return;
+    }
+    case "expense.delete": {
+      const { error } = await supabase.from("expenses").delete().eq("id", op.entityId);
+      if (error) throw error;
+      return;
+    }
     default:
       throw new Error(`Type d'opération inconnu : ${op.kind}`);
   }
