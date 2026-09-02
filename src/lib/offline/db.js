@@ -5,10 +5,12 @@ import Dexie from "dexie";
 // v1 (Phase 2) — miroir lecture seule des données de référence : carte
 //   (`dishes`), définitions de tables (`restaurant_tables`), `meta`.
 // v2 (Phase 3) — commandes :
-//   - `orders`  : miroir du dernier instantané "commandes actives" ;
+//   - `orders`  : miroir des commandes récentes (réplique locale, Phase 6) ;
 //   - `outbox`  : file des écritures faites hors-ligne (créations / éditions /
 //                 changements de statut / encaissements), rejouée vers
 //                 Supabase par src/lib/offline/sync.js dès le retour réseau.
+// v3 (Phase 3.5) — `profiles` : profil restaurant en cache, pour que
+//   l'authentification survive à un rechargement hors-ligne.
 //
 // Singleton paresseux : jamais instancié côté serveur (SSR / build), où
 // `indexedDB` n'existe pas.
@@ -34,6 +36,16 @@ export function getDb() {
     orders: "id, owner_email, created_at, status",
     // opId = clé primaire = clé d'idempotence pour le rejeu (Phase 5).
     outbox: "opId, entity, entityId, status, ownerEmail, clientCreatedAt",
+  });
+
+  _db.version(3).stores({
+    dishes: "id, owner_email",
+    restaurant_tables: "id, owner_email",
+    meta: "key",
+    orders: "id, owner_email, created_at, status",
+    outbox: "opId, entity, entityId, status, ownerEmail, clientCreatedAt",
+    // Profil restaurant en cache (clé = id du compte), pour l'auth hors-ligne.
+    profiles: "id",
   });
 
   return _db;

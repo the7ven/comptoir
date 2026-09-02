@@ -87,17 +87,31 @@ export default function AdminDashboard() {
     let isMounted = true;
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // getSession() peut échouer hors-ligne s'il tente un refresh de jeton :
+        // on ne bloque pas là-dessus, on retombera sur le profil en cache.
+        let session = null;
+        try {
+          const res = await supabase.auth.getSession();
+          session = res.data?.session ?? null;
+        } catch { /* refresh impossible hors-ligne */ }
+
+        // Sans session en storage, on garde quand même la trace du dernier
+        // compte connu sur cet appareil pour relire son profil en cache.
+        const uid = session?.user?.id || localStorage.getItem('comptoir:last_uid');
+        if (!uid) {
           if (isMounted) router.replace('/auth/login');
           return;
         }
 
-        const realProfile = await getRestaurantProfile(session.user.id);
+        // getRestaurantProfile est cache-aware : hors-ligne il renvoie le
+        // dernier profil connu ; une vraie erreur d'auth (401, RLS) est
+        // propagée et nous renvoie vers login via le catch.
+        const realProfile = await getRestaurantProfile(uid);
         if (!realProfile) {
           if (isMounted) router.replace('/auth/login');
           return;
         }
+        localStorage.setItem('comptoir:last_uid', uid);
 
         // SÉCURITÉ : impersonate_resto_id n'est qu'un hint UI côté client — il
         // n'accorde rien par lui-même. Le SELECT ci-dessous n'aboutit que
@@ -134,6 +148,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     localStorage.removeItem('impersonate_resto_id');
+    localStorage.removeItem('comptoir:last_uid');
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');

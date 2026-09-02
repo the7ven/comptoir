@@ -1,15 +1,39 @@
 import { supabase } from '@/lib/supabase';
+import { getDb } from '@/lib/offline/db';
+import { looksLikeNetworkError } from '@/lib/offline/net';
+
+// Cache local du profil restaurant (Phase 3.5) : permet à l'authentification
+// de survivre à un rechargement hors-ligne — sans lui, checkAuth ne peut pas
+// relire le profil et renvoie vers /auth/login.
+async function mirrorProfile(profile) {
+  const db = getDb();
+  if (!db || !profile) return;
+  try { await db.profiles.put(profile); } catch { /* IndexedDB indispo */ }
+}
+
+async function readProfileMirror(id) {
+  const db = getDb();
+  if (!db) return null;
+  try { return (await db.profiles.get(id)) || null; } catch { return null; }
+}
 
 // Profil restaurant complet par id — utilisé pour l'auth (profil réel +
 // cible d'impersonation) et pour toute lecture de profil (Paramètres).
+// Cache-through : hors-ligne, on renvoie le dernier profil connu.
 export async function getRestaurantProfile(id) {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) mirrorProfile(data);
+    return data;
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+    return readProfileMirror(id);
+  }
 }
 
 // Membres d'équipe (comptes caissier) d'un owner.
