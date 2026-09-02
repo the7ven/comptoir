@@ -154,3 +154,12 @@ export async function retryFailedOps() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(OUTBOX_EVENT));
   return failed.length;
 }
+
+/** Repasse UNE opération 'failed' en 'pending' puis relance le rejeu. */
+export async function retryOp(opId) {
+  const db = getDb();
+  if (!db) return;
+  await db.outbox.update(opId, { status: "pending", lastError: null });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(OUTBOX_EVENT));
+  await flushOutbox();
+}

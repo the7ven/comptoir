@@ -125,8 +125,52 @@ export async function pendingCount(ownerEmail) {
   return (await pendingOps(ownerEmail)).length;
 }
 
+export function failedOps(ownerEmail) {
+  return opsByStatus(["failed"], ownerEmail);
+}
+
 export async function failedCount(ownerEmail) {
-  return (await opsByStatus(["failed"], ownerEmail)).length;
+  return (await failedOps(ownerEmail)).length;
+}
+
+/** Supprime définitivement une opération de l'outbox (bouton "Abandonner"). */
+export async function discardOp(opId) {
+  const db = getDb();
+  if (!db) return;
+  await db.outbox.delete(opId);
+  notifyOutboxChanged();
+}
+
+const money = (v) => `${Number(v || 0).toLocaleString("fr-FR")} F`;
+
+// Description lisible d'une opération, pour l'écran de détail des échecs.
+export function describeOp(op) {
+  const p = op.payload || {};
+  switch (op.kind) {
+    case "order.create":
+      return { title: `Nouvelle commande · ${p.table_number || "?"}`, sub: money(p.total_amount) };
+    case "order.update":
+      return { title: `Modification de commande`, sub: money(p.total_amount) };
+    case "order.status":
+      return { title: `Commande → « ${p.status} »`, sub: "" };
+    case "order.delete":
+      return { title: `Annulation de commande`, sub: "" };
+    case "payment.create": {
+      const tx = p.tx || {};
+      return {
+        title: `Encaissement · ${tx.payment_method || "?"}`,
+        sub: `${money(tx.amount)}${tx.table_number ? ` — ${tx.table_number}` : ""}`,
+      };
+    }
+    case "expense.create":
+      return { title: `Dépense : ${p.label || "sans libellé"}`, sub: money(p.amount) };
+    case "expense.delete":
+      return { title: `Suppression de dépense`, sub: "" };
+    case "closing.create":
+      return { title: `Clôture de caisse du ${p.date || "?"}`, sub: `Réel ${money(p.real_amount)}` };
+    default:
+      return { title: op.kind, sub: "" };
+  }
 }
 
 /**
