@@ -2,12 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ShoppingBag, Wallet, FileText, Lock, XCircle, Trash2, Loader2, CloudOff, Cloud,
+  ShoppingBag, Wallet, FileText, Lock, XCircle, Trash2, Loader2, CloudOff, Cloud, Receipt,
 } from "lucide-react";
 import { getDashTokens, card, headFont, radiusSm } from "@/lib/dashTheme";
-import { getActivityLog } from "@/lib/data/activity";
+import { getActivityLog, getActivityInvoice } from "@/lib/data/activity";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useSyncedRefresh } from "@/hooks/useSyncedRefresh";
+
+const INVOICE_ACTIONS = new Set(["payment.create", "order.create", "order.cancel"]);
 
 const ACTIONS = {
   "order.create":   { label: "Nouvelle commande",     icon: ShoppingBag, color: "accent" },
@@ -48,6 +50,7 @@ export default function ActivityTabContent({ isDarkMode, userProfile }) {
   const [atEnd, setAtEnd] = useState(false);
   const [filter, setFilter] = useState("all");
   const [source, setSource] = useState("all"); // all | online | offline
+  const [invoiceFor, setInvoiceFor] = useState(null); // entrée dont on regarde la facture
 
   const load = useCallback(async () => {
     if (!userProfile) return;
@@ -133,7 +136,14 @@ export default function ActivityTabContent({ isDarkMode, userProfile }) {
         <div key={g.key} style={{ marginBottom: 22 }}>
           <p style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: T.faint, margin: "0 0 10px" }}>{g.label}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {g.items.map((e) => <Row key={e.id} T={T} e={e} />)}
+            {g.items.map((e) => (
+              <Row
+                key={e.id}
+                T={T}
+                e={e}
+                onOpen={INVOICE_ACTIONS.has(e.action) && e.entity_id ? () => setInvoiceFor(e) : null}
+              />
+            ))}
           </div>
         </div>
       ))}
@@ -147,6 +157,91 @@ export default function ActivityTabContent({ isDarkMode, userProfile }) {
           {loadingMore ? "…" : "Charger plus"}
         </button>
       )}
+
+      {invoiceFor && (
+        <InvoiceModal
+          T={T}
+          entry={invoiceFor}
+          ownerEmail={userProfile.owner_email}
+          onClose={() => setInvoiceFor(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function InvoiceModal({ T, entry, ownerEmail, onClose }) {
+  const [data, setData] = useState(undefined); // undefined = chargement, null = introuvable
+
+  useEffect(() => {
+    let alive = true;
+    const entityType = entry.entity_type || (entry.action === "payment.create" ? "transaction" : "order");
+    getActivityInvoice(entityType, entry.entity_id, ownerEmail)
+      .then((d) => { if (alive) setData(d || null); })
+      .catch(() => { if (alive) setData(null); });
+    return () => { alive = false; };
+  }, [entry, ownerEmail]);
+
+  const isPayment = entry.action === "payment.create";
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,.6)", backdropFilter: "blur(4px)" }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 360 }}>
+        <div style={{ background: "#fff", color: "#000", padding: 22, borderRadius: 4, fontFamily: "monospace", fontSize: 11, lineHeight: 1.45, borderTop: "8px solid #000", boxShadow: "0 20px 50px -10px rgba(0,0,0,.5)" }}>
+          <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: 12, marginBottom: 12 }}>
+            <h4 style={{ fontSize: 15, fontWeight: 800, textTransform: "uppercase", fontStyle: "italic", margin: 0 }}>
+              {isPayment ? "Facture" : entry.action === "order.cancel" ? "Commande annulée" : "Commande"}
+            </h4>
+            {data && (
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", margin: "4px 0 0" }}>
+                {data.table_number || entry.label || "—"}
+                {isPayment && data.payment_method ? ` · ${data.payment_method}` : ""}
+              </p>
+            )}
+          </div>
+
+          {data === undefined && (
+            <p style={{ textAlign: "center", opacity: .5, padding: "20px 0" }}>Chargement…</p>
+          )}
+          {data === null && (
+            <p style={{ textAlign: "center", opacity: .6, padding: "20px 0" }}>
+              Détail indisponible (hors-ligne ou opération trop ancienne).
+            </p>
+          )}
+          {data && (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {(data.items || []).length === 0 && (
+                  <p style={{ opacity: .5, fontStyle: "italic" }}>Aucun détail d&apos;articles.</p>
+                )}
+                {(data.items || []).map((it, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ flex: 1 }}>
+                      <b>{it.quantity || 1}×</b> {(it.name || "").toUpperCase()}
+                    </span>
+                    <span style={{ fontWeight: 700 }}>
+                      {((Number(it.price) || 0) * (it.quantity || 1)).toLocaleString("fr-FR")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ borderTop: "3px solid #000", paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 800 }}>
+                <span style={{ textTransform: "uppercase", fontStyle: "italic" }}>Total</span>
+                <span style={{ fontSize: 15 }}>{(data.amount || 0).toLocaleString("fr-FR")} F</span>
+              </div>
+            </>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          style={{ marginTop: 12, width: "100%", background: T.surface, color: T.ink, border: `1px solid ${T.line}`, borderRadius: radiusSm, padding: "11px 0", fontSize: 12, fontWeight: 800, textTransform: "uppercase", cursor: "pointer" }}
+        >
+          Fermer
+        </button>
+      </div>
     </div>
   );
 }
@@ -167,7 +262,7 @@ function Chip({ T, active, onClick, children }) {
   );
 }
 
-function Row({ T, e }) {
+function Row({ T, e, onOpen }) {
   const meta = ACTIONS[e.action] || { label: e.action, icon: FileText, color: "muted" };
   const Icon = meta.icon;
   const accentFg = T[meta.color] || T.muted;
@@ -175,7 +270,13 @@ function Row({ T, e }) {
   const time = new Date(e.occurred_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div style={{ ...card(T, { padding: 14 }), display: "flex", alignItems: "flex-start", gap: 12 }}>
+    <div
+      onClick={onOpen || undefined}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onOpen(); } } : undefined}
+      style={{ ...card(T, { padding: 14 }), display: "flex", alignItems: "flex-start", gap: 12, cursor: onOpen ? "pointer" : "default" }}
+    >
       <div style={{ width: 34, height: 34, borderRadius: radiusSm, background: accentBg, color: accentFg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <Icon size={16} />
       </div>
@@ -190,7 +291,12 @@ function Row({ T, e }) {
             </span>
           )}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 4 }}>
+        {e.sub_label && (
+          <p style={{ fontSize: 11.5, color: T.muted, fontWeight: 600, margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {e.sub_label}
+          </p>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 5 }}>
           <span style={{ fontSize: 10.5, color: T.faint, fontWeight: 600 }}>
             {time}{e.actor_name ? ` · ${e.actor_name}` : ""}{e.actor_role === "cashier" ? " (caissier)" : ""}
           </span>
@@ -201,6 +307,11 @@ function Row({ T, e }) {
             <Badge T={T} tone={e._status === "failed" ? "bad" : "accent"}>
               {e._status === "failed" ? "échec synchro" : "en attente"}
             </Badge>
+          )}
+          {onOpen && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: T.accent }}>
+              <Receipt size={11} /> Facture
+            </span>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/offline/db';
 import { looksLikeNetworkError, normEmail } from '@/lib/offline/net';
-import { pendingActivityEntries } from '@/lib/offline/outbox';
+import { pendingActivityEntries, unsentOps } from '@/lib/offline/outbox';
 
 // Journal d'activité (Phase 3.9). Alimenté côté serveur par des triggers ;
 // lu ici en cache-through : hors-ligne, on renvoie le miroir local + les
@@ -74,5 +74,78 @@ export async function getActivityLog(ownerEmail, { isOwner = false, before = nul
       : rows.filter((r) => r.action !== 'order.cancel' && r.action !== 'expense.delete');
     // Hors-ligne : pas de pagination fine, on renvoie le miroir complet trié.
     return merge(filtered.sort(byNewest).slice(0, PAGE * 4), local);
+  }
+}
+
+// Aperçu de la facture / commande liée à une entrée du journal.
+// Cherche d'abord en local (miroir + outbox), puis le serveur.
+// @returns {{ table_number, payment_method?, amount, items: [] } | null}
+export async function getActivityInvoice(entityType, entityId, ownerEmail) {
+  const db = getDb();
+
+  if (entityType === 'transaction') {
+    if (db) {
+      const local = await db.transactions.get(entityId);
+      if (local) {
+        return {
+          table_number: local.table_number, payment_method: local.payment_method,
+          amount: Number(local.amount), items: local.items || [],
+        };
+      }
+    }
+    const op = (await unsentOps(ownerEmail)).find(
+      (o) => o.kind === 'payment.create' && o.payload?.tx?.id === entityId,
+    );
+    if (op) {
+      const tx = op.payload.tx;
+      return {
+        table_number: tx.table_number, payment_method: tx.payment_method,
+        amount: Number(tx.amount), items: tx.items || [],
+      };
+    }
+    try {
+      const { data, error } = await supabase
+        .from('transactions').select('*').eq('id', entityId).maybeSingle();
+      if (error) throw error;
+      return data && {
+        table_number: data.table_number, payment_method: data.payment_method,
+        amount: Number(data.amount), items: data.items || [],
+      };
+    } catch (err) {
+      if (!looksLikeNetworkError(err)) throw err;
+      return null;
+    }
+  }
+
+  // entityType === 'order'
+  if (db) {
+    const local = await db.orders.get(entityId);
+    if (local) {
+      return {
+        table_number: local.table_number, amount: Number(local.total_amount),
+        items: local.items_details || [],
+      };
+    }
+  }
+  const op = (await unsentOps(ownerEmail)).find(
+    (o) => o.kind === 'order.create' && o.entityId === entityId,
+  );
+  if (op) {
+    return {
+      table_number: op.payload.table_number, amount: Number(op.payload.total_amount),
+      items: op.payload.items_details || [],
+    };
+  }
+  try {
+    const { data, error } = await supabase
+      .from('orders').select('*').eq('id', entityId).maybeSingle();
+    if (error) throw error;
+    return data && {
+      table_number: data.table_number, amount: Number(data.total_amount),
+      items: data.items_details || [],
+    };
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+    return null;
   }
 }

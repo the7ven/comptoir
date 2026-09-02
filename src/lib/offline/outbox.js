@@ -236,18 +236,19 @@ export async function pendingActivityEntries(ownerEmail, isOwner) {
     if (!action) continue;
     if (!isOwner && (action === "order.cancel" || action === "expense.delete")) continue;
     const p = op.payload || {};
-    let label = null;
-    let amount = null;
-    if (op.kind === "order.create") { label = p.table_number; amount = p.total_amount; }
+    let label = null, sub_label = null, amount = null;
+    if (op.kind === "order.create") { label = p.table_number; sub_label = p.items_summary; amount = p.total_amount; }
     else if (op.kind === "order.delete") { label = null; }
-    else if (op.kind === "payment.create") { label = p.tx?.payment_method; amount = p.tx?.amount; }
-    else if (op.kind === "expense.create") { label = p.label; amount = p.amount; }
+    else if (op.kind === "payment.create") { label = p.tx?.table_number; sub_label = p.tx?.payment_method; amount = p.tx?.amount; }
+    else if (op.kind === "expense.create") { label = p.label; sub_label = p.category; amount = p.amount; }
     else if (op.kind === "closing.create") { label = p.date; amount = p.real_amount; }
     out.push({
       id: op.opId,
       action,
+      entity_type: op.entity === "transaction" ? "transaction" : op.entity,
       entity_id: op.entityId,
       label,
+      sub_label,
       amount,
       source: "offline",
       actor_name: null,
