@@ -284,6 +284,31 @@ export async function cachedStaffCount(ownerEmail) {
   return m ? m.value : null;
 }
 
+// Journal d'activité (Phase 3.9) — garde en local les ~200 dernières entrées.
+export async function reconcileActivityLog(ownerEmail) {
+  const db = getDb();
+  if (!db || !ownerEmail) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  const key = normEmail(ownerEmail);
+  try {
+    const { data, error } = await supabase
+      .from("activity_log")
+      .select("*")
+      .eq("owner_email", ownerEmail)
+      .order("occurred_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    const rows = (data || []).map((r) => ({ ...r, owner_email: normEmail(r.owner_email) }));
+    await db.transaction("rw", db.activity_log, db.meta, async () => {
+      await db.activity_log.where("owner_email").equalsIgnoreCase(key).delete();
+      if (rows.length) await db.activity_log.bulkPut(rows);
+      await db.meta.put({ key: `synced:activity:${key}`, at: Date.now() });
+    });
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
@@ -307,6 +332,7 @@ export async function pullAll(ownerEmail, { full = false } = {}) {
       reconcileExpenses(ownerEmail),
       reconcileTransactions(ownerEmail),
       refreshStaffCount(ownerEmail),
+      reconcileActivityLog(ownerEmail),
     );
   }
   await Promise.allSettled(jobs);

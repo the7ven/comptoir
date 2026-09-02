@@ -217,6 +217,49 @@ export function foldPendingExpenses(baseRows, ops) {
   return [...byId.values()];
 }
 
+// Opérations non envoyées transformées en entrées de journal d'activité
+// (pour que le Journal montre "ce que je viens de faire" avant la synchro).
+// isOwner=false masque annulations et suppressions, comme la RLS serveur.
+const OP_TO_ACTION = {
+  "order.create": "order.create",
+  "order.delete": "order.cancel",
+  "payment.create": "payment.create",
+  "expense.create": "expense.create",
+  "expense.delete": "expense.delete",
+  "closing.create": "closing.create",
+};
+export async function pendingActivityEntries(ownerEmail, isOwner) {
+  const ops = await unsentOps(ownerEmail);
+  const out = [];
+  for (const op of ops) {
+    const action = OP_TO_ACTION[op.kind];
+    if (!action) continue;
+    if (!isOwner && (action === "order.cancel" || action === "expense.delete")) continue;
+    const p = op.payload || {};
+    let label = null;
+    let amount = null;
+    if (op.kind === "order.create") { label = p.table_number; amount = p.total_amount; }
+    else if (op.kind === "order.delete") { label = null; }
+    else if (op.kind === "payment.create") { label = p.tx?.payment_method; amount = p.tx?.amount; }
+    else if (op.kind === "expense.create") { label = p.label; amount = p.amount; }
+    else if (op.kind === "closing.create") { label = p.date; amount = p.real_amount; }
+    out.push({
+      id: op.opId,
+      action,
+      entity_id: op.entityId,
+      label,
+      amount,
+      source: "offline",
+      actor_name: null,
+      actor_role: null,
+      occurred_at: new Date(op.clientCreatedAt).toISOString(),
+      _local: true,
+      _status: op.status, // 'pending' | 'failed'
+    });
+  }
+  return out;
+}
+
 /** Encaissements en attente (op payment.create) fondus sur les transactions. */
 export function foldPendingTransactions(baseRows, ops) {
   const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));

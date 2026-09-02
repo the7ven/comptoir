@@ -14,6 +14,7 @@ import Dexie from "dexie";
 // v4 (Phase 3.6) — `expenses` : miroir local des dépenses récentes.
 // v5 (Phase 3.7) — `transactions` : miroir local des encaissements récents
 //   (pour que la Caisse et les recettes du jour restent justes hors-ligne).
+// v6 (Phase 3.9) — `activity_log` : miroir du journal d'activité.
 //
 // Singleton paresseux : jamais instancié côté serveur (SSR / build), où
 // `indexedDB` n'existe pas.
@@ -70,6 +71,18 @@ export function getDb() {
     profiles: "id",
     expenses: "id, owner_email, created_at",
     transactions: "id, owner_email, created_at",
+  });
+
+  _db.version(6).stores({
+    dishes: "id, owner_email",
+    restaurant_tables: "id, owner_email",
+    meta: "key",
+    orders: "id, owner_email, created_at, status",
+    outbox: "opId, entity, entityId, status, ownerEmail, clientCreatedAt",
+    profiles: "id",
+    expenses: "id, owner_email, created_at",
+    transactions: "id, owner_email, created_at",
+    activity_log: "id, owner_email, occurred_at",
   });
 
   return _db;

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, UtensilsCrossed, Users, Settings, LogOut,
   Wallet, Grid, Flame, TrendingUp, Menu as MenuIcon, X, Sun, Moon,
-  Package, FileText, ShoppingBag, History, Calendar as CalendarIcon,
+  Package, FileText, ShoppingBag, History, Activity, Calendar as CalendarIcon,
   Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Lock,
   Mail, MessageCircle, ArrowLeft,
@@ -41,6 +41,7 @@ import HistoryTabContent from './tabs/HistoryTabContent';
 import ReportsTabContent from './tabs/ReportsTabContent';
 import ExpensesTabContent from './tabs/ExpensesTabContent';
 import StaffTabContent from './tabs/StaffTabContent';
+import ActivityTabContent from './tabs/ActivityTabContent';
 import SettingsTabContent from './tabs/SettingsTabContent';
 
 export default function AdminDashboard() {
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
       label: "Gestion",
       items: [
         { id: "expenses", label: "Dépenses", icon: <FileText size={18} />, roles: ["owner", "cashier"] },
+        { id: "activity", label: "Journal", icon: <Activity size={18} />, roles: ["owner", "cashier"] },
         { id: "stock", label: "Stocks", icon: <Package size={18} />, roles: ["owner"] },
         { id: "reports", label: "Rapports", icon: <BarChart size={18} />, roles: ["owner"] },
         { id: "staff", label: "Staff", icon: <Users size={18} />, roles: ["owner"] },
@@ -192,6 +194,7 @@ export default function AdminDashboard() {
       case "history": return <HistoryTabContent {...commonProps} />;
       case "reports": return <ReportsTabContent {...commonProps} />;
       case "expenses": return <ExpensesTabContent {...commonProps} />;
+      case "activity": return <ActivityTabContent {...commonProps} />;
       case "staff": return <StaffTabContent {...commonProps} />;
       case "settings": return <SettingsTabContent {...commonProps} setGlobalRestoName={setRestaurantName} />;
       default: return <div style={{ padding: 60, opacity: .3, fontStyle: 'italic' }}>Module bientôt disponible...</div>;
