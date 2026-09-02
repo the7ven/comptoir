@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Receipt, UtensilsCrossed, Users, Settings, LogOut,
   Wallet, Grid, Flame, TrendingUp, Menu as MenuIcon, X, Sun, Moon,
-  Package, FileText, ShoppingBag, History, Calendar as CalendarIcon,
+  Package, FileText, ShoppingBag, History, Activity, Calendar as CalendarIcon,
   Banknote, Smartphone, CreditCard, ShieldCheck, Loader2, BarChart, ArrowDownCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, Lock,
   Mail, MessageCircle, ArrowLeft,
@@ -18,6 +18,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getDashTokens, card, pill, btnGhost, iconBtn, chipBtn, eyebrow, bodyFont, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import BrandMark from '@/components/BrandMark';
+import OfflineIndicator from '@/components/OfflineIndicator';
+import OutboxSync from '@/components/OutboxSync';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 import { getRestaurantTables, getTableStatus } from '@/lib/data/tables';
 import { getActiveOrders } from '@/lib/data/orders';
 import { getTransactionsForRange } from '@/lib/data/transactions';
@@ -38,6 +41,7 @@ import HistoryTabContent from './tabs/HistoryTabContent';
 import ReportsTabContent from './tabs/ReportsTabContent';
 import ExpensesTabContent from './tabs/ExpensesTabContent';
 import StaffTabContent from './tabs/StaffTabContent';
+import ActivityTabContent from './tabs/ActivityTabContent';
 import SettingsTabContent from './tabs/SettingsTabContent';
 
 export default function AdminDashboard() {
@@ -72,6 +76,7 @@ export default function AdminDashboard() {
       label: "Gestion",
       items: [
         { id: "expenses", label: "Dépenses", icon: <FileText size={18} />, roles: ["owner", "cashier"] },
+        { id: "activity", label: "Journal", icon: <Activity size={18} />, roles: ["owner", "cashier"] },
         { id: "stock", label: "Stocks", icon: <Package size={18} />, roles: ["owner"] },
         { id: "reports", label: "Rapports", icon: <BarChart size={18} />, roles: ["owner"] },
         { id: "staff", label: "Staff", icon: <Users size={18} />, roles: ["owner"] },
@@ -84,17 +89,31 @@ export default function AdminDashboard() {
     let isMounted = true;
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // getSession() peut échouer hors-ligne s'il tente un refresh de jeton :
+        // on ne bloque pas là-dessus, on retombera sur le profil en cache.
+        let session = null;
+        try {
+          const res = await supabase.auth.getSession();
+          session = res.data?.session ?? null;
+        } catch { /* refresh impossible hors-ligne */ }
+
+        // Sans session en storage, on garde quand même la trace du dernier
+        // compte connu sur cet appareil pour relire son profil en cache.
+        const uid = session?.user?.id || localStorage.getItem('comptoir:last_uid');
+        if (!uid) {
           if (isMounted) router.replace('/auth/login');
           return;
         }
 
-        const realProfile = await getRestaurantProfile(session.user.id);
+        // getRestaurantProfile est cache-aware : hors-ligne il renvoie le
+        // dernier profil connu ; une vraie erreur d'auth (401, RLS) est
+        // propagée et nous renvoie vers login via le catch.
+        const realProfile = await getRestaurantProfile(uid);
         if (!realProfile) {
           if (isMounted) router.replace('/auth/login');
           return;
         }
+        localStorage.setItem('comptoir:last_uid', uid);
 
         // SÉCURITÉ : impersonate_resto_id n'est qu'un hint UI côté client — il
         // n'accorde rien par lui-même. Le SELECT ci-dessous n'aboutit que
@@ -131,6 +150,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     localStorage.removeItem('impersonate_resto_id');
+    localStorage.removeItem('comptoir:last_uid');
     await supabase.auth.signOut();
     router.refresh();
     router.push('/');
@@ -174,6 +194,7 @@ export default function AdminDashboard() {
       case "history": return <HistoryTabContent {...commonProps} />;
       case "reports": return <ReportsTabContent {...commonProps} />;
       case "expenses": return <ExpensesTabContent {...commonProps} />;
+      case "activity": return <ActivityTabContent {...commonProps} />;
       case "staff": return <StaffTabContent {...commonProps} />;
       case "settings": return <SettingsTabContent {...commonProps} setGlobalRestoName={setRestaurantName} />;
       default: return <div style={{ padding: 60, opacity: .3, fontStyle: 'italic' }}>Module bientôt disponible...</div>;
@@ -289,6 +310,9 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        <OutboxSync ownerEmail={userProfile?.owner_email} />
+        <OfflineIndicator isDarkMode={isDarkMode} ownerEmail={userProfile?.owner_email} />
+
         <div style={{ padding: '28px', maxWidth: 1400, margin: '0 auto' }}>
           {renderContent()}
         </div>
@@ -397,111 +421,118 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
   });
   const [closingDone, setClosingDone] = useState(null); // null = en cours de vérification
 
-  useEffect(() => {
-    const fetchRealData = async () => {
-      const sharedEmail = userProfile.owner_email;
-      const { start, end } = getPeriodRange(period, selectedDate);
-      const { start: prevStart, end: prevEnd } = getPreviousRange(period, selectedDate);
+  const fetchRealData = async () => {
+    if (!userProfile) return;
+    const sharedEmail = userProfile.owner_email;
+    const { start, end } = getPeriodRange(period, selectedDate);
+    const { start: prevStart, end: prevEnd } = getPreviousRange(period, selectedDate);
 
-      let transData, expData, prevTransData;
-      try {
-        [transData, expData, prevTransData] = await Promise.all([
-          getTransactionsForRange(sharedEmail, start, end),
-          getExpensesForRange(sharedEmail, start, end),
-          getTransactionsForRange(sharedEmail, prevStart, prevEnd),
-        ]);
-      } catch (err) {
-        console.error("Erreur chargement des statistiques:", err.message);
-        return;
-      }
+    let transData, expData, prevTransData;
+    try {
+      [transData, expData, prevTransData] = await Promise.all([
+        getTransactionsForRange(sharedEmail, start, end),
+        getExpensesForRange(sharedEmail, start, end),
+        getTransactionsForRange(sharedEmail, prevStart, prevEnd),
+      ]);
+    } catch (err) {
+      console.error("Erreur chargement des statistiques:", err.message);
+      return;
+    }
 
-      if (transData) {
-        const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
-        const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+    if (transData) {
+      const total = transData.reduce((acc, curr) => acc + Number(curr.amount), 0);
+      const totalExp = expData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
-        let cuisine = 0;
-        let bar = 0;
+      let cuisine = 0;
+      let bar = 0;
 
-        transData.forEach(t => {
-          if (t.items) {
-            t.items.forEach(item => {
-              const itemTotal = Number(item.price) * (item.quantity || 1);
-              if (item.category === "Plats" || item.category === "Accompagnements") {
-                cuisine += itemTotal;
-              } else {
-                bar += itemTotal;
-              }
-            });
-          }
-        });
-
-        const methods = transData.reduce((acc, curr) => {
-          const m = curr.payment_method || "Espèces";
-          acc[m] = (acc[m] || 0) + Number(curr.amount);
-          return acc;
-        }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 });
-
-        const itemCounts = {};
-        transData.forEach(t => {
-          if (t.items) t.items.forEach(item => {
-            itemCounts[item.name] = (itemCounts[item.name] || 0) + 1;
+      transData.forEach(t => {
+        if (t.items) {
+          t.items.forEach(item => {
+            const itemTotal = Number(item.price) * (item.quantity || 1);
+            if (item.category === "Plats" || item.category === "Accompagnements") {
+              cuisine += itemTotal;
+            } else {
+              bar += itemTotal;
+            }
           });
-        });
-        const sortedItems = Object.entries(itemCounts)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3);
-
-        let chartData = [];
-        let peakHour = null;
-        if (period === "day") {
-          chartData = [...Array(24)].map((_, h) => ({
-            label: `${h}h`,
-            amount: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0)
-          }));
-          const peak = chartData.reduce((best, cur) => (cur.amount > (best?.amount || 0) ? cur : best), null);
-          if (peak && peak.amount > 0) peakHour = peak.label;
-        } else {
-          const grouped = transData.reduce((acc, t) => {
-            const d = new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-            acc[d] = (acc[d] || 0) + Number(t.amount);
-            return acc;
-          }, {});
-          chartData = Object.entries(grouped).map(([label, amount]) => ({ label, amount }));
         }
+      });
 
-        const expensesByCategory = Object.entries(
-          (expData || []).reduce((acc, e) => {
-            const cat = e.category || "Autre";
-            acc[cat] = (acc[cat] || 0) + Number(e.amount);
-            return acc;
-          }, {})
-        )
-          .map(([category, amount]) => ({ category, amount }))
-          .sort((a, b) => b.amount - a.amount);
+      const methods = transData.reduce((acc, curr) => {
+        const m = curr.payment_method || "Espèces";
+        acc[m] = (acc[m] || 0) + Number(curr.amount);
+        return acc;
+      }, { "Espèces": 0, "Orange Money": 0, "Wave": 0, "MTN Money": 0, "Visa": 0 });
 
-        const prevTotal = prevTransData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
-        const trendPct = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
-
-        setRealStats({
-          dayTotal: total,
-          dayExpenses: totalExp,
-          netProfit: total - totalExp,
-          cuisineTotal: cuisine,
-          barTotal: bar,
-          byMethod: methods,
-          chartData: chartData,
-          popularItems: sortedItems,
-          avgTicket: transData.length > 0 ? total / transData.length : 0,
-          expensesByCategory,
-          recentTransactions: transData.slice(0, 5),
-          peakHour,
-          trendPct,
+      const itemCounts = {};
+      transData.forEach(t => {
+        if (t.items) t.items.forEach(item => {
+          itemCounts[item.name] = (itemCounts[item.name] || 0) + 1;
         });
+      });
+      const sortedItems = Object.entries(itemCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+
+      let chartData = [];
+      let peakHour = null;
+      if (period === "day") {
+        chartData = [...Array(24)].map((_, h) => ({
+          label: `${h}h`,
+          amount: transData.filter(t => new Date(t.created_at).getHours() === h).reduce((s, t) => s + Number(t.amount), 0)
+        }));
+        const peak = chartData.reduce((best, cur) => (cur.amount > (best?.amount || 0) ? cur : best), null);
+        if (peak && peak.amount > 0) peakHour = peak.label;
+      } else {
+        const grouped = transData.reduce((acc, t) => {
+          const d = new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+          acc[d] = (acc[d] || 0) + Number(t.amount);
+          return acc;
+        }, {});
+        chartData = Object.entries(grouped).map(([label, amount]) => ({ label, amount }));
       }
-    };
+
+      const expensesByCategory = Object.entries(
+        (expData || []).reduce((acc, e) => {
+          const cat = e.category || "Autre";
+          acc[cat] = (acc[cat] || 0) + Number(e.amount);
+          return acc;
+        }, {})
+      )
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const prevTotal = prevTransData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+      const trendPct = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+
+      setRealStats({
+        dayTotal: total,
+        dayExpenses: totalExp,
+        netProfit: total - totalExp,
+        cuisineTotal: cuisine,
+        barTotal: bar,
+        byMethod: methods,
+        chartData: chartData,
+        popularItems: sortedItems,
+        avgTicket: transData.length > 0 ? total / transData.length : 0,
+        expensesByCategory,
+        recentTransactions: transData.slice(0, 5),
+        peakHour,
+        trendPct,
+      });
+    }
+  };
+
+  useEffect(() => {
     fetchRealData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, userProfile, period]);
+
+  // Recalcule les recettes après un rejeu de l'outbox (encaissements /
+  // dépenses hors-ligne remontés).
+  useSyncedRefresh(() => fetchRealData(), !!userProfile);
 
   // Snapshot en direct : plan de salle, commandes actives, stock critique.
   // Ne dépend pas de la période/date affichée — c'est l'état "maintenant".
@@ -509,11 +540,24 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     if (!userProfile) return;
     const sharedEmail = userProfile.owner_email;
 
-    const [tables, orders, inventory] = await Promise.all([
-      getRestaurantTables(sharedEmail),
-      getActiveOrders(sharedEmail),
-      getInventory(userProfile.id),
-    ]);
+    // Tables + commandes viennent du cache local hors-ligne ; le stock (Phase 7,
+    // pas encore hors-ligne) est traité à part pour ne pas faire échouer tout
+    // le snapshot.
+    let tables, orders;
+    try {
+      [tables, orders] = await Promise.all([
+        getRestaurantTables(sharedEmail),
+        getActiveOrders(sharedEmail),
+      ]);
+    } catch (err) {
+      console.warn("Snapshot live indisponible", err?.message);
+      return;
+    }
+
+    let lowStockItems = [];
+    try {
+      lowStockItems = getLowStockItems(await getInventory(userProfile.id));
+    } catch { /* stock indisponible hors-ligne */ }
 
     let tablesOccupee = 0, tablesAddition = 0;
     tables.forEach((table) => {
@@ -529,7 +573,7 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
       ordersEnCours: orders.filter((o) => o.status === "En cours").length,
       ordersPret: orders.filter((o) => o.status === "Prêt").length,
       unpaidValue: orders.reduce((acc, o) => acc + (o.total_amount || 0), 0),
-      lowStockItems: getLowStockItems(inventory),
+      lowStockItems,
     });
   };
 
@@ -543,6 +587,10 @@ function OverviewTabContent({ isDarkMode, selectedDate, userProfile }) {
     () => fetchLiveSnapshot(),
     !!userProfile,
   );
+
+  // Après un rejeu réussi de l'outbox, l'état serveur a changé sans que le
+  // realtime ne se déclenche (ce sont nos propres écritures).
+  useSyncedRefresh(() => fetchLiveSnapshot(), !!userProfile);
 
   // Statut de clôture de caisse — seulement pertinent en vue "jour", pour
   // la date affichée.

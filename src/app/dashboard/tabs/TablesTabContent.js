@@ -24,6 +24,7 @@ import {
 } from "@/lib/data/tables";
 import { getActiveOrders, deleteOrder, finalizeOrder } from "@/lib/data/orders";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { useSyncedRefresh } from "@/hooks/useSyncedRefresh";
 
 export default function TablesTabContent({
   isDarkMode,
@@ -56,6 +57,7 @@ export default function TablesTabContent({
   // est déclarée plus bas dans le composant (temporal dead zone sinon, le
   // hook est appelé pendant le rendu, avant que `const fetchData` existe).
   useRealtimeRefresh("tables_sync_realtime", ["orders", "restaurant_tables"], () => fetchData(), !!userProfile);
+  useSyncedRefresh(() => fetchData(), !!userProfile);
 
   const fetchData = async () => {
     try {
@@ -65,15 +67,22 @@ export default function TablesTabContent({
 
       const sharedEmail = userProfile.owner_email;
 
+      // Les tables (données de référence) sont servies depuis le cache local
+      // hors-ligne ; les commandes actives (Phase 3) échouent encore sans
+      // réseau — on les traite séparément pour que le plan de salle reste
+      // affiché même sans elles.
       const tablesData = await getRestaurantTables(sharedEmail);
-      const ordersData = await getActiveOrders(sharedEmail);
-
-      const sortedTables = tablesData.sort((a, b) =>
+      const sortedTables = [...tablesData].sort((a, b) =>
         a.table_name.localeCompare(b.table_name, undefined, { numeric: true }),
       );
-
       setTables(sortedTables);
-      setActiveOrders(ordersData);
+
+      try {
+        setActiveOrders(await getActiveOrders(sharedEmail));
+      } catch (ordersErr) {
+        console.warn("Commandes actives indisponibles (hors-ligne ?)", ordersErr?.message);
+        setActiveOrders([]);
+      }
     } catch (error) {
       console.error("Erreur Supabase:", error.message);
     } finally {
@@ -196,7 +205,7 @@ export default function TablesTabContent({
   const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
     try {
-      await deleteOrder(orderToDelete.id);
+      await deleteOrder(orderToDelete.id, userProfile.owner_email);
       setIsDeleteModalOpen(false);
       setOrderToDelete(null);
       setSelectedOrderForBill(null);

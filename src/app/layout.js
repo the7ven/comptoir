@@ -2,6 +2,7 @@ import { Lexend, Inter, Manrope } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { ThemeProvider } from '@/context/ThemeContext';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 // Configuration de la police
 const lexend = Lexend({
@@ -27,6 +28,12 @@ const manrope = Manrope({
 export const metadata = {
   title: 'Comptoir - Gestion de restaurant',
   description: 'Gérez votre restaurant à la vitesse de la lumière',
+  applicationName: 'Comptoir',
+  appleWebApp: { capable: true, title: 'Comptoir', statusBarStyle: 'default' },
+};
+
+export const viewport = {
+  themeColor: '#2C5FE0',
 };
 
 export default function RootLayout({ children }) {
@@ -36,6 +43,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <ServiceWorkerRegistrar />
         <Analytics />
       </body>
     </html>

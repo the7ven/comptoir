@@ -8,6 +8,7 @@ import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, inputStyle, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import { getExpensesForRange, createExpense, deleteExpense as deleteExpenseRow } from '@/lib/data/expenses';
 import { getPeriodRange } from '@/lib/dateRange';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 
 export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfile }) {
   const T = getDashTokens(isDarkMode);
@@ -22,6 +23,8 @@ export default function ExpensesTabContent({ isDarkMode, selectedDate, userProfi
       fetchExpenses();
     }
   }, [selectedDate, userProfile, period]); // Ajout de period dans les dépendances
+
+  useSyncedRefresh(() => fetchExpenses(), !!userProfile);
 
   const fetchExpenses = async () => {
     try {

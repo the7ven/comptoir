@@ -10,6 +10,7 @@ import { toUserMessage } from '@/lib/errors';
 import { getDashTokens, card, btnSolid, headFont, radius, radiusSm } from '@/lib/dashTheme';
 import { getOrdersForDay, updateOrderStatus, deleteOrder, finalizeOrder } from '@/lib/data/orders';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 
 export default function OrdersTabContent({
   isDarkMode, setActiveTab, setCart, setPendingOrder, selectedDate, userProfile
@@ -33,6 +34,7 @@ export default function OrdersTabContent({
   // Référencée via une fonction fléchée : `fetchOrders` est déclarée plus
   // bas (temporal dead zone sinon, le hook est appelé pendant le rendu).
   useRealtimeRefresh("orders_live", ["orders"], () => fetchOrders(), !!userProfile);
+  useSyncedRefresh(() => fetchOrders(), !!userProfile);
 
   const fetchOrders = async () => {
     try {
@@ -65,7 +67,7 @@ export default function OrdersTabContent({
     // "Servi" avait vraiment été encaissée ou non.
     if (order.status !== "En cours") return;
     try {
-      await updateOrderStatus(order.id, "Prêt");
+      await updateOrderStatus(order.id, "Prêt", userProfile.owner_email);
       fetchOrders();
     } catch (err) { alert(toUserMessage(err, "Impossible de mettre à jour le statut de la commande.")); }
   };
@@ -86,7 +88,7 @@ export default function OrdersTabContent({
 
   const handleDeleteOrder = async () => {
     try {
-      await deleteOrder(orderToDelete.id);
+      await deleteOrder(orderToDelete.id, userProfile.owner_email);
     } catch (error) {
       console.error("Erreur:", error.message);
     }
