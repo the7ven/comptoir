@@ -204,14 +204,95 @@ export async function reconcileExpenses(ownerEmail) {
 }
 
 // ---------------------------------------------------------------------------
+// Miroir transactions (Phase 3.7) — même schéma que les dépenses.
+// ---------------------------------------------------------------------------
+
+const txSyncedKey = (key) => `synced:transactions:${key}`;
+
+export async function readTransactionsMirror(ownerEmail) {
+  const db = getDb();
+  if (!db) return { rows: [], everSynced: false };
+  const key = normEmail(ownerEmail);
+  const [rows, meta] = await Promise.all([
+    db.transactions.where("owner_email").equalsIgnoreCase(key).toArray(),
+    db.meta.get(txSyncedKey(key)),
+  ]);
+  return { rows, everSynced: Boolean(meta) };
+}
+
+export async function upsertTransactionsMirror(ownerEmail, rows) {
+  const db = getDb();
+  if (!db || !rows) return;
+  const key = normEmail(ownerEmail);
+  await db.transaction("rw", db.transactions, db.meta, async () => {
+    if (rows.length) {
+      await db.transactions.bulkPut(rows.map((r) => ({ ...r, owner_email: normEmail(r.owner_email) })));
+    }
+    await db.meta.put({ key: txSyncedKey(key), at: Date.now() });
+  });
+}
+
+export async function reconcileTransactions(ownerEmail) {
+  const db = getDb();
+  if (!db || !ownerEmail) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  const key = normEmail(ownerEmail);
+  const start = windowStartISO();
+
+  try {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("owner_email", ownerEmail)
+      .gte("created_at", start);
+    if (error) throw error;
+    const rows = (data || []).map((r) => ({ ...r, owner_email: normEmail(r.owner_email) }));
+
+    await db.transaction("rw", db.transactions, db.meta, async () => {
+      await db.transactions.where("owner_email").equalsIgnoreCase(key).delete();
+      if (rows.length) await db.transactions.bulkPut(rows);
+      await db.meta.put({ key: txSyncedKey(key), at: Date.now() });
+    });
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+  }
+}
+
+// Nombre de comptes caissier actifs — mis en cache pour le garde-fou de la
+// clôture de caisse hors-ligne (Phase 3.7).
+export async function refreshStaffCount(ownerEmail) {
+  const db = getDb();
+  if (!db || !ownerEmail) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  try {
+    const { count, error } = await supabase
+      .from("restaurants")
+      .select("id", { head: true, count: "exact" })
+      .eq("owner_email", ownerEmail)
+      .eq("role", "cashier");
+    if (error) throw error;
+    await db.meta.put({ key: `staff_count:${normEmail(ownerEmail)}`, value: count || 0 });
+  } catch (err) {
+    if (!looksLikeNetworkError(err)) throw err;
+  }
+}
+
+export async function cachedStaffCount(ownerEmail) {
+  const db = getDb();
+  if (!db) return null;
+  const m = await db.meta.get(`staff_count:${normEmail(ownerEmail)}`);
+  return m ? m.value : null;
+}
+
+// ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
 
 /**
  * Rafraîchit tous les miroirs.
  * @param {string} ownerEmail
- * @param {{full?: boolean}} opts  full = réconciliation complète (commandes +
- *   dépenses, capture les suppressions) ; sinon simple delta commandes.
+ * @param {{full?: boolean}} opts  full = réconciliation complète (commandes,
+ *   dépenses, transactions, compte caissiers) ; sinon simple delta commandes.
  */
 export async function pullAll(ownerEmail, { full = false } = {}) {
   if (!ownerEmail) return;
@@ -221,6 +302,12 @@ export async function pullAll(ownerEmail, { full = false } = {}) {
     getRestaurantTables(ownerEmail),
     full ? reconcileOrders(ownerEmail) : pullOrdersDelta(ownerEmail),
   ];
-  if (full) jobs.push(reconcileExpenses(ownerEmail));
+  if (full) {
+    jobs.push(
+      reconcileExpenses(ownerEmail),
+      reconcileTransactions(ownerEmail),
+      refreshStaffCount(ownerEmail),
+    );
+  }
   await Promise.allSettled(jobs);
 }

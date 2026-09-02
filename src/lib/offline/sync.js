@@ -76,6 +76,15 @@ async function replayOp(op) {
       if (error) throw error;
       return;
     }
+    case "closing.create": {
+      const { error } = await supabase
+        .from("daily_closings")
+        .upsert([op.payload], { onConflict: "id", ignoreDuplicates: true });
+      // Une clôture déjà faite pour ce jour (contrainte d'unicité éventuelle sur
+      // owner_email+date) n'est pas un échec bloquant : la caisse EST clôturée.
+      if (error && !/duplicate|unique|already exists/i.test(error.message || "")) throw error;
+      return;
+    }
     default:
       throw new Error(`Type d'opération inconnu : ${op.kind}`);
   }

@@ -167,3 +167,14 @@ export function foldPendingExpenses(baseRows, ops) {
   }
   return [...byId.values()];
 }
+
+/** Encaissements en attente (op payment.create) fondus sur les transactions. */
+export function foldPendingTransactions(baseRows, ops) {
+  const byId = new Map((baseRows || []).map((r) => [r.id, { ...r }]));
+  for (const op of ops || []) {
+    if (op.kind === "payment.create" && op.payload && op.payload.tx) {
+      byId.set(op.payload.tx.id, { ...op.payload.tx });
+    }
+  }
+  return [...byId.values()];
+}

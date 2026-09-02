@@ -16,6 +16,8 @@ import { getTransactionsForRange } from '@/lib/data/transactions';
 import { getExpensesForRange } from '@/lib/data/expenses';
 import { createDailyClosing } from '@/lib/data/closings';
 import { getPeriodRange } from '@/lib/dateRange';
+import { cachedStaffCount } from '@/lib/offline/pull';
+import { useSyncedRefresh } from '@/hooks/useSyncedRefresh';
 
 const MONTH_LABELS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
@@ -52,6 +54,8 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
   useEffect(() => {
     if (userProfile) fetchDailyData();
   }, [selectedDate, userProfile, period]); // Ajout de period dans les dépendances
+
+  useSyncedRefresh(() => fetchDailyData(), !!userProfile);
 
   const fetchDailyData = async () => {
     try {
@@ -148,9 +152,24 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
     if (!Number.isFinite(realAmount) || realAmount < 0) {
       return showClosingToast({ type: "error", title: "Montant invalide", detail: "Le montant réel doit être un nombre positif." }, 3000);
     }
+    // Garde-fou multi-caisses : hors-ligne, si le restaurant a des comptes
+    // caissier, une autre caisse a pu encaisser de son côté — le théorique
+    // serait sous-évalué. On exige alors une reconnexion.
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (offline) {
+      const staff = await cachedStaffCount(userProfile.owner_email);
+      if (staff && staff > 0) {
+        return showClosingToast({
+          type: "error",
+          title: "Reconnexion nécessaire",
+          detail: "Des ventes d'autres caisses peuvent manquer. Reconnectez-vous pour clôturer.",
+        }, 6000);
+      }
+    }
+
     setIsClosing(true);
     try {
-      await createDailyClosing({
+      const { synced } = await createDailyClosing({
         restaurantId: userProfile.id,
         ownerEmail: userProfile.owner_email,
         date: selectedDate,
@@ -162,8 +181,9 @@ export default function CashierTabContent({ isDarkMode, selectedDate, userProfil
       });
       showClosingToast({
         type: "success",
-        title: "Clôture enregistrée",
-        detail: difference === 0 ? "Aucun écart de caisse." : `Écart : ${difference > 0 ? "+" : ""}${difference.toLocaleString()} F`,
+        title: synced ? "Clôture enregistrée" : "Clôture en attente de synchro",
+        detail: (synced ? "" : "Elle remontera au retour du réseau. ")
+          + (difference === 0 ? "Aucun écart de caisse." : `Écart : ${difference > 0 ? "+" : ""}${difference.toLocaleString()} F`),
       });
       setClosingData({ cashInHand: "", notes: "" });
     } catch (err) {

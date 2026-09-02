@@ -12,6 +12,8 @@ import Dexie from "dexie";
 // v3 (Phase 3.5) — `profiles` : profil restaurant en cache, pour que
 //   l'authentification survive à un rechargement hors-ligne.
 // v4 (Phase 3.6) — `expenses` : miroir local des dépenses récentes.
+// v5 (Phase 3.7) — `transactions` : miroir local des encaissements récents
+//   (pour que la Caisse et les recettes du jour restent justes hors-ligne).
 //
 // Singleton paresseux : jamais instancié côté serveur (SSR / build), où
 // `indexedDB` n'existe pas.
@@ -57,6 +59,17 @@ export function getDb() {
     outbox: "opId, entity, entityId, status, ownerEmail, clientCreatedAt",
     profiles: "id",
     expenses: "id, owner_email, created_at",
+  });
+
+  _db.version(5).stores({
+    dishes: "id, owner_email",
+    restaurant_tables: "id, owner_email",
+    meta: "key",
+    orders: "id, owner_email, created_at, status",
+    outbox: "opId, entity, entityId, status, ownerEmail, clientCreatedAt",
+    profiles: "id",
+    expenses: "id, owner_email, created_at",
+    transactions: "id, owner_email, created_at",
   });
 
   return _db;
