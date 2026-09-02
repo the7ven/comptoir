@@ -254,38 +254,42 @@ export default function AdminDashboard() {
 
       <main style={{ flex: 1, width: '100%', maxHeight: '100vh', overflowY: 'auto' }}>
         <header style={{
-          display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 16,
-          padding: '18px 28px', borderBottom: `1px solid ${T.line}`, background: T.bg, position: 'sticky', top: 0, zIndex: 10,
+          borderBottom: `1px solid ${T.line}`, background: T.bg, position: 'sticky', top: 0, zIndex: 10,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <button onClick={() => setIsSidebarOpen(true)} className="lg-hidden-flex" style={iconBtn(T)}>
-              <MenuIcon size={20} />
-            </button>
-            <div>
-              <h2 style={{ fontFamily: headFont, fontSize: 20, fontWeight: 800, margin: 0 }}>Bonjour, {restaurantName}</h2>
-              <p style={{ color: T.faint, fontSize: 12, fontWeight: 600, margin: '2px 0 0' }}>{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 16,
+            padding: '18px 28px', maxWidth: 1400, margin: '0 auto',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <button onClick={() => setIsSidebarOpen(true)} className="lg-hidden-flex" style={iconBtn(T)}>
+                <MenuIcon size={20} />
+              </button>
+              <div>
+                <h2 style={{ fontFamily: headFont, fontSize: 20, fontWeight: 800, margin: 0 }}>Bonjour, {restaurantName}</h2>
+                <p style={{ color: T.faint, fontSize: 12, fontWeight: 600, margin: '2px 0 0' }}>{userProfile?.role === 'owner' ? 'Administrateur' : 'Caissier'}</p>
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={() => { setActiveTab("menu"); setIsSidebarOpen(false); }}
-              style={{ ...chipBtn(T), border: 'none', cursor: 'pointer', background: T.accentWash, color: T.accent }}
-            >
-              <UtensilsCrossed size={16} />
-              <span style={{ fontWeight: 700 }}>Menu</span>
-            </button>
-            <div onClick={() => dateInputRef.current?.showPicker()} style={{ ...chipBtn(T), position: 'relative' }}>
-              <CalendarIcon size={16} color={T.accent} />
-              <span style={{ fontWeight: 700, color: T.ink }}>{currentDateDisplay}</span>
-              <input type="date" ref={dateInputRef} value={selectedDateISO} onChange={(e) => setSelectedDateISO(e.target.value)} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={() => { setActiveTab("menu"); setIsSidebarOpen(false); }}
+                style={{ ...chipBtn(T), border: 'none', cursor: 'pointer', background: T.accentWash, color: T.accent }}
+              >
+                <UtensilsCrossed size={16} />
+                <span style={{ fontWeight: 700 }}>Menu</span>
+              </button>
+              <div onClick={() => dateInputRef.current?.showPicker()} style={{ ...chipBtn(T), position: 'relative' }}>
+                <CalendarIcon size={16} color={T.accent} />
+                <span style={{ fontWeight: 700, color: T.ink }}>{currentDateDisplay}</span>
+                <input type="date" ref={dateInputRef} value={selectedDateISO} onChange={(e) => setSelectedDateISO(e.target.value)} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+              </div>
+              <button onClick={toggleTheme} style={iconBtn(T)}>
+                {isDarkMode ? <Sun size={18} color="#facc15" /> : <Moon size={18} color={T.accentDark} />}
+              </button>
             </div>
-            <button onClick={toggleTheme} style={iconBtn(T)}>
-              {isDarkMode ? <Sun size={18} color="#facc15" /> : <Moon size={18} color={T.accentDark} />}
-            </button>
           </div>
         </header>
 
-        <div style={{ padding: '28px', maxWidth: 1400 }}>
+        <div style={{ padding: '28px', maxWidth: 1400, margin: '0 auto' }}>
           {renderContent()}
         </div>
       </main>
